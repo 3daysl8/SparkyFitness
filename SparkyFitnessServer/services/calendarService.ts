@@ -146,6 +146,26 @@ function textValue(value: unknown): string | null {
   return String(value);
 }
 
+/** node-ical bakes the *process's* local timezone into the Date it builds for
+ * a `VALUE=DATE` (all-day) field — e.g. midnight 2026-09-07 on a UTC+10
+ * server becomes the instant 2026-09-06T14:00:00Z. Naively serializing that
+ * with `toISOString()` recovers the wrong calendar day everywhere except a
+ * UTC-TZ server. Re-derive the intended YYYY-MM-DD by formatting in that same
+ * local zone (never explicit UTC) — `timeZone` is a parameter only so a test
+ * can pin a specific zone deterministically; production calls default to the
+ * runtime's own zone, which is exactly the one node-ical assumed. Re-anchor
+ * the recovered day as UTC midnight so the value is TZ-independent from here
+ * on — no downstream consumer needs to know the server's TZ to read it. */
+function allDayInstantToUtcMidnightIso(date: Date, timeZone?: string): string {
+  const localDay = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+  return `${localDay}T00:00:00.000Z`;
+}
+
 function toStructuredEvent(
   feed: CalendarFeedRow,
   source: ical.VEvent,
@@ -154,14 +174,20 @@ function toStructuredEvent(
   allDay: boolean
 ): StructuredCalendarEvent {
   const title = textValue(source.summary) ?? '(untitled event)';
+  const startIso = allDay
+    ? allDayInstantToUtcMidnightIso(start)
+    : start.toISOString();
+  const endIso = allDay
+    ? allDayInstantToUtcMidnightIso(end)
+    : end.toISOString();
   return {
-    id: `${feed.id}:${source.uid}:${start.toISOString()}`,
+    id: `${feed.id}:${source.uid}:${startIso}`,
     feedId: feed.id,
     feedName: feed.name,
     feedColor: feed.color,
     title,
-    start: start.toISOString(),
-    end: end.toISOString(),
+    start: startIso,
+    end: endIso,
     allDay,
     location: textValue(source.location),
     description: textValue(source.description),
@@ -277,7 +303,11 @@ function invalidateFeedCache(feedId: string): void {
   feedCache.del(`calendar-feed:${feedId}`);
 }
 
-export { WORKOUT_TITLE_PATTERN, eventsForFeedInRange };
+export {
+  WORKOUT_TITLE_PATTERN,
+  eventsForFeedInRange,
+  allDayInstantToUtcMidnightIso,
+};
 export default {
   getAgenda,
   validateFeedUrl,

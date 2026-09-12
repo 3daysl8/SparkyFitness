@@ -3,6 +3,7 @@ import * as ical from 'node-ical';
 import {
   eventsForFeedInRange,
   WORKOUT_TITLE_PATTERN,
+  allDayInstantToUtcMidnightIso,
 } from '../services/calendarService.js';
 
 // A hand-built but valid RFC 5545 fixture, parsed offline via node-ical's
@@ -72,6 +73,11 @@ describe('calendarService.eventsForFeedInRange', () => {
 
     const holiday = byTitle.get('Public Holiday');
     expect(holiday).toMatchObject({ allDay: true });
+    // The fixture's DTSTART;VALUE=DATE:20260916 must round-trip to exactly
+    // that calendar day regardless of the test runner's own local timezone —
+    // this is the exact bug class allDayInstantToUtcMidnightIso guards
+    // against (see its own dedicated tests below).
+    expect(holiday!.start).toBe('2026-09-16T00:00:00.000Z');
 
     const gym = byTitle.get('Gym - Leg Day');
     expect(gym).toMatchObject({ isWorkout: true });
@@ -109,6 +115,40 @@ describe('calendarService.eventsForFeedInRange', () => {
       new Date('2026-01-02T00:00:00Z')
     );
     expect(events).toHaveLength(0);
+  });
+});
+
+describe('allDayInstantToUtcMidnightIso', () => {
+  it('recovers the correct calendar day on a positive-offset (UTC+10) server', () => {
+    // node-ical parses DTSTART;VALUE=DATE:20260907 as local midnight in the
+    // process's own timezone, then stores it as that instant's UTC
+    // equivalent — on a UTC+10 server (Australia/Melbourne, AEST, no DST in
+    // September), local midnight 2026-09-07 is 2026-09-06T14:00:00Z. Caught
+    // live: naively serializing that instant with toISOString() rendered
+    // the holiday under Sep 6, a full calendar day early.
+    expect(
+      allDayInstantToUtcMidnightIso(
+        new Date('2026-09-06T14:00:00.000Z'),
+        'Australia/Melbourne'
+      )
+    ).toBe('2026-09-07T00:00:00.000Z');
+  });
+
+  it('recovers the correct calendar day on a negative-offset (UTC-8) server', () => {
+    // Local midnight 2026-09-07 in America/Los_Angeles (PDT, UTC-7 in
+    // September) is 2026-09-07T07:00:00Z.
+    expect(
+      allDayInstantToUtcMidnightIso(
+        new Date('2026-09-07T07:00:00.000Z'),
+        'America/Los_Angeles'
+      )
+    ).toBe('2026-09-07T00:00:00.000Z');
+  });
+
+  it('is a no-op on a UTC server', () => {
+    expect(
+      allDayInstantToUtcMidnightIso(new Date('2026-09-07T00:00:00.000Z'), 'UTC')
+    ).toBe('2026-09-07T00:00:00.000Z');
   });
 });
 
