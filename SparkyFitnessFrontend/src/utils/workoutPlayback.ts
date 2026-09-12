@@ -26,6 +26,9 @@ export interface WorkoutPlaybackSetDraft extends WorkoutPresetSet {
   completed: boolean;
   /** ISO timestamp of when the set was checked off; null while incomplete. */
   completed_at: string | null;
+  /** Stamped by the page when completing a set beats isPrSet's baseline
+   * comparison (see below) — cleared if the set is un-completed. */
+  is_pr?: boolean;
 }
 
 export interface WorkoutPlaybackExerciseDraft {
@@ -448,6 +451,9 @@ export function toggleWorkoutSetCompletion(
     ...set,
     completed: !set.completed,
     completed_at: set.completed ? null : new Date().toISOString(),
+    // Un-completing a set retracts any PR it earned; re-completing it later
+    // goes through the page's isPrSet check again rather than assuming.
+    is_pr: set.completed ? false : set.is_pr,
   }));
 }
 
@@ -648,6 +654,105 @@ export function setWorkoutPlaybackRestTimer(
   return touchDraft({ ...draft, rest_timer: restTimer });
 }
 
+// --- Personal record (PR) detection -----------------------------------
+//
+// Ported from SparkyFitnessMobile/src/utils/workoutSession.ts (isWarmupSetType
+// / compareSetRecords / isPrSet), which already solved this exact problem for
+// the mobile app. The web playback draft has no persisted set id until
+// Finish, so the port takes a WorkoutSetPointer instead of PresetSessionResponse
+// + a set id — otherwise the comparison logic is unchanged.
+
+/** True when `set_type` names a warmup, matching the server's SQL filter and
+ * the mobile app's isWarmupSetType: lowercase, strip every non-alphanumeric
+ * character, prefix-match "warmup". Catches "warmup", "Warm-up", "Warm up",
+ * "Warm-up Set", etc. Warmups never count toward or earn a PR. */
+export function isWarmupSetType(setType: string | null | undefined): boolean {
+  if (setType == null) return false;
+  return setType
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .startsWith('warmup');
+}
+
+/** A single historical best used as the PR baseline (weight in kg, the
+ * canonical stored unit — see useExerciseStats' bestSet). */
+export interface PrBaselineEntry {
+  weight: number | null;
+  reps: number | null;
+}
+
+/**
+ * Compare two weighted sets by (weight at hundredths precision, then reps).
+ * Positive when `a` is the better record, negative when `b` is, 0 when tied.
+ *
+ * Hundredths, not epsilon: the DB stores `numeric(10,2)`, so a sub-cent
+ * difference round-trips to equality — and rounding also kills the float
+ * dust from lb→kg conversion. Null reps count as 0.
+ */
+export function compareSetRecords(
+  a: { weight: number; reps: number | null },
+  b: { weight: number; reps: number | null }
+): number {
+  const wa = Math.round(a.weight * 100);
+  const wb = Math.round(b.weight * 100);
+  if (wa !== wb) return wa - wb;
+  return (a.reps ?? 0) - (b.reps ?? 0);
+}
+
+/**
+ * Decide whether the set at `pointer` beats its PR baseline. Never a PR when:
+ * the set is a warmup, its weight is null, or the baseline hasn't loaded yet
+ * (`undefined` — stay conservative rather than risk a false PR before the
+ * history is actually known). The effective best is the better of the
+ * baseline and every other already-completed non-warmup weighted set of the
+ * same exercise in this draft (the candidate itself excluded) — so a session
+ * with no prior history can still earn a PR on its second-heaviest set.
+ */
+export function isPrSet(
+  draft: WorkoutPlaybackDraft,
+  pointer: WorkoutSetPointer,
+  baseline: PrBaselineEntry | null | undefined
+): boolean {
+  const exercise = draft.exercises[pointer.exerciseIndex];
+  const candidate = exercise?.sets[pointer.setIndex];
+  if (!exercise || !candidate) return false;
+  if (candidate.weight == null) return false;
+  if (isWarmupSetType(candidate.set_type)) return false;
+  if (baseline === undefined) return false;
+
+  let best: { weight: number; reps: number | null } | null =
+    baseline != null && baseline.weight != null
+      ? { weight: baseline.weight, reps: baseline.reps }
+      : null;
+
+  draft.exercises.forEach((otherExercise, exerciseIndex) => {
+    if (otherExercise.exercise_id !== exercise.exercise_id) return;
+    otherExercise.sets.forEach((set, setIndex) => {
+      if (
+        exerciseIndex === pointer.exerciseIndex &&
+        setIndex === pointer.setIndex
+      ) {
+        return;
+      }
+      if (!set.completed) return;
+      if (set.weight == null) return;
+      if (isWarmupSetType(set.set_type)) return;
+      const contender = { weight: set.weight, reps: set.reps };
+      if (best == null || compareSetRecords(contender, best) > 0) {
+        best = contender;
+      }
+    });
+  });
+
+  if (best == null) return false;
+  return (
+    compareSetRecords(
+      { weight: candidate.weight, reps: candidate.reps },
+      best
+    ) > 0
+  );
+}
+
 function toNullableNumber(value: number | null | undefined): number | null {
   return value === undefined ? null : value;
 }
@@ -707,9 +812,10 @@ export function buildPresetSessionCreateRequestFromDraft(
           rpe: toNullableNumber(set.rpe),
           // `?? null` also covers persisted drafts that predate the field.
           completed_at: set.completed_at ?? null,
-          // Web playback makes no PR claims — drafts never carry PRs, and the
-          // server owns PR detection. Always false on create.
-          is_pr: false,
+          // Stamped live by the page's isPrSet check as sets are completed
+          // (see the "Personal record (PR) detection" section above) —
+          // `?? false` covers drafts persisted before this field existed.
+          is_pr: set.is_pr ?? false,
         })),
       };
     })

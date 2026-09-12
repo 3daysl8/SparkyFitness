@@ -102,6 +102,16 @@ export const exerciseEntryKeys = {
       exerciseId,
       ...(limit ? [{ limit }] : []),
     ] as const,
+  stats: (
+    exerciseId: string,
+    options?: { excludePresetEntryId?: string; presetId?: string }
+  ) =>
+    [
+      ...exerciseEntryKeys.all,
+      'stats',
+      exerciseId,
+      ...(options?.excludePresetEntryId || options?.presetId ? [options] : []),
+    ] as const,
   progress: (
     exerciseId: string,
     startDate: string,

@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useQueries,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   fetchExerciseEntries,
@@ -10,11 +15,15 @@ import {
   deleteExercisePresetEntry,
   fetchExerciseDetails,
   getExerciseHistory,
+  getExerciseStats,
 } from '@/api/Exercises/exerciseEntryService';
 import { exerciseEntryKeys, exerciseKeys } from '@/api/keys/exercises';
 import i18n from '@/i18n';
 import { dailyProgressKeys } from '@/api/keys/diary';
-import { UpdateExerciseEntryRequest } from '@workspace/shared';
+import {
+  UpdateExerciseEntryRequest,
+  type ExerciseStatsResponse,
+} from '@workspace/shared';
 import { useDiaryInvalidation } from '../useInvalidateKeys';
 
 // --- Queries ---
@@ -35,6 +44,41 @@ export const useExerciseHistory = (exerciseId: string, limit: number = 5) => {
     queryFn: () => getExerciseHistory(exerciseId, limit),
     enabled: !!exerciseId,
   });
+};
+
+/** Query definition for per-exercise best/last set + recent sessions stats,
+ * used for live "Previous: …" placeholders and PR-baseline comparison during
+ * a workout. Exported as options, not just wrapped in
+ * useWorkoutExerciseStats below, in case a single-exercise caller ever needs
+ * it directly (e.g. via useQuery). */
+export const exerciseStatsQueryOptions = (
+  exerciseId: string,
+  options?: { excludePresetEntryId?: string; presetId?: string }
+) => ({
+  queryKey: exerciseEntryKeys.stats(exerciseId, options),
+  queryFn: () => getExerciseStats(exerciseId, options),
+  enabled: !!exerciseId,
+});
+
+/** Best/last/recent-session stats for every exercise in a live workout
+ * draft, keyed by exercise_id. A dynamic list of useQuery calls (one per
+ * exercise) would violate the rules of hooks, so this fans out over
+ * useQueries instead — one hook call regardless of how many exercises are in
+ * the draft. */
+export const useWorkoutExerciseStats = (
+  exerciseIds: string[]
+): Record<string, ExerciseStatsResponse | undefined> => {
+  const results = useQueries({
+    queries: exerciseIds.map((exerciseId) =>
+      exerciseStatsQueryOptions(exerciseId)
+    ),
+  });
+
+  const map: Record<string, ExerciseStatsResponse | undefined> = {};
+  exerciseIds.forEach((exerciseId, index) => {
+    map[exerciseId] = results[index]?.data;
+  });
+  return map;
 };
 
 export const useCreateExerciseEntryMutation = () => {

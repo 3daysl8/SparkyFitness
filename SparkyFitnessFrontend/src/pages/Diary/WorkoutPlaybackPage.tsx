@@ -4,7 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader } from '@/components/ui/card';
-import { useCreatePresetSessionMutation } from '@/hooks/Exercises/useExerciseEntries';
+import {
+  useCreatePresetSessionMutation,
+  useWorkoutExerciseStats,
+} from '@/hooks/Exercises/useExerciseEntries';
 import { useTodayFocusSnapshot, useUpsertFocusCheckin } from '@/hooks/useFocus';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
@@ -16,6 +19,7 @@ import {
   getCurrentWorkoutSetPointer,
   getWorkoutPlaybackRestRemainingSeconds,
   getWorkoutPlaybackStats,
+  isPrSet,
   isWorkoutPlaybackComplete,
   loadWorkoutPlaybackDraftFromStorage,
   removeWorkoutSetFromExercise,
@@ -147,6 +151,14 @@ const WorkoutPlaybackPage = () => {
     useCreatePresetSessionMutation();
   const { data: todaySnapshot } = useTodayFocusSnapshot(draft?.entry_date);
   const upsertHabitCheckin = useUpsertFocusCheckin();
+
+  // Best/last/recent-session stats per exercise in the draft, for the set
+  // rows' "Previous: …" hint and for the PR baseline below.
+  const uniqueExerciseIds = useMemo(
+    () => Array.from(new Set(draft?.exercises.map((e) => e.exercise_id) ?? [])),
+    [draft?.exercises]
+  );
+  const statsByExerciseId = useWorkoutExerciseStats(uniqueExerciseIds);
 
   useEffect(() => {
     if (scrubbedRouteStateRef.current || !routeState?.draft) {
@@ -288,6 +300,17 @@ const WorkoutPlaybackPage = () => {
         let nextDraft = setWorkoutPlaybackPointer(currentDraft, pointer);
         nextDraft = completeCurrentWorkoutSet(nextDraft);
 
+        const exerciseId =
+          currentDraft.exercises[pointer.exerciseIndex]?.exercise_id;
+        const baseline = exerciseId
+          ? statsByExerciseId[exerciseId]?.bestSet
+          : undefined;
+        if (isPrSet(nextDraft, pointer, baseline)) {
+          nextDraft = updateWorkoutSetAtPointer(nextDraft, pointer, {
+            is_pr: true,
+          });
+        }
+
         if (!isWorkoutPlaybackComplete(nextDraft)) {
           const restSeconds = set.rest_time ?? DEFAULT_REST_SECONDS;
           const targetPointer = getCurrentWorkoutSetPointer(nextDraft);
@@ -297,7 +320,7 @@ const WorkoutPlaybackPage = () => {
         return nextDraft;
       });
     },
-    [updateDraft]
+    [updateDraft, statsByExerciseId]
   );
 
   const handleUncompleteSet = useCallback(
@@ -634,6 +657,7 @@ const WorkoutPlaybackPage = () => {
         onRemoveSet={handleRemoveSet}
         onAddSet={handleAddSet}
         weightUnit={weightUnit}
+        statsByExerciseId={statsByExerciseId}
       />
 
       <WorkoutPlaybackDialogs

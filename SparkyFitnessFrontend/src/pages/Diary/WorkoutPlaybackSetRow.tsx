@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { memo } from 'react';
 import type { WeightUnit } from '@/contexts/PreferencesContext';
-import { MessageSquare, Timer, Trash2 } from 'lucide-react';
+import { MessageSquare, Timer, Trash2, Trophy } from 'lucide-react';
+import { formatWeight } from '@/utils/numberFormatting';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -68,6 +69,13 @@ interface WorkoutPlaybackSetRowProps {
   onRemoveSet: (pointer: WorkoutSetPointer) => void;
   canRemove: boolean;
   weightUnit: WeightUnit;
+  /** This same set number's weight/reps from the most recent prior session
+   * for this exercise (see exerciseStatsQueryOptions' recentSessions) — null
+   * when there's no history to compare against yet. */
+  previousSet?: { weight: number | null; reps: number | null } | null;
+  /** Whether completing this set beat the PR baseline (utils/workoutPlayback's
+   * isPrSet), stamped onto the draft when it was checked off. */
+  isPr?: boolean;
 }
 
 const WorkoutPlaybackSetRow = ({
@@ -94,10 +102,16 @@ const WorkoutPlaybackSetRow = ({
   onRemoveSet,
   canRemove,
   weightUnit,
+  previousSet,
+  isPr,
 }: WorkoutPlaybackSetRowProps) => {
   const { t } = useTranslation();
   const pointer: WorkoutSetPointer = { exerciseIndex, setIndex };
   const notesKey = `${exerciseKey}-${setIndex}`;
+  const hasPreviousSet =
+    !isTimedExercise &&
+    previousSet &&
+    (previousSet.weight != null || previousSet.reps != null);
 
   return (
     <div>
@@ -141,6 +155,12 @@ const WorkoutPlaybackSetRow = ({
                   }
                 )}
               </Button>
+              {isPr && (
+                <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-500">
+                  <Trophy className="h-3 w-3 fill-amber-500/20" />
+                  {t('exercise.workoutPlaybackDialog.prBadge', 'PR')}
+                </span>
+              )}
             </div>
           </div>
 
@@ -227,6 +247,22 @@ const WorkoutPlaybackSetRow = ({
                 />
               </div>
             </>
+          )}
+
+          {hasPreviousSet && (
+            <div className="col-span-4 -mt-1 px-1 text-[10px] text-muted-foreground sm:col-start-3 sm:col-span-2 sm:mt-0">
+              {t(
+                'exercise.workoutPlaybackDialog.previousSet',
+                'Previous: {{weight}} × {{reps}}',
+                {
+                  weight:
+                    previousSet?.weight != null
+                      ? formatWeight(previousSet.weight, weightUnit)
+                      : '—',
+                  reps: previousSet?.reps ?? '—',
+                }
+              )}
+            </div>
           )}
 
           <Button

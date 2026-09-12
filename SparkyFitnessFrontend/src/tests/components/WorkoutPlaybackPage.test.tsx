@@ -38,6 +38,18 @@ jest.mock('@/hooks/Exercises/useExerciseEntries', () => ({
     mutateAsync: (...args: unknown[]) => mockCreatePresetSession(...args),
     isPending: false,
   }),
+  // No prior history in these fixtures — every exercise gets no "Previous: …"
+  // hint and no PR baseline to compare against.
+  useWorkoutExerciseStats: () => ({}),
+}));
+
+const mockUpsertHabitCheckin = jest.fn();
+
+jest.mock('@/hooks/useFocus', () => ({
+  useTodayFocusSnapshot: () => ({ data: undefined }),
+  useUpsertFocusCheckin: () => ({
+    mutateAsync: (...args: unknown[]) => mockUpsertHabitCheckin(...args),
+  }),
 }));
 
 const presetFixture: WorkoutPreset = {
@@ -63,6 +75,7 @@ describe('WorkoutPlaybackPage', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     mockCreatePresetSession.mockReset();
+    mockUpsertHabitCheckin.mockReset();
     window.localStorage.clear();
     mockLocationState = { returnTo: '/?date=2026-04-27' };
   });

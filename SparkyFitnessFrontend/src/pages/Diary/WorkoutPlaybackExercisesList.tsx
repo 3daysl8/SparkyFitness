@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import type { WeightUnit } from '@/contexts/PreferencesContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import type { ExerciseStatsResponse } from '@workspace/shared';
 import {
   WORKOUT_PLAYBACK_SET_GRID_CLASSES,
   type WorkoutPlaybackExerciseDraft,
@@ -26,6 +27,21 @@ interface WorkoutPlaybackExercisesListProps {
   onRemoveSet: (pointer: WorkoutSetPointer) => void;
   onAddSet: (exerciseIndex: number) => void;
   weightUnit: WeightUnit;
+  /** Per-exercise best/last/recent-session stats (see exerciseStatsQueryOptions),
+   * keyed by exercise_id — drives each row's "Previous: …" hint. */
+  statsByExerciseId: Record<string, ExerciseStatsResponse | undefined>;
+}
+
+/** The same set number's weight/reps from the most recent prior session for
+ * this exercise, or null when there's no matching history yet. */
+function findPreviousSet(
+  stats: ExerciseStatsResponse | undefined,
+  setNumber: number
+): { weight: number | null; reps: number | null } | null {
+  const mostRecentSession = stats?.recentSessions[0];
+  if (!mostRecentSession) return null;
+  const match = mostRecentSession.sets.find((s) => s.setNumber === setNumber);
+  return match ? { weight: match.weight, reps: match.reps } : null;
 }
 
 const WorkoutPlaybackExercisesList = ({
@@ -40,6 +56,7 @@ const WorkoutPlaybackExercisesList = ({
   onRemoveSet,
   onAddSet,
   weightUnit,
+  statsByExerciseId,
 }: WorkoutPlaybackExercisesListProps) => {
   const { t } = useTranslation();
   const [expandedCompletedExercises, setExpandedCompletedExercises] = useState<
@@ -55,6 +72,7 @@ const WorkoutPlaybackExercisesList = ({
           : exercise.sets.some(
               (set) => set.duration != null && set.reps == null
             );
+        const exerciseStats = statsByExerciseId[exercise.exercise_id];
         const completedSets = exercise.sets.filter(
           (set) => set.completed
         ).length;
@@ -183,6 +201,11 @@ const WorkoutPlaybackExercisesList = ({
                         onRemoveSet={onRemoveSet}
                         canRemove={exercise.sets.length > 1}
                         weightUnit={weightUnit}
+                        previousSet={findPreviousSet(
+                          exerciseStats,
+                          set.set_number
+                        )}
+                        isPr={set.is_pr}
                       />
                     );
                   })}

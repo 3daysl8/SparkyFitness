@@ -15,6 +15,8 @@ import {
   ExerciseSnapshotResponse,
   PresetSessionResponse,
   presetSessionResponseSchema,
+  exerciseStatsResponseSchema,
+  ExerciseStatsResponse,
 } from '@workspace/shared';
 import z from 'zod';
 import { parseJsonArray } from './exerciseService';
@@ -219,6 +221,25 @@ export const getExerciseHistory = async (
     }
   );
   return response;
+};
+
+export const getExerciseStats = async (
+  exerciseId: string,
+  options?: { excludePresetEntryId?: string; presetId?: string }
+): Promise<ExerciseStatsResponse> => {
+  const params = new URLSearchParams();
+  if (options?.excludePresetEntryId) {
+    params.set('excludePresetEntryId', options.excludePresetEntryId);
+  }
+  if (options?.presetId) {
+    params.set('presetId', options.presetId);
+  }
+  const query = params.toString();
+  const response = await apiCall(
+    `/v2/exercises/${exerciseId}/stats${query ? `?${query}` : ''}`,
+    { method: 'GET' }
+  );
+  return exerciseStatsResponseSchema.parse(response);
 };
 
 export const fetchExerciseDetails = async (
