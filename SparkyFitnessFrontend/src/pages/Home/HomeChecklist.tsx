@@ -162,7 +162,7 @@ function WeekStrip({
           <DayPill
             key={day}
             day={day}
-            label={WEEKDAY_LABELS[idx]}
+            label={WEEKDAY_LABELS[idx] ?? ''}
             selected={day === selectedDate}
             onSelect={onSelect}
           />
