@@ -107,6 +107,7 @@ BEGIN
     'focus_domains',
     'focuses',
     'focus_checkins',
+    'calendar_feeds',
     'passkey_registration_tickets',
     'exercise_entry_laps',
     'exercise_entry_gps_points',
