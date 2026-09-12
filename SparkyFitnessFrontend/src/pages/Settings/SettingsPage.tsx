@@ -39,6 +39,7 @@ import { AccountSecurity } from './AccountSecurity';
 import { ApiSettings } from './ApiSettings';
 import { WaterTrackingSettings } from './WaterTrackingSettings';
 import CycleSettings from './CycleSettings';
+import CalendarFeedSettings from './CalendarFeedSettings';
 import { PreferenceSettings } from './PreferenceSettings';
 import { ProfileInformation } from './ProfileInformation';
 import { DataManagementSettings } from './DataManagementSettings';
@@ -411,6 +412,12 @@ const Settings = () => {
                 <ExternalProviderSettings />
                 <Separator />
               </AccordionContent>
+            </AccordionItem>
+            <AccordionItem
+              value="calendar-feeds"
+              className="border rounded-lg mb-4"
+            >
+              <CalendarFeedSettings />
             </AccordionItem>
             <AccordionItem
               value="ai-service"

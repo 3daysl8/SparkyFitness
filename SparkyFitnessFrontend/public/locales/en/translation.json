@@ -718,6 +718,15 @@
     "home": "Home",
     "focus": "Focus"
   },
+  "agenda": {
+    "title": "Today's Agenda",
+    "day": "Day",
+    "week": "Week",
+    "allDay": "All day",
+    "emptyToday": "No events scheduled today — Enjoy your free time!",
+    "noEventsDay": "No events",
+    "launchWorkout": "Launch Workout"
+  },
   "focus": {
     "title": "Focus & Motivation",
     "addDomain": "Add Domain",
@@ -1480,6 +1489,21 @@
     "syncFailed_other": "Failed to synchronize {{count}} providers."
   },
   "settings": {
+    "calendar": {
+      "title": "Calendar Feeds",
+      "description": "Subscribe to a Google, Apple, or Outlook calendar (.ics link) to show your schedule on the Home dashboard",
+      "empty": "No calendars connected yet.",
+      "toggleEnabled": "Enable this calendar",
+      "addTitle": "Add a calendar",
+      "namePlaceholder": "Name (e.g. Work)",
+      "urlPlaceholder": "https://calendar.google.com/.../basic.ics",
+      "privateUrlHint": "Use the \"Secret address in iCal format\" from Google Calendar, the private ICS link from Outlook, or a public .ics share link from Apple Calendar. The feed URL is fetched by this server every 15 minutes and never shared elsewhere.",
+      "addedTitle": "Calendar added",
+      "addedDesc": "Your Home dashboard agenda will pick it up on the next refresh.",
+      "errorTitle": "Could not add calendar",
+      "addError": "Check the URL and try again.",
+      "deleteErrorTitle": "Could not remove calendar"
+    },
     "profileInformation": {
       "title": "Profile Information",
       "description": "Manage your personal information and profile picture",

@@ -72,6 +72,13 @@ Paths are relative to each package root. `—` means that layer does not exist f
 | **Cycle** | `routes/v2/cycleRoutes.ts`, `schemas/cycleSchemas.ts`, `services/cycleService.ts`, `models/cycleRepository.ts` | `pages/Cycle/` `api/Cycle/` `hooks/useCycle.ts` (flat) | — | tables `cycles`, `cycle_daily_entries`, `cycle_settings` (no `Cycle*.zod.ts`) |
 | **Pregnancy** | `routes/v2/pregnancyRoutes.ts`, `schemas/pregnancySchemas.ts`, `services/pregnancyService.ts`, `models/pregnancyRepository.ts`, `utils/uploadsPath.ts` (photo bytes) | `api/Pregnancy/` `hooks/usePregnancy.ts`, `pages/Cycle/pregnancy/` | `hooks/usePregnancyPhotoSource.ts`, `components/wellness/pregnancy/` | (no `Pregnancy*.zod.ts`) |
 
+### Focus & Calendar (owner-only — no delegation)
+
+| Feature | Backend | Frontend | Mobile | Shared |
+|---------|---------|----------|--------|--------|
+| **Focus** (habits/to-dos/goals) | `routes/v2/focusRoutes.ts`, `schemas/focusSchemas.ts`, `services/focusService.ts`, `models/focusRepository.ts`, `ai/tools/focusTools.ts` | `pages/Focus/`, `pages/Home/HomeChecklist.tsx` (landing checklist), `api/focus/focusService.ts`, `hooks/useFocus.ts` (flat) | — | tables `focus_domains`, `focuses`, `focus_checkins` (no `Focus*.zod.ts`) |
+| **Calendar** (iCal feed agenda) | `routes/v2/calendarRoutes.ts`, `schemas/calendarSchemas.ts`, `services/calendarService.ts` (fetch/cache/expand via `node-ical`, SSRF-guarded via `utils/outboundUrlPolicy.ts`), `models/calendarFeedRepository.ts` | `pages/Home/AgendaCard.tsx` (dashboard card), `pages/Settings/CalendarFeedSettings.tsx`, `utils/agenda.ts`, `api/calendar/calendarService.ts`, `hooks/useCalendar.ts` (flat) | — | table `calendar_feeds` (no `Calendar*.zod.ts`) |
+
 ### Reporting & Analytics
 
 | Feature | Backend | Frontend | Mobile | Shared |

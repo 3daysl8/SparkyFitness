@@ -62,6 +62,7 @@ import {
 } from '@/utils/workoutPlayback';
 import { formatWeight } from '@/utils/numberFormatting';
 import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
+import AgendaCard from '@/pages/Home/AgendaCard';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -858,6 +859,7 @@ export default function HomeChecklist() {
     <div className="space-y-4">
       <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
       <MetricCards selectedDate={selectedDate} />
+      <AgendaCard selectedDate={selectedDate} />
 
       {isLoading && <p>{t('common.loading', 'Loading...')}</p>}
 

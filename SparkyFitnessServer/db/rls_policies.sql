@@ -687,6 +687,11 @@ SELECT create_owner_policy('focus_domains');
 SELECT create_owner_policy('focuses');
 SELECT create_owner_policy('focus_checkins');
 
+-- Calendar / Daily Agenda (see migration 20260913090000_add_calendar_feeds_schema.sql).
+-- Tier 1 — owner-only. An iCal feed URL is a personal external-account
+-- credential-adjacent secret, never shared or delegated.
+SELECT create_owner_policy('calendar_feeds');
+
 
 -- Custom policies for special cases
 CREATE POLICY select_policy ON public.exercise_entry_sets FOR SELECT TO PUBLIC
