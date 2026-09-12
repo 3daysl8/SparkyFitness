@@ -1,5 +1,6 @@
 import path from 'path';
 import dns from 'node:dns';
+import net from 'node:net';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { loadSecrets } from './utils/secretLoader.js';
@@ -13,11 +14,17 @@ loadSecrets();
 configureOutboundProxy();
 
 // Some hosts (this app's own Docker deployment included) advertise IPv6 DNS
-// records for outbound APIs (e.g. wger.de) without actually routing IPv6,
-// so an unqualified dns.lookup() can hand fetch()/undici an unreachable
-// address and hang until timeout instead of falling back to IPv4. This is
-// the Node-recommended fix, not a workaround specific to one provider.
+// records for outbound APIs (e.g. wger.de) without actually routing IPv6.
+// dns.setDefaultResultOrder alone isn't enough: Node's Happy-Eyeballs
+// (autoSelectFamily) still races the IPv4 and IPv6 candidates against each
+// other with a short (~250ms) per-attempt timeout, and real round-trip
+// latency to some outbound APIs exceeds that budget even on the address
+// that actually works — so both attempts get abandoned even though an
+// unraced connection succeeds fine within a second. Disabling the race
+// entirely means Node just uses the first (now IPv4, thanks to the line
+// above) resolved address with a normal connect timeout instead.
 dns.setDefaultResultOrder('ipv4first');
+net.setDefaultAutoSelectFamily(false);
 
 try {
   runPreflightChecks();
