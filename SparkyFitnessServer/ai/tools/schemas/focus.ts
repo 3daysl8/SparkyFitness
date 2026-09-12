@@ -71,7 +71,17 @@ const createFocusSchema = z
       .optional()
       .describe('A weekly/long_term focus this one serves, forming a chain'),
     period_date: optionalDateSchema.describe(
-      "For daily: the specific date. For weekly: that week's Monday start date. Omit for long_term."
+      "For a one-off scheduled daily focus: the specific date. For weekly: that week's Monday start date. Omit entirely (and use recurrence fields instead) for a standing recurring daily habit. Omit for long_term."
+    ),
+    recurrence_days_of_week: z
+      .array(z.number().int().min(0).max(6))
+      .nullable()
+      .optional()
+      .describe(
+        'Only for a recurring daily habit (period_date omitted): which days it applies, 0=Sun..6=Sat. Omit/null for every day.'
+      ),
+    recurrence_end_date: optionalDateSchema.describe(
+      'Only for a recurring daily habit: optional date after which it stops recurring.'
     ),
   })
   .strict();
@@ -90,6 +100,14 @@ const updateFocusSchema = z
       .enum(STATUSES)
       .optional()
       .describe('Set to completed or archived to close it out'),
+    recurrence_days_of_week: z
+      .array(z.number().int().min(0).max(6))
+      .nullable()
+      .optional()
+      .describe('Which days a recurring habit applies, 0=Sun..6=Sat'),
+    recurrence_end_date: optionalDateSchema.describe(
+      'Optional date after which a recurring habit stops recurring'
+    ),
   })
   .strict();
 
@@ -182,6 +200,11 @@ export const manageFocusInput = z.object({
   unit: z.string().nullable().optional(),
   parent_focus_id: uuidSchema.nullable().optional(),
   period_date: optionalDateSchema,
+  recurrence_days_of_week: z
+    .array(z.number().int().min(0).max(6))
+    .nullable()
+    .optional(),
+  recurrence_end_date: optionalDateSchema,
   date: optionalDateSchema,
   progress_value: z.number().optional(),
   completed: z.boolean().optional(),

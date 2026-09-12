@@ -29,8 +29,19 @@ export interface Focus {
   parent_focus_id: string | null;
   period_date: string | null;
   status: FocusStatus;
+  recurrence_days_of_week: number[] | null;
+  recurrence_end_date: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** A recurring daily habit as returned by the "for date" snapshot, with that
+ * date's check-in (if any), whether it counts as done, and the current
+ * consecutive-day streak already computed server-side. */
+export interface RecurringFocus extends Focus {
+  today_checkin: FocusCheckin | null;
+  done: boolean;
+  current_streak: number;
 }
 
 export interface FocusCheckin {
@@ -55,6 +66,8 @@ export interface CreateFocusInput {
   parent_focus_id?: string | null;
   period_date?: string | null;
   status?: FocusStatus;
+  recurrence_days_of_week?: number[] | null;
+  recurrence_end_date?: string | null;
 }
 
 export interface UpdateFocusInput {
@@ -66,6 +79,8 @@ export interface UpdateFocusInput {
   parent_focus_id?: string | null;
   period_date?: string | null;
   status?: FocusStatus;
+  recurrence_days_of_week?: number[] | null;
+  recurrence_end_date?: string | null;
 }
 
 export interface ListFocusOptions {
@@ -83,7 +98,8 @@ export interface UpsertFocusCheckinInput {
 export interface TodaySnapshot {
   date: string;
   week_start: string;
-  daily: Focus[];
+  scheduled: Focus[];
+  daily_recurring: RecurringFocus[];
   weekly: Focus[];
   long_term: Focus[];
 }

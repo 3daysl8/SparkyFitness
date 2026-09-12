@@ -14,6 +14,7 @@ import {
   Target, // Used for Goals
   Pill, // Used for Medications
   Compass, // Used for Focus
+  BookOpen, // Used for Diary
   Shield,
   Plus,
   X,
@@ -110,11 +111,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     if (!isActingOnBehalf) {
       // Keep this order consistent with the desktop tab order in availableTabs:
       // Check-In, Cycle, Medications, Foods, Exercises, Goals.
-      items.push({
-        value: 'checkin',
-        label: t('nav.checkin', 'Check-In'),
-        icon: Activity,
-      });
+      items.push(
+        {
+          value: 'checkin',
+          label: t('nav.checkin', 'Check-In'),
+          icon: Activity,
+        },
+        { value: 'diary', label: t('nav.diary'), icon: BookOpen }
+      );
       if (cycleSettings?.enabled) {
         items.push({
           value: 'cycle',
@@ -220,7 +224,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     const tabs = [];
     if (!isActingOnBehalf) {
       tabs.push(
-        { value: '/', label: t('nav.diary'), icon: Home },
+        { value: '/', label: t('nav.home', 'Home'), icon: Home },
+        { value: '/diary', label: t('nav.diary'), icon: BookOpen },
         { value: '/checkin', label: t('nav.checkin'), icon: Activity }
       );
       if (cycleSettings?.enabled) {
@@ -252,7 +257,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       );
     } else {
       if (hasWritePermission('diary')) {
-        tabs.push({ value: '/', label: t('nav.diary'), icon: Home });
+        tabs.push({ value: '/diary', label: t('nav.diary'), icon: BookOpen });
       }
       if (hasWritePermission('checkin')) {
         tabs.push({
@@ -302,7 +307,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
     // (see addCompItems), not the bottom bar, to keep the bar uncluttered.
     if (!isActingOnBehalf) {
       mobileTabs.push(
-        { value: '/', label: t('nav.diary'), icon: Home },
+        { value: '/', label: t('nav.home', 'Home'), icon: Home },
         { value: '/reports', label: t('nav.reports'), icon: BarChart3 },
         {
           value: 'Add',
@@ -313,7 +318,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({
       );
     } else {
       if (hasWritePermission('diary')) {
-        mobileTabs.push({ value: '/', label: t('nav.diary'), icon: Home });
+        mobileTabs.push({
+          value: '/diary',
+          label: t('nav.diary'),
+          icon: BookOpen,
+        });
       }
       if (hasWritePermission('checkin')) {
         mobileTabs.push({

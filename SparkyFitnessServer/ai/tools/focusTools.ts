@@ -40,6 +40,8 @@ interface FocusRow {
   period_date: string | null;
   status: string;
   parent_focus_id: string | null;
+  recurrence_days_of_week: number[] | null;
+  recurrence_end_date: string | null;
 }
 
 interface DomainRow {
@@ -63,6 +65,15 @@ function formatFocus(f: FocusRow): string {
     text += ' — target: yes/no';
   }
   if (f.period_date) text += ` | ${dayString(f.period_date)}`;
+  if (f.timeframe === 'daily' && !f.period_date) {
+    const days = f.recurrence_days_of_week;
+    text +=
+      days && days.length > 0
+        ? ` | recurring (days: ${days.join(',')})`
+        : ' | recurring (every day)';
+    if (f.recurrence_end_date)
+      text += ` until ${dayString(f.recurrence_end_date)}`;
+  }
   if (f.status !== 'active') text += ` (${f.status})`;
   text += `\n  ID: ${f.id}`;
   if (f.parent_focus_id) text += `\n  In service of: ${f.parent_focus_id}`;
@@ -79,12 +90,12 @@ Actions:
 - create_domain(name, color?, icon?)
 - list_focuses(timeframe?, domain_id?, status?)
 - get_focus(focus_id)
-- create_focus(timeframe, statement, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, period_date?)
-- update_focus(focus_id, statement?, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, status?)
+- create_focus(timeframe, statement, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, period_date?, recurrence_days_of_week?, recurrence_end_date?) — for a standing recurring daily habit (e.g. "walk 10,000 steps every day except weekends"), omit period_date and use recurrence_days_of_week (0=Sun..6=Sat, omit for every day) and optionally recurrence_end_date
+- update_focus(focus_id, statement?, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, status?, recurrence_days_of_week?, recurrence_end_date?)
 - delete_focus(focus_id)
 - checkin(focus_id, date?, progress_value?, completed?, reflection_note?)
 - list_checkins(focus_id, from_date?, to_date?)
-- get_today(date?) — resolves today's daily focus(es), this week's focus, and all active long-term focuses in one call. This is the primary call for a morning-briefing style summary.`,
+- get_today(date?) — resolves everything for a given date (defaults to today) in one call: one-off focuses scheduled that day, recurring daily habits active that day (each with its done state and current streak), that week's focus, and all active long-term focuses. This is the primary call for a morning-briefing or daily-checklist style summary.`,
       inputSchema: manageFocusInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -182,6 +193,9 @@ Actions:
                   unit: args.unit ?? undefined,
                   parent_focus_id: args.parent_focus_id ?? undefined,
                   period_date: args.period_date ?? undefined,
+                  recurrence_days_of_week:
+                    args.recurrence_days_of_week ?? undefined,
+                  recurrence_end_date: args.recurrence_end_date ?? undefined,
                 }
               );
               return formatConfirmation(
@@ -198,6 +212,8 @@ Actions:
                   unit: args.unit,
                   parent_focus_id: args.parent_focus_id,
                   status: args.status,
+                  recurrence_days_of_week: args.recurrence_days_of_week,
+                  recurrence_end_date: args.recurrence_end_date,
                 });
               if (!updated) return ERRORS.NOT_FOUND('Focus', args.focus_id);
               return formatConfirmation(

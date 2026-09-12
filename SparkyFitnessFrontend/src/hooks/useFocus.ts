@@ -116,6 +116,18 @@ export const useUpsertFocusCheckin = () => {
   });
 };
 
+export const useDeleteFocusCheckin = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ focusId, date }: { focusId: string; date: string }) =>
+      focusService.deleteFocusCheckin(focusId, date),
+    onSuccess: (_, { focusId }) => {
+      queryClient.invalidateQueries({ queryKey: focusKeys.checkins(focusId) });
+      queryClient.invalidateQueries({ queryKey: ['focus-today'] });
+    },
+  });
+};
+
 // --- Today snapshot -----------------------------------------------------------
 
 export const useTodayFocusSnapshot = (date?: string) =>

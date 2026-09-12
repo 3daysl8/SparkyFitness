@@ -10,6 +10,11 @@ const TIMEFRAMES = ['daily', 'weekly', 'long_term'] as const;
 const TARGET_TYPES = ['none', 'numeric', 'boolean'] as const;
 const STATUSES = ['active', 'completed', 'archived'] as const;
 
+const recurrenceDaysOfWeekSchema = z
+  .array(z.number().int().min(0).max(6))
+  .nullable()
+  .optional();
+
 // --- Domains -----------------------------------------------------------------
 
 export const UpsertFocusDomainBodySchema = z
@@ -36,6 +41,8 @@ export const CreateFocusBodySchema = z
     parent_focus_id: z.string().uuid().nullable().optional(),
     period_date: dayString.nullable().optional(),
     status: z.enum(STATUSES).optional(),
+    recurrence_days_of_week: recurrenceDaysOfWeekSchema,
+    recurrence_end_date: dayString.nullable().optional(),
   })
   .loose();
 
@@ -51,6 +58,8 @@ export const UpdateFocusBodySchema = z
     parent_focus_id: z.string().uuid().nullable().optional(),
     period_date: dayString.nullable().optional(),
     status: z.enum(STATUSES).optional(),
+    recurrence_days_of_week: recurrenceDaysOfWeekSchema,
+    recurrence_end_date: dayString.nullable().optional(),
   })
   .loose();
 

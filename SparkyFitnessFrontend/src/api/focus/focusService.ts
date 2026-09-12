@@ -54,6 +54,12 @@ export const upsertFocusCheckin = (
 ): Promise<FocusCheckin> =>
   apiCall(`/v2/focus/${focusId}/checkins/${date}`, { method: 'PUT', body });
 
+export const deleteFocusCheckin = (
+  focusId: string,
+  date: string
+): Promise<void> =>
+  apiCall(`/v2/focus/${focusId}/checkins/${date}`, { method: 'DELETE' });
+
 // --- Today snapshot -------------------------------------------------------------
 
 export const getTodaySnapshot = (date?: string): Promise<TodaySnapshot> =>

@@ -169,6 +169,12 @@ export default function FocusPage() {
   const [targetType, setTargetType] = useState<FocusTargetType>('none');
   const [targetValue, setTargetValue] = useState('');
   const [unit, setUnit] = useState('');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceDays, setRecurrenceDays] = useState<Set<number>>(
+    new Set([0, 1, 2, 3, 4, 5, 6])
+  );
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
   const [checkInFocus, setCheckInFocus] = useState<Focus | null>(null);
   const [progressValue, setProgressValue] = useState('');
@@ -189,6 +195,10 @@ export default function FocusPage() {
     setTargetType('none');
     setTargetValue('');
     setUnit('');
+    setScheduleDate('');
+    setIsRecurring(false);
+    setRecurrenceDays(new Set([0, 1, 2, 3, 4, 5, 6]));
+    setRecurrenceEndDate('');
   };
 
   const handleAddDomain = async () => {
@@ -208,6 +218,7 @@ export default function FocusPage() {
 
   const handleAddFocus = async () => {
     if (!addFocusTimeframe || !statement.trim()) return;
+    const isDailyRecurring = addFocusTimeframe === 'daily' && isRecurring;
     try {
       await createFocus.mutateAsync({
         timeframe: addFocusTimeframe,
@@ -219,12 +230,19 @@ export default function FocusPage() {
             ? Number(targetValue)
             : undefined,
         unit: targetType === 'numeric' && unit ? unit : undefined,
-        period_date:
-          addFocusTimeframe === 'daily'
-            ? todayIso
+        period_date: isDailyRecurring
+          ? undefined
+          : addFocusTimeframe === 'daily'
+            ? scheduleDate || todayIso
             : addFocusTimeframe === 'weekly'
               ? weekStartIso
               : undefined,
+        recurrence_days_of_week:
+          isDailyRecurring && recurrenceDays.size < 7
+            ? Array.from(recurrenceDays).sort()
+            : undefined,
+        recurrence_end_date:
+          isDailyRecurring && recurrenceEndDate ? recurrenceEndDate : undefined,
       });
       resetAddFocusForm();
     } catch {
@@ -369,7 +387,7 @@ export default function FocusPage() {
       </div>
 
       {today &&
-        (today.daily.length > 0 ||
+        (today.scheduled.length > 0 ||
           today.weekly.length > 0 ||
           today.long_term.length > 0) && (
           <Card>
@@ -379,7 +397,7 @@ export default function FocusPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
-              {today.daily.map((f) => (
+              {today.scheduled.map((f) => (
                 <p key={f.id}>
                   <strong>{t('focus.today', 'Today')}:</strong> {f.statement}
                 </p>
@@ -445,6 +463,87 @@ export default function FocusPage() {
                         )}
                       />
                     </div>
+                    {addFocusTimeframe === 'daily' && (
+                      <div className="space-y-3 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="focus-recurring">
+                            {t('focus.makeRecurring', 'Make this recurring')}
+                          </Label>
+                          <input
+                            id="focus-recurring"
+                            type="checkbox"
+                            checked={isRecurring}
+                            onChange={(e) => setIsRecurring(e.target.checked)}
+                          />
+                        </div>
+                        {isRecurring ? (
+                          <>
+                            <div className="space-y-2">
+                              <Label>
+                                {t('focus.repeatsOn', 'Repeats on')}
+                              </Label>
+                              <div className="flex flex-wrap gap-1">
+                                {[
+                                  'Sun',
+                                  'Mon',
+                                  'Tue',
+                                  'Wed',
+                                  'Thu',
+                                  'Fri',
+                                  'Sat',
+                                ].map((label, idx) => (
+                                  <Button
+                                    key={idx}
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                      recurrenceDays.has(idx)
+                                        ? 'default'
+                                        : 'outline'
+                                    }
+                                    onClick={() =>
+                                      setRecurrenceDays((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(idx)) next.delete(idx);
+                                        else next.add(idx);
+                                        return next;
+                                      })
+                                    }
+                                  >
+                                    {label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="focus-recurrence-end">
+                                {t('focus.endDate', 'End date (optional)')}
+                              </Label>
+                              <Input
+                                id="focus-recurrence-end"
+                                type="date"
+                                value={recurrenceEndDate}
+                                onChange={(e) =>
+                                  setRecurrenceEndDate(e.target.value)
+                                }
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="space-y-2">
+                            <Label htmlFor="focus-schedule-date">
+                              {t('focus.scheduleDate', 'Date')}
+                            </Label>
+                            <Input
+                              id="focus-schedule-date"
+                              type="date"
+                              value={scheduleDate || todayIso}
+                              onChange={(e) => setScheduleDate(e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label>{t('focus.domain', 'Domain')}</Label>
                       <Select value={domainId} onValueChange={setDomainId}>
