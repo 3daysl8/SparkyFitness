@@ -349,43 +349,19 @@ const AddWorkoutPlanDialog = ({
           </DialogFooter>
         </DialogContent>
 
-        <Dialog
+        <AddExerciseDialog
           open={isAddExerciseDialogOpen}
           onOpenChange={setIsAddExerciseDialogOpen}
-        >
-          <DialogContent
-            requireConfirmation
-            className="max-w-2xl max-h-[90vh] overflow-y-auto"
-          >
-            <DialogHeader>
-              <DialogTitle>
-                {t(
-                  'addWorkoutPlanDialog.addExerciseOrPresetTitle',
-                  'Add Exercise or Preset'
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                {t(
-                  'addWorkoutPlanDialog.addExerciseOrPresetDescription',
-                  'Select an exercise or a preset to add to the selected day.'
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <AddExerciseDialog
-              open={isAddExerciseDialogOpen}
-              onOpenChange={setIsAddExerciseDialogOpen}
-              onExerciseAdded={(exercise, sourceMode) => {
-                if (exercise && sourceMode) {
-                  handleAddExerciseOrPreset(exercise, sourceMode);
-                }
-              }}
-              onWorkoutPresetSelected={(preset) =>
-                handleAddExerciseOrPreset(preset, 'preset')
-              }
-              mode="workout-plan"
-            />
-          </DialogContent>
-        </Dialog>
+          onExerciseAdded={(exercise, sourceMode) => {
+            if (exercise && sourceMode) {
+              handleAddExerciseOrPreset(exercise, sourceMode);
+            }
+          }}
+          onWorkoutPresetSelected={(preset) =>
+            handleAddExerciseOrPreset(preset, 'preset')
+          }
+          mode="workout-plan"
+        />
       </TooltipProvider>
     </Dialog>
   );

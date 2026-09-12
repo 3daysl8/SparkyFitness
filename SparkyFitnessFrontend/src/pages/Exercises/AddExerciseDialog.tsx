@@ -70,13 +70,23 @@ const AddExerciseDialog = ({
       >
         <DialogHeader>
           <DialogTitle className="text-center">
-            {t('exercise.addExerciseDialog.title', 'Add Exercise')}
+            {mode === 'workout-plan'
+              ? t(
+                  'addWorkoutPlanDialog.addExerciseOrPresetTitle',
+                  'Add Exercise or Preset'
+                )
+              : t('exercise.addExerciseDialog.title', 'Add Exercise')}
           </DialogTitle>
           <DialogDescription className="text-center">
-            {t(
-              'exercise.addExerciseDialog.description',
-              'Add a new exercise to your database, either by creating a custom one or importing from an external source.'
-            )}
+            {mode === 'workout-plan'
+              ? t(
+                  'addWorkoutPlanDialog.addExerciseOrPresetDescription',
+                  'Select an exercise or a preset to add to the selected day.'
+                )
+              : t(
+                  'exercise.addExerciseDialog.description',
+                  'Add a new exercise to your database, either by creating a custom one or importing from an external source.'
+                )}
           </DialogDescription>
         </DialogHeader>
         <Tabs
