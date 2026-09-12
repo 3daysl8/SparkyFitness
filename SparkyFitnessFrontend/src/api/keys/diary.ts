@@ -51,8 +51,10 @@ export const waterIntakeKeys = {
     [...waterIntakeKeys.all, date, userId] as const,
   log: (date: string, userId: string) =>
     [...waterIntakeKeys.all, 'log', date, userId] as const,
-  goals: (date: string, userId: string) =>
-    ['goals', 'water', date, userId] as const,
+  // Not date-scoped: the water goal is a flat per-user preference
+  // (user_preferences.water_goal_ml), not a per-date row anymore -- see
+  // db/migrations/20260913120000_add_water_goal_to_preferences.sql.
+  goals: (userId: string) => ['goals', 'water', userId] as const,
 };
 
 export const caffeineKeys = {

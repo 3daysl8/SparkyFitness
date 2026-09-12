@@ -15,9 +15,19 @@ import { useTranslation } from 'react-i18next';
 import { toast } from '@/hooks/use-toast';
 import { useDiaryInvalidation } from '../useInvalidateKeys';
 
+/**
+ * The daily water goal. Decoupled from the legacy per-date nutrition-goals
+ * table (`user_goals` via `GET /goals/for-date`) so it survives that table
+ * being dropped -- it now reads `user_preferences.water_goal_ml`, a flat
+ * per-user preference (see waterIntakteService.getWaterGoalForDate and
+ * db/migrations/20260913120000_add_water_goal_to_preferences.sql). `date` is
+ * kept in the signature so existing call sites (Home's WaterCard,
+ * Diary/WaterIntake.tsx) are unaffected, but it no longer affects the query
+ * key or the result -- every date for a given user resolves to the same goal.
+ */
 export const useWaterGoalQuery = (date: string, userId?: string) => {
   return useQuery({
-    queryKey: waterIntakeKeys.goals(date, userId!),
+    queryKey: waterIntakeKeys.goals(userId!),
     queryFn: async () => {
       const goalData = await getWaterGoalForDate(date, userId!);
       if (

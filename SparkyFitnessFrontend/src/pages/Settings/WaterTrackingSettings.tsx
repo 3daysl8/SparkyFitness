@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -29,8 +30,13 @@ export const WaterTrackingSettings = () => {
     setAddExerciseWaterToGoal,
     addFoodWaterToIntake,
     setAddFoodWaterToIntake,
+    waterGoalMl,
+    setWaterGoalMl,
   } = usePreferences();
   const [localWaterUnit, setLocalWaterUnit] = useState(water_display_unit);
+  const [localWaterGoalMl, setLocalWaterGoalMl] = useState<string>(
+    waterGoalMl != null ? String(waterGoalMl) : ''
+  );
 
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -38,14 +44,26 @@ export const WaterTrackingSettings = () => {
     setLocalWaterUnit(water_display_unit);
   }, [water_display_unit]);
 
+  useEffect(() => {
+    setLocalWaterGoalMl(waterGoalMl != null ? String(waterGoalMl) : '');
+  }, [waterGoalMl]);
+
   const handlePreferencesUpdate = async () => {
     if (!user) return;
     setLoading(true);
     try {
+      const trimmedGoal = localWaterGoalMl.trim();
+      const parsedGoal = trimmedGoal === '' ? NaN : Number(trimmedGoal);
+      const nextWaterGoalMl =
+        trimmedGoal !== '' && !isNaN(parsedGoal) && parsedGoal > 0
+          ? parsedGoal
+          : null;
       await saveAllPreferences({
         water_display_unit: localWaterUnit,
+        waterGoalMl: nextWaterGoalMl,
       }); // Pass the new logging level directly
       setWaterDisplayUnit(localWaterUnit);
+      setWaterGoalMl(nextWaterGoalMl);
 
       toast({
         title: t('settings.preferences.successTitle', 'Erfolg'),
@@ -100,13 +118,39 @@ export const WaterTrackingSettings = () => {
             </SelectContent>
           </Select>
         </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="water_goal_ml">
+            {t(
+              'settings.waterTracking.dailyWaterGoal',
+              'Daily Water Goal (ml)'
+            )}
+          </Label>
+          <Input
+            id="water_goal_ml"
+            type="number"
+            min={0}
+            step="10"
+            placeholder={t(
+              'settings.waterTracking.dailyWaterGoalPlaceholder',
+              'Default (1920 ml)'
+            )}
+            value={localWaterGoalMl}
+            onChange={(e) => setLocalWaterGoalMl(e.target.value)}
+          />
+          <p className="text-sm text-muted-foreground">
+            {t(
+              'settings.waterTracking.dailyWaterGoalHint',
+              "Leave blank to use the default 1920 ml goal. This drives Home's water quick-log target."
+            )}
+          </p>
+        </div>
         <Button onClick={handlePreferencesUpdate} disabled={loading}>
           <Save className="h-4 w-4 mr-2" />
           {loading
             ? t('settings.profileInformation.saving', 'Saving...')
             : t(
-                'settings.waterTracking.saveWaterDisplayUnit',
-                'Save Water Display Unit'
+                'settings.waterTracking.saveWaterSettings',
+                'Save Water Settings'
               )}
         </Button>
         <Separator />

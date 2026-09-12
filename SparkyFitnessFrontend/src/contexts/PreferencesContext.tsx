@@ -110,6 +110,13 @@ interface PreferencesContextType {
   water_display_unit: WaterDisplayUnit;
   addExerciseWaterToGoal: boolean;
   addFoodWaterToIntake: boolean;
+  /**
+   * Daily water intake target in ml, decoupled from the legacy
+   * user_goals.water_goal_ml (`GET /goals/for-date`) so Home's water card
+   * survives that table being dropped. `null` means unset -- callers
+   * (useWaterGoalQuery) fall back to 1920 ml, same as before.
+   */
+  waterGoalMl: number | null;
   language: string;
   bmrAlgorithm: BmrAlgorithm;
   bodyFatAlgorithm: BodyFatAlgorithm;
@@ -172,6 +179,7 @@ interface PreferencesContextType {
   setWaterDisplayUnit: (unit: WaterDisplayUnit) => void;
   setAddExerciseWaterToGoal: (enabled: boolean) => void;
   setAddFoodWaterToIntake: (enabled: boolean) => void;
+  setWaterGoalMl: (goalMl: number | null) => void;
   setLanguage: (language: string) => void;
   setBmrAlgorithm: (algorithm: BmrAlgorithm) => void;
   setBodyFatAlgorithm: (algorithm: BodyFatAlgorithm) => void;
@@ -232,6 +240,7 @@ export interface DefaultPreferences {
   water_display_unit: WaterDisplayUnit;
   add_exercise_water_to_goal: boolean;
   add_food_water_to_intake: boolean;
+  water_goal_ml?: number | null;
   language: string;
   calorie_goal_adjustment_mode: CalorieGoalAdjustmentMode;
   energy_unit: EnergyUnit;
@@ -351,6 +360,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<boolean>(false);
   const [addFoodWaterToIntake, setAddFoodWaterToIntakeState] =
     useState<boolean>(false);
+  const [waterGoalMl, setWaterGoalMlState] = useState<number | null>(null);
   // AI-Assisted Unit Conversions: per-user toggle for the diary/food-form AI
   // estimate path. Default true matches the server migration (DEFAULT TRUE).
   const [aiAssistedConversions, setAiAssistedConversionsState] =
@@ -769,6 +779,9 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
           data.add_exercise_water_to_goal ?? false
         );
         setAddFoodWaterToIntakeState(data.add_food_water_to_intake ?? false);
+        setWaterGoalMlState(
+          data.water_goal_ml != null ? Number(data.water_goal_ml) : null
+        );
         setAiAssistedConversionsState(data.ai_assisted_conversions ?? true);
         setFatBreakdownAlgorithmState(
           data.fat_breakdown_algorithm || FatBreakdownAlgorithm.AHA_GUIDELINES
@@ -979,6 +992,10 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
           newPrefs?.addExerciseWaterToGoal ?? addExerciseWaterToGoal,
         add_food_water_to_intake:
           newPrefs?.addFoodWaterToIntake ?? addFoodWaterToIntake,
+        water_goal_ml:
+          newPrefs?.waterGoalMl !== undefined
+            ? newPrefs.waterGoalMl
+            : waterGoalMl,
         ai_assisted_conversions:
           newPrefs?.aiAssistedConversions ?? aiAssistedConversions,
         fat_breakdown_algorithm:
@@ -1054,6 +1071,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       waterDisplayUnit,
       addExerciseWaterToGoal,
       addFoodWaterToIntake,
+      waterGoalMl,
       language,
       calorieGoalAdjustmentMode,
       exerciseCaloriePercentage,
@@ -1358,6 +1376,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       water_display_unit: waterDisplayUnit,
       addExerciseWaterToGoal,
       addFoodWaterToIntake,
+      waterGoalMl,
       language,
       bmrAlgorithm,
       bodyFatAlgorithm,
@@ -1416,6 +1435,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       setWaterDisplayUnit: setWaterDisplayUnitState,
       setAddExerciseWaterToGoal: setAddExerciseWaterToGoalState,
       setAddFoodWaterToIntake: setAddFoodWaterToIntakeState,
+      setWaterGoalMl: setWaterGoalMlState,
       setLanguage: setLanguageState,
       setBmrAlgorithm: setBmrAlgorithmState,
       setBodyFatAlgorithm: setBodyFatAlgorithmState,
@@ -1468,6 +1488,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       waterDisplayUnit,
       addExerciseWaterToGoal,
       addFoodWaterToIntake,
+      waterGoalMl,
       language,
       bmrAlgorithm,
       bodyFatAlgorithm,

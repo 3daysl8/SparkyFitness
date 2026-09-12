@@ -8,8 +8,21 @@ import type {
 export type { WaterIntakeDayTotals, WaterIntakeLogEntry };
 export type UpdateWaterPayload = UpsertWaterIntakeBody;
 
-export const getWaterGoalForDate = async (date: string, userId: string) => {
-  return apiCall(`/goals/for-date?date=${date}&userId=${userId}&adjust=true`);
+/**
+ * The daily water goal, decoupled from the legacy nutrition-goals table
+ * (`user_goals` via `GET /goals/for-date`) so it survives that table being
+ * dropped -- see db/migrations/20260913120000_add_water_goal_to_preferences.sql.
+ * It now lives on `user_preferences.water_goal_ml`, a flat per-user
+ * preference (not per-date), so `date`/`userId` are accepted only to keep
+ * this a drop-in replacement for callers built around the old per-date
+ * signature -- the underlying `/user-preferences` endpoint always resolves
+ * to the authenticated user, regardless of these values.
+ */
+export const getWaterGoalForDate = async (_date: string, _userId: string) => {
+  const preferences = await apiCall('/user-preferences', {
+    suppress404Toast: true,
+  });
+  return { water_goal_ml: preferences?.water_goal_ml };
 };
 
 export const getWaterIntakeForDate = async (
