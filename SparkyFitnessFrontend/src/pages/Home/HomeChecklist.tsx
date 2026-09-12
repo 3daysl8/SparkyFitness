@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { todayInZone, addDays, dayOfWeek } from '@workspace/shared';
@@ -81,17 +81,15 @@ function quickStepFor(target: number | null): number {
  * day's snapshot is a normal, rules-of-hooks-safe query. The selected day's
  * snapshot is already cached by HomeChecklist's own fetch of it, so this
  * adds at most 6 extra lightweight requests per visible week, not 7. */
-function DayPill({
-  day,
-  label,
-  selected,
-  onSelect,
-}: {
-  day: string;
-  label: string;
-  selected: boolean;
-  onSelect: (date: string) => void;
-}) {
+const DayPill = forwardRef<
+  HTMLButtonElement,
+  {
+    day: string;
+    label: string;
+    selected: boolean;
+    onSelect: (date: string) => void;
+  }
+>(function DayPill({ day, label, selected, onSelect }, ref) {
   const { data: snapshot } = useTodayFocusSnapshot(day);
   const total =
     (snapshot?.scheduled.length ?? 0) + (snapshot?.daily_recurring.length ?? 0);
@@ -109,6 +107,7 @@ function DayPill({
 
   return (
     <button
+      ref={ref}
       onClick={() => onSelect(day)}
       className={cn(
         'flex min-w-[44px] flex-1 snap-center flex-col items-center gap-1 rounded-full py-2 text-sm transition-all duration-200',
@@ -133,7 +132,7 @@ function DayPill({
       />
     </button>
   );
-}
+});
 
 function WeekStrip({
   selectedDate,
@@ -147,6 +146,20 @@ function WeekStrip({
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
   );
+  const selectedPillRef = useRef<HTMLButtonElement>(null);
+
+  // Not every day fits in the pill row at phone width (7 pills + the two
+  // chevrons), so without this the selected pill — the whole point of the
+  // strip — can silently scroll out of view (e.g. Saturday, the last pill,
+  // on first load).
+  useEffect(() => {
+    selectedPillRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    });
+  }, [selectedDate]);
+
   return (
     <div className="flex items-center gap-1">
       <Button
@@ -158,15 +171,19 @@ function WeekStrip({
         <ChevronLeft className="h-4 w-4" />
       </Button>
       <div className="no-scrollbar flex flex-1 snap-x snap-mandatory gap-1.5 overflow-x-auto py-1">
-        {days.map((day, idx) => (
-          <DayPill
-            key={day}
-            day={day}
-            label={WEEKDAY_LABELS[idx] ?? ''}
-            selected={day === selectedDate}
-            onSelect={onSelect}
-          />
-        ))}
+        {days.map((day, idx) => {
+          const selected = day === selectedDate;
+          return (
+            <DayPill
+              key={day}
+              ref={selected ? selectedPillRef : undefined}
+              day={day}
+              label={WEEKDAY_LABELS[idx] ?? ''}
+              selected={selected}
+              onSelect={onSelect}
+            />
+          );
+        })}
       </div>
       <Button
         size="icon"
