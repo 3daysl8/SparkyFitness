@@ -5,7 +5,7 @@ import { addDays } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useAgenda } from '@/hooks/useCalendar';
 import { formatTimeInZone } from '@/utils/timeFormatters';
-import { weekStartFor, eventDayKey } from '@/utils/agenda';
+import { eventDayKey } from '@/utils/agenda';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -229,7 +229,11 @@ export default function AgendaCard({ selectedDate }: { selectedDate: string }) {
   const [view, setView] = useState<AgendaView>('day');
   const [isOpen, setIsOpen] = useState(true);
 
-  const weekStart = useMemo(() => weekStartFor(selectedDate), [selectedDate]);
+  // A rolling 7-day window starting today, not a Monday-anchored calendar
+  // week — "the rest of the week" reads as upcoming days, and a fixed
+  // calendar week would show mostly past days whenever today falls on a
+  // Friday/Saturday/Sunday.
+  const weekStart = selectedDate;
   const rangeStart = view === 'day' ? selectedDate : weekStart;
   const rangeEnd = view === 'day' ? selectedDate : addDays(weekStart, 6);
 

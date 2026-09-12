@@ -1,4 +1,4 @@
-import { weekStartFor, eventDayKey } from '@/utils/agenda';
+import { eventDayKey } from '@/utils/agenda';
 import type { CalendarEvent } from '@/types/calendar';
 
 function event(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
@@ -17,16 +17,6 @@ function event(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     ...overrides,
   };
 }
-
-describe('weekStartFor', () => {
-  it.each([
-    ['2026-09-14', '2026-09-14'], // Monday -> itself
-    ['2026-09-15', '2026-09-14'], // Tuesday -> Monday
-    ['2026-09-20', '2026-09-14'], // Sunday -> preceding Monday
-  ])('%s -> %s', (date, expected) => {
-    expect(weekStartFor(date)).toBe(expected);
-  });
-});
 
 describe('eventDayKey', () => {
   it('projects a timed event through the user timezone', () => {

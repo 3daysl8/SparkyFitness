@@ -1,12 +1,5 @@
-import { addDays, dayOfWeek, instantToDay } from '@workspace/shared';
+import { instantToDay } from '@workspace/shared';
 import type { CalendarEvent } from '@/types/calendar';
-
-/** Monday-based week start for a YYYY-MM-DD day string — same convention as
- * the server's focusService.weekStartFor. */
-export function weekStartFor(date: string): string {
-  const offset = (dayOfWeek(date) + 6) % 7; // Sun(0)->6, Mon(1)->0, ... Sat(6)->5
-  return addDays(date, -offset);
-}
 
 /** The calendar day an event belongs to, for grouping in Week view. An
  * all-day event's `start` is a floating calendar date with no real instant
