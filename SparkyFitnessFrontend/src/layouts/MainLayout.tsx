@@ -102,7 +102,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
     const items: AddCompItem[] = [];
     if (!isActingOnBehalf) {
       // Keep this order consistent with the desktop tab order in availableTabs:
-      // Check-In, Cycle, Medications, Foods, Exercises, Goals.
+      // Check-In, Cycle, Medications, Goals. Exercises has its own direct
+      // mobile bottom-bar tab, so it isn't duplicated in this "+" sheet.
       items.push(
         {
           value: 'checkin',
@@ -127,11 +128,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
           value: 'medications',
           label: t('nav.medications', 'Medications'),
           icon: Pill,
-        },
-        {
-          value: 'exercises',
-          label: t('exercise.title', 'Exercises'),
-          icon: Dumbbell,
         },
         { value: 'goals', label: t('nav.goals', 'Goals'), icon: Target },
         { value: 'focus', label: t('nav.focus', 'Focus'), icon: Compass }
@@ -237,7 +233,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
           label: t('nav.medications', 'Medications'),
           icon: Pill,
         },
-        { value: '/reports', label: t('nav.reports'), icon: BarChart3 },
         {
           value: '/exercises',
           label: t('exercise.title', 'Exercises'),
@@ -300,7 +295,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
     if (!isActingOnBehalf) {
       mobileTabs.push(
         { value: '/', label: t('nav.home', 'Home'), icon: Home },
-        { value: '/reports', label: t('nav.reports'), icon: BarChart3 },
+        {
+          value: '/exercises',
+          label: t('exercise.title', 'Exercises'),
+          icon: Dumbbell,
+        },
         {
           value: 'Add',
           label: t('common.add', 'Add'),
@@ -442,13 +441,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-1">
             <img
-              src="/images/SparkyFitness.webp"
-              alt="SparkyFitness Logo"
-              width={54}
-              height={72}
+              src="/images/logo.webp"
+              alt="Ouroboros Life Logo"
+              width={48}
+              height={48}
             />
             <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-slate-300">
-              SparkyFitness
+              Ouroboros Life
             </h1>
             {!isMobile && (
               <>
