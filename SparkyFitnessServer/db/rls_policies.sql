@@ -104,6 +104,9 @@ BEGIN
     'health_appointments',
     'user_custom_moods',
     'user_mood_display_preferences',
+    'focus_domains',
+    'focuses',
+    'focus_checkins',
     'passkey_registration_tickets',
     'exercise_entry_laps',
     'exercise_entry_gps_points',
@@ -676,6 +679,13 @@ SELECT create_checkin_policy('user_custom_moods');
 
 -- Mood display preferences: personal picker config, owner-only.
 SELECT create_owner_policy('user_mood_display_preferences');
+
+-- Focus & Motivation hub (see migration 20260912120000_add_focus_schema.sql).
+-- Tier 1 — owner-only. Daily/weekly/long-term intentions and reflections are
+-- personal, never shared or delegated, matching the Cycle hub's precedent.
+SELECT create_owner_policy('focus_domains');
+SELECT create_owner_policy('focuses');
+SELECT create_owner_policy('focus_checkins');
 
 
 -- Custom policies for special cases

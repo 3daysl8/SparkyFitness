@@ -25,6 +25,7 @@ import { buildDashboardTools } from './dashboardTools.js';
 import { buildFavoritesTools } from './favoritesTools.js';
 import { buildFoodTools } from './foodTools.js';
 import { buildGoalTools } from './goalTools.js';
+import { buildFocusTools } from './focusTools.js';
 import { buildHabitTools } from './habitTools.js';
 import { buildMealPlanTools } from './mealPlansTools.js';
 import { buildMedicationTools } from './medicationTools.js';
@@ -99,7 +100,7 @@ const CATEGORY_BUILDERS: Record<
     (u, tz) => buildProgressPhotoTools(u, tz),
     (u, tz) => buildSleepScienceTools(u, tz),
   ],
-  goals: [(u, tz) => buildGoalTools(u, tz)],
+  goals: [(u, tz) => buildGoalTools(u, tz), (u, tz) => buildFocusTools(u, tz)],
   coaching: [
     (u, tz) => buildCoachTools(u, tz),
     (u, tz) => buildEngagementTools(u, tz),

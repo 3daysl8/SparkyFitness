@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-07-08_
+_Last updated: 2026-09-12_
 
 SparkyFitness Frontend is the React web app for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessFrontend/`.
 
@@ -42,7 +42,7 @@ pnpm run build
 
 Features are organized by domain, and the same domain folder name appears in `src/pages/`, `src/api/`, and `src/hooks/`. A feature change usually touches the matching folder in all three:
 
-- Page domains: `Admin`, `Auth`, `Chat`, `CheckIn`, `Cycle`, `Diary`, `Errors`, `Exercises`, `Fasting`, `Foods`, `Goals`, `Integrations`, `Medications`, `Reports`, `Settings`.
+- Page domains: `Admin`, `Auth`, `Chat`, `CheckIn`, `Cycle`, `Diary`, `Errors`, `Exercises`, `Fasting`, `Focus`, `Foods`, `Goals`, `Integrations`, `Medications`, `Reports`, `Settings`.
 - API domains add a few more: `AiConversions`, `Chatbot`, `Onboarding`, `Pregnancy`, `SleepScience`.
 - Example: a Medications bug lives in `src/pages/Medications/` + `src/api/Medications/` + `src/hooks/` medication hooks. Start there, not with a repo-wide search.
 
@@ -98,6 +98,7 @@ When searching, ignore `node_modules/`, `dist/`, and every locale except `public
 - Theme/preferences issue: `src/contexts/ThemeContext.tsx`, `src/contexts/PreferencesContext.tsx`, `src/api/Settings/preferences.ts`, `src/utils/userPreferences.ts`.
 - Missing/wrong UI text: the i18n key in `public/locales/en/translation.json` and the `t('...')` call site.
 - Chart issue: Recharts usage in the domain page plus `src/components/ExerciseCharts/` or `ZoomableChart.tsx`.
+- Focus/motivation issue: `src/pages/Focus/FocusPage.tsx`, `src/api/focus/focusService.ts`, `src/hooks/useFocus.ts`, `src/types/focus.ts`.
 
 ## Priority Rule
 

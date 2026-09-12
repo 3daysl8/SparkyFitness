@@ -8,12 +8,12 @@ import {
   Activity, // Used for Check-In
   CalendarHeart,
   BarChart3,
-  Utensils, // Used for Foods
   Settings as SettingsIcon,
   LogOut,
   Dumbbell, // Used for Exercises
   Target, // Used for Goals
   Pill, // Used for Medications
+  Compass, // Used for Focus
   Shield,
   Plus,
   X,
@@ -132,19 +132,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           label: t('nav.medications', 'Medications'),
           icon: Pill,
         },
-        { value: 'foods', label: t('nav.foods', 'Foods'), icon: Utensils },
         {
           value: 'exercises',
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
         },
         { value: 'goals', label: t('nav.goals', 'Goals'), icon: Target },
-        {
-          value: 'foodlog',
-          label: t('nav.foodLog', 'Food Log'),
-          icon: Salad,
-          fullWidth: true,
-        }
+        { value: 'focus', label: t('nav.focus', 'Focus'), icon: Compass }
       );
     } else {
       if (hasWritePermission('checkin')) {
@@ -247,13 +241,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           icon: Pill,
         },
         { value: '/reports', label: t('nav.reports'), icon: BarChart3 },
-        { value: '/foods', label: t('nav.foods'), icon: Utensils },
         {
           value: '/exercises',
           label: t('exercise.title', 'Exercises'),
           icon: Dumbbell,
         },
         { value: '/goals', label: t('nav.goals'), icon: Target },
+        { value: '/focus', label: t('nav.focus', 'Focus'), icon: Compass },
         { value: '/settings', label: t('nav.settings'), icon: SettingsIcon }
       );
     } else {

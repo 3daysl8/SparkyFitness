@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-09-11_
+_Last updated: 2026-09-12_
 
 SparkyFitness Server is the backend API package for the SparkyFitness monorepo. Use this file as the primary guide for work inside `SparkyFitnessServer/`.
 
@@ -28,7 +28,7 @@ If a task also touches `shared/`, the frontend, or the mobile app, read the rele
 - Stack: Express 5, PostgreSQL via `pg`, Better Auth, Zod, TypeScript 5, Vitest 4, ESLint 10
 - Module system: ESM with `type: "module"` and `moduleResolution: "NodeNext"`
 - The package is now effectively TypeScript-first; almost all source files are `.ts`
-- Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, mood, menstrual cycle and pregnancy, reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
+- Main domains: food and meal tracking, exercise logging, health and sleep data, sleep science, fasting, medications, mood, menstrual cycle and pregnancy, focus and motivation, reporting, AI chat, onboarding, identity, admin tooling, and external provider integrations
 
 ## Verified Commands
 
@@ -64,6 +64,7 @@ pnpm exec eslint routes/v2/foodRoutes.ts services/foodCoreService.ts
 - `routes/v2/openFoodFactsContributionRoutes.ts` - owner-only single-food preview and explicit photo-backed publication; background contributions are disabled for this release
 - `routes/v2/reportRoutes.ts` - weekly alcohol rollup and the zero-padded hydration/caffeine/alcohol range used by the Trends charts (`reports` permission)
 - `routes/v2/nutritionKineticsRoutes.ts` - active-caffeine estimate and bedtime cutoff (`diary` permission)
+- `routes/v2/focusRoutes.ts` - Focus & Motivation hub: user-defined domains, daily/weekly/long-term focuses with optional numeric/boolean targets, check-ins, and a `/today` snapshot endpoint (owner-only, no permission middleware — pair with `services/focusService.ts`, `models/focusRepository.ts`, `schemas/focusSchemas.ts`)
 - `routes/auth/` - auth-specific route fragments mounted through `routes/authRoutes.ts`
 - `services/` - business logic and orchestration
 - `models/` - PostgreSQL repositories and persistence helpers
@@ -258,6 +259,8 @@ When searching, ignore noisy/generated directories unless you explicitly need th
   inspect the matching v2 route (`routes/v2/medicationRoutes.ts`, `routes/v2/cycleRoutes.ts`, `routes/v2/pregnancyRoutes.ts`), its Zod schema in `schemas/`, then `services/cycleService.ts` / `services/pregnancyService.ts` and the `models/medication*Repository.ts` / `models/cycleRepository.ts` / `models/pregnancyRepository.ts` files
 - Sleep or sleep-science issue:
   inspect `routes/sleepRoutes.ts`, `routes/sleepScienceRoutes.ts`, `services/sleepAnalyticsService.ts`, `services/sleepScienceService.ts`, and the sleep repositories
+- Focus/motivation issue:
+  inspect `routes/v2/focusRoutes.ts`, `schemas/focusSchemas.ts`, `services/focusService.ts`, `models/focusRepository.ts`, and `ai/tools/focusTools.ts` (owner-only, mirrors the Cycle hub's structure)
 
 ## Architecture Resources
 
