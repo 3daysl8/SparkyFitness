@@ -2,14 +2,13 @@ import type React from 'react';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
-import { debug, info, error } from '@/utils/logging';
+import { debug, info } from '@/utils/logging';
 import {
   Home,
   Activity, // Used for Check-In
   CalendarHeart,
   BarChart3,
   Settings as SettingsIcon,
-  LogOut,
   Dumbbell, // Used for Exercises
   Target, // Used for Goals
   Pill, // Used for Medications
@@ -25,7 +24,6 @@ import {
   Salad, // Used for Food Log
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
 
 import SparkyChat from '../pages/Chat/SparkyChat';
 import AddComp from '@/layouts/AddComp';
@@ -35,6 +33,7 @@ import ProfileSwitcher from '@/components/ProfileSwitcher';
 import GitHubStarCounter from '@/components/GitHubStarCounter';
 import GitHubSponsorButton from '@/components/GitHubSponsorButton';
 import GlobalNotificationIcon from '@/components/GlobalNotificationIcon';
+import { BrandMark } from '@/components/BrandMark';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
@@ -58,7 +57,7 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
   const { t } = useTranslation();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const {
@@ -78,25 +77,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
 
   // Fetch cycle settings to determine tab visibility
   const { data: cycleSettings } = useCycleSettings();
-
-  const handleSignOut = async () => {
-    info(loggingLevel, 'MainLayout: Attempting to sign out.');
-    try {
-      await signOut();
-      toast({
-        title: t('common.success', 'Success'),
-        description: t('auth.signedOut', 'Signed out successfully'),
-      });
-      navigate('/login'); // Navigate to login page after sign out
-    } catch (err) {
-      error(loggingLevel, 'MainLayout: Sign out error:', err);
-      toast({
-        title: t('common.error', 'Error'),
-        description: t('auth.signOutFailed', 'Failed to sign out'),
-        variant: 'destructive',
-      });
-    }
-  };
 
   const addCompItems: AddCompItem[] = useMemo(() => {
     const items: AddCompItem[] = [];
@@ -439,13 +419,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-1">
-            <img
-              src="/images/logo.webp"
-              alt="Ouroboros Life Logo"
-              width={48}
-              height={48}
-            />
+          <div className="flex items-center gap-2">
+            <BrandMark size={36} />
             <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-slate-300">
               Ouroboros Life
             </h1>
@@ -482,17 +457,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
             <GlobalNotificationIcon />
             <GlobalSyncButton />
             <ThemeToggle />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline dark:text-slate-300">
-                {t('auth.signOut', 'Sign Out')}
-              </span>
-            </Button>
           </div>
         </div>
         <nav
@@ -533,7 +497,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
         {/* Mobile Navigation */}
         <nav
           className={cn(
-            'apple-safe-area sm:hidden fixed bottom-0 left-0 right-0 z-50 w-full bg-background border-t transition-colors overflow-hidden',
+            'apple-safe-area sm:hidden fixed bottom-0 left-0 right-0 z-50 w-full bg-background border-t transition-colors',
             selectedDateRelation === 'past' && 'border-date-past/80',
             selectedDateRelation === 'future' && 'border-date-future/50'
           )}
@@ -541,7 +505,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
           {selectedDateRelation !== 'today' && (
             <div
               className={cn(
-                'absolute inset-0 pointer-events-none z-10',
+                'absolute inset-0 pointer-events-none z-10 overflow-hidden',
                 selectedDateRelation === 'past' && 'bg-date-past/10',
                 selectedDateRelation === 'future' && 'bg-date-future/10'
               )}
@@ -550,28 +514,44 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
           <div
             className={`relative h-14 grid ${mobileGridClass} items-center justify-items-center`}
           >
-            {availableMobileTabs.map(({ value, icon: Icon }) => (
-              <Button
-                key={value}
-                variant="ghost"
-                className={`flex flex-col items-center gap-1 py-2 ${
-                  location.pathname ===
-                  (value === 'Add' ? location.pathname : value)
-                    ? 'text-primary'
-                    : ''
-                }`}
-                onClick={() => {
-                  if (value === 'Add') {
-                    setIsAddCompOpen((prev) => !prev);
-                  } else {
+            {availableMobileTabs.map(({ value, label, icon: Icon }) => {
+              if (value === 'Add') {
+                return (
+                  <button
+                    key={value}
+                    aria-label={label}
+                    onClick={() => setIsAddCompOpen((prev) => !prev)}
+                    className={cn(
+                      '-translate-y-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 transition-transform active:scale-95',
+                      isAddCompOpen && 'rotate-45'
+                    )}
+                  >
+                    <Icon className="h-6 w-6" />
+                  </button>
+                );
+              }
+              const isActive = location.pathname === value;
+              return (
+                <Button
+                  key={value}
+                  variant="ghost"
+                  size="icon"
+                  aria-label={label}
+                  className={cn(
+                    'h-10 w-14 rounded-full transition-colors',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => {
                     setIsAddCompOpen(false);
                     navigate(value);
-                  }
-                }}
-              >
-                <Icon className="h-8 w-8" />
-              </Button>
-            ))}
+                  }}
+                >
+                  <Icon className="h-6 w-6" />
+                </Button>
+              );
+            })}
           </div>
         </nav>
 

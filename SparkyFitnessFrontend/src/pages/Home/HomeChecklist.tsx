@@ -4,12 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { todayInZone, addDays, dayOfWeek } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
+import { useWaterContainer } from '@/contexts/WaterContainerContext';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { CircularProgress } from '@/components/ui/circular-progress';
 import {
   Collapsible,
   CollapsibleContent,
@@ -27,8 +31,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Flame,
-  CircleCheck,
-  Circle,
+  Check,
   Dumbbell,
   Droplet,
   Moon,
@@ -47,6 +50,7 @@ import { useExerciseEntries } from '@/hooks/Exercises/useExerciseEntries';
 import {
   useWaterIntakeQuery,
   useWaterGoalQuery,
+  useUpdateWaterIntakeMutation,
 } from '@/hooks/Diary/useWaterIntake';
 import { useSleepEntriesQuery } from '@/hooks/CheckIn/useSleep';
 import type { Focus, RecurringFocus } from '@/types/focus';
@@ -56,6 +60,79 @@ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function sundayOf(date: string): string {
   return addDays(date, -dayOfWeek(date));
+}
+
+/** A sensible round increment for a numeric habit's quick "+" stepper —
+ * roughly 10 taps to fill the target, rounded to a "nice" 1/2/5x10^n step.
+ * There's no explicit step field on the habit, so this is a judgment call;
+ * the precise-entry dialog (tap the progress label) still covers exact
+ * values. */
+function quickStepFor(target: number | null): number {
+  if (!target || target <= 0) return 1;
+  const raw = target / 10;
+  const pow10 = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / pow10;
+  const niceNorm = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+  return Math.max(1, Math.round(niceNorm * pow10));
+}
+
+/** One pill in the week strip, including its own completion dot — done as
+ * its own component (rather than a loop calling the hook 7 times) so each
+ * day's snapshot is a normal, rules-of-hooks-safe query. The selected day's
+ * snapshot is already cached by HomeChecklist's own fetch of it, so this
+ * adds at most 6 extra lightweight requests per visible week, not 7. */
+function DayPill({
+  day,
+  label,
+  selected,
+  onSelect,
+}: {
+  day: string;
+  label: string;
+  selected: boolean;
+  onSelect: (date: string) => void;
+}) {
+  const { data: snapshot } = useTodayFocusSnapshot(day);
+  const total =
+    (snapshot?.scheduled.length ?? 0) + (snapshot?.daily_recurring.length ?? 0);
+  const done =
+    (snapshot?.scheduled.filter((f) => f.status === 'completed').length ?? 0) +
+    (snapshot?.daily_recurring.filter((h) => h.done).length ?? 0);
+  const dotState =
+    total === 0
+      ? 'none'
+      : done === total
+        ? 'full'
+        : done > 0
+          ? 'partial'
+          : 'none';
+
+  return (
+    <button
+      onClick={() => onSelect(day)}
+      className={cn(
+        'flex min-w-[44px] flex-1 snap-center flex-col items-center gap-1 rounded-full py-2 text-sm transition-all duration-200',
+        selected
+          ? 'scale-105 bg-primary font-semibold text-primary-foreground shadow-md'
+          : 'text-muted-foreground hover:bg-muted'
+      )}
+    >
+      <span className="text-[10px] uppercase tracking-wide opacity-80">
+        {label}
+      </span>
+      <span className="text-base leading-none">{Number(day.slice(8, 10))}</span>
+      <span
+        className={cn(
+          'h-1.5 w-1.5 rounded-full',
+          dotState === 'full' &&
+            (selected ? 'bg-primary-foreground' : 'bg-emerald-500'),
+          dotState === 'partial' &&
+            (selected ? 'bg-primary-foreground/50' : 'bg-amber-400'),
+          dotState === 'none' && 'bg-transparent'
+        )}
+      />
+    </button>
+  );
 }
 
 function WeekStrip({
@@ -75,29 +152,26 @@ function WeekStrip({
       <Button
         size="icon"
         variant="ghost"
+        className="shrink-0 rounded-full"
         onClick={() => onSelect(addDays(selectedDate, -7))}
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
-      <div className="grid flex-1 grid-cols-7 gap-1">
+      <div className="no-scrollbar flex flex-1 snap-x snap-mandatory gap-1.5 overflow-x-auto py-1">
         {days.map((day, idx) => (
-          <button
+          <DayPill
             key={day}
-            onClick={() => onSelect(day)}
-            className={`flex flex-col items-center rounded-md border py-2 text-sm ${
-              day === selectedDate
-                ? 'border-primary bg-primary/10 font-semibold'
-                : 'border-transparent text-muted-foreground'
-            }`}
-          >
-            <span className="text-xs">{WEEKDAY_LABELS[idx]}</span>
-            <span>{Number(day.slice(8, 10))}</span>
-          </button>
+            day={day}
+            label={WEEKDAY_LABELS[idx]}
+            selected={day === selectedDate}
+            onSelect={onSelect}
+          />
         ))}
       </div>
       <Button
         size="icon"
         variant="ghost"
+        className="shrink-0 rounded-full"
         onClick={() => onSelect(addDays(selectedDate, 7))}
       >
         <ChevronRight className="h-4 w-4" />
@@ -106,56 +180,208 @@ function WeekStrip({
   );
 }
 
-function StatusStrip({ selectedDate }: { selectedDate: string }) {
+function WorkoutCard({ selectedDate }: { selectedDate: string }) {
   const navigate = useNavigate();
   const { activeUserId } = useActiveUser();
-  const userId = activeUserId ?? undefined;
   const { data: exerciseEntries = [] } = useExerciseEntries(
     selectedDate,
-    userId
+    activeUserId ?? undefined
   );
+  const logged = exerciseEntries.length > 0;
+
+  return (
+    <button
+      onClick={() => navigate('/exercises')}
+      className={cn(
+        'flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors',
+        logged
+          ? 'border-metric-workout/30 bg-metric-workout/10'
+          : 'border-border hover:bg-muted/50'
+      )}
+    >
+      <CircularProgress
+        value={logged ? 100 : 0}
+        size={52}
+        strokeWidth={4}
+        className="text-metric-workout"
+      >
+        <Dumbbell
+          className={cn(
+            'h-5 w-5',
+            logged ? 'text-metric-workout' : 'text-muted-foreground'
+          )}
+        />
+      </CircularProgress>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Workout</p>
+        <p
+          className={cn(
+            'text-sm font-semibold',
+            logged && 'text-metric-workout'
+          )}
+        >
+          {logged ? `${exerciseEntries.length} logged` : 'Log workout'}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function WaterCard({
+  selectedDate,
+  userId,
+}: {
+  selectedDate: string;
+  userId?: string;
+}) {
+  const navigate = useNavigate();
   const { data: waterMl = 0 } = useWaterIntakeQuery(selectedDate, userId);
   const { data: waterGoalMl = 1920 } = useWaterGoalQuery(selectedDate, userId);
+  const { activeContainer } = useWaterContainer();
+  const { mutate: updateWater, isPending } = useUpdateWaterIntakeMutation();
+
+  const pct =
+    waterGoalMl > 0 ? Math.min(100, (waterMl / waterGoalMl) * 100) : 0;
+
+  // Mirrors the common case of WaterIntake.tsx's getVolumeDisplay() (an
+  // explicit container volume, else the 250ml default) without the
+  // linked-food serving-size math — this is a quick-add shortcut, the full
+  // Diary water card remains the source of truth for that edge case.
+  const mlPerDrink = (() => {
+    if (!activeContainer) return 250;
+    const servings = Math.max(1, activeContainer.servings_per_container || 1);
+    const hasVolumeOverride =
+      !activeContainer.linked_food_id || activeContainer.volume > 0;
+    return hasVolumeOverride ? activeContainer.volume / servings : 250;
+  })();
+
+  const handleQuickAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!userId || isPending) return;
+    updateWater({
+      user_id: userId,
+      entry_date: selectedDate,
+      change_drinks: 1,
+      container_id: activeContainer?.id ?? null,
+    });
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate('/diary')}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate('/diary');
+        }
+      }}
+      className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-border p-3 text-center transition-colors hover:bg-muted/50"
+    >
+      <CircularProgress
+        value={pct}
+        size={52}
+        strokeWidth={4}
+        className="text-metric-water"
+      >
+        <Droplet className="h-5 w-5 text-metric-water" />
+      </CircularProgress>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Water</p>
+        <p className="text-sm font-semibold">{Math.round(pct)}%</p>
+      </div>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="h-6 gap-1 rounded-full px-2 text-[11px]"
+        onClick={handleQuickAdd}
+        disabled={!userId || isPending}
+      >
+        <Plus className="h-3 w-3" /> {Math.round(mlPerDrink)}ml
+      </Button>
+    </div>
+  );
+}
+
+function SleepCard({ selectedDate }: { selectedDate: string }) {
+  const navigate = useNavigate();
   const { data: sleepEntries = [] } = useSleepEntriesQuery(
     selectedDate,
     selectedDate
   );
+  const logged = sleepEntries.length > 0;
+  const totalHours =
+    sleepEntries.reduce((sum, e) => sum + (e.duration_in_seconds || 0), 0) /
+    3600;
 
   return (
+    <button
+      onClick={() => navigate('/checkin')}
+      className={cn(
+        'flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors',
+        logged
+          ? 'border-metric-sleep/30 bg-metric-sleep/10'
+          : 'border-dashed border-metric-sleep/40 bg-metric-sleep/5 hover:bg-metric-sleep/10'
+      )}
+    >
+      <CircularProgress
+        value={logged ? 100 : 0}
+        size={52}
+        strokeWidth={4}
+        className="text-metric-sleep"
+      >
+        <Moon
+          className={cn(
+            'h-5 w-5',
+            logged ? 'text-metric-sleep' : 'text-metric-sleep/70'
+          )}
+        />
+      </CircularProgress>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Sleep</p>
+        <p
+          className={cn('text-sm font-semibold', logged && 'text-metric-sleep')}
+        >
+          {logged ? `${totalHours.toFixed(1)}h logged` : 'Tap to log'}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function MetricCards({ selectedDate }: { selectedDate: string }) {
+  const { activeUserId } = useActiveUser();
+  const userId = activeUserId ?? undefined;
+  return (
     <div className="grid grid-cols-3 gap-2">
-      <button
-        onClick={() => navigate('/exercises')}
-        className="flex flex-col items-center gap-1 rounded-md border p-3 text-sm"
-      >
-        <Dumbbell className="h-4 w-4" />
-        <span className="text-xs text-muted-foreground">Workout</span>
-        <span className="font-medium">
-          {exerciseEntries.length > 0
-            ? `${exerciseEntries.length} logged`
-            : 'Not logged'}
-        </span>
-      </button>
-      <button
-        onClick={() => navigate('/')}
-        className="flex flex-col items-center gap-1 rounded-md border p-3 text-sm"
-      >
-        <Droplet className="h-4 w-4" />
-        <span className="text-xs text-muted-foreground">Water</span>
-        <span className="font-medium">
-          {waterMl} / {waterGoalMl} ml
-        </span>
-      </button>
-      <button
-        onClick={() => navigate('/checkin')}
-        className="flex flex-col items-center gap-1 rounded-md border p-3 text-sm"
-      >
-        <Moon className="h-4 w-4" />
-        <span className="text-xs text-muted-foreground">Sleep</span>
-        <span className="font-medium">
-          {sleepEntries.length > 0 ? 'Logged' : 'Not logged'}
-        </span>
-      </button>
+      <WorkoutCard selectedDate={selectedDate} />
+      <WaterCard selectedDate={selectedDate} userId={userId} />
+      <SleepCard selectedDate={selectedDate} />
     </div>
+  );
+}
+
+/** The circular check-target shared by to-dos and boolean habits. Purely
+ * visual (the enclosing row is the real tap target) so it stays valid HTML
+ * and one big touch target, but reads as a dedicated checkbox. Remounting
+ * the icon via `key` on every toggle re-triggers the check-pop animation
+ * only on the actual state change, not on every render. */
+function CheckTarget({ done }: { done: boolean }) {
+  return (
+    <span
+      className={cn(
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+        done
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'border-muted-foreground/30 text-transparent'
+      )}
+    >
+      <Check
+        key={String(done)}
+        className={cn('h-4 w-4', done && 'animate-check-pop')}
+      />
+    </span>
   );
 }
 
@@ -170,14 +396,10 @@ function ToDoRow({
   return (
     <button
       onClick={() => onToggle(focus)}
-      className="flex w-full items-center gap-3 rounded-md border p-3 text-left"
+      className="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-muted/50"
     >
-      {done ? (
-        <CircleCheck className="h-5 w-5 shrink-0 text-primary" />
-      ) : (
-        <Circle className="h-5 w-5 shrink-0 text-muted-foreground" />
-      )}
-      <span className={done ? 'line-through text-muted-foreground' : ''}>
+      <CheckTarget done={done} />
+      <span className={done ? 'text-muted-foreground line-through' : ''}>
         {focus.statement}
       </span>
     </button>
@@ -189,58 +411,118 @@ function HabitRow({
   domainColor,
   onToggle,
   onOpenNumeric,
+  onQuickIncrement,
 }: {
   habit: RecurringFocus;
   domainColor?: string | null;
   onToggle: (habit: RecurringFocus) => void;
   onOpenNumeric: (habit: RecurringFocus) => void;
+  onQuickIncrement: (habit: RecurringFocus) => void;
 }) {
+  const isNumeric = habit.target_type === 'numeric';
+  const progressValue = habit.today_checkin?.progress_value ?? 0;
+  const target = habit.target_value ?? 0;
+  const pct = target > 0 ? Math.min(100, (progressValue / target) * 100) : 0;
+
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-md border p-3"
+      className="rounded-xl border p-3"
       style={
         domainColor ? { borderLeft: `4px solid ${domainColor}` } : undefined
       }
     >
-      <div className="min-w-0">
-        <p
-          className={
-            habit.done ? 'line-through text-muted-foreground' : 'font-medium'
-          }
-        >
-          {habit.statement}
-        </p>
-        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-          {habit.current_streak > 0 && (
-            <span className="flex items-center gap-1">
-              <Flame className="h-3 w-3" /> {habit.current_streak}
-            </span>
-          )}
-          {habit.target_type === 'numeric' && (
-            <span>
-              {habit.today_checkin?.progress_value ?? 0} / {habit.target_value}
-              {habit.unit ? ` ${habit.unit}` : ''}
-            </span>
-          )}
-        </div>
+      <div className="flex items-center gap-3">
+        {isNumeric ? (
+          <div className="min-w-0 flex-1">
+            <p
+              className={
+                habit.done
+                  ? 'text-muted-foreground line-through'
+                  : 'font-medium'
+              }
+            >
+              {habit.statement}
+            </p>
+            {habit.current_streak > 0 && (
+              <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <Flame className="h-3 w-3" /> {habit.current_streak}
+              </span>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => onToggle(habit)}
+            className="flex flex-1 items-center gap-3 text-left"
+          >
+            <CheckTarget done={habit.done} />
+            <div className="min-w-0">
+              <p
+                className={
+                  habit.done
+                    ? 'text-muted-foreground line-through'
+                    : 'font-medium'
+                }
+              >
+                {habit.statement}
+              </p>
+              {habit.current_streak > 0 && (
+                <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <Flame className="h-3 w-3" /> {habit.current_streak}
+                </span>
+              )}
+            </div>
+          </button>
+        )}
+        {isNumeric && (
+          <button
+            onClick={() => onOpenNumeric(habit)}
+            className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            {progressValue}/{target}
+            {habit.unit ? ` ${habit.unit}` : ''}
+          </button>
+        )}
       </div>
-      {habit.target_type === 'numeric' ? (
-        <Button
-          size="sm"
-          variant={habit.done ? 'outline' : 'default'}
-          onClick={() => onOpenNumeric(habit)}
-        >
-          {habit.done ? 'Edit' : 'Log'}
-        </Button>
-      ) : (
-        <Button size="icon" variant="ghost" onClick={() => onToggle(habit)}>
-          {habit.done ? (
-            <CircleCheck className="h-5 w-5 text-primary" />
-          ) : (
-            <Circle className="h-5 w-5 text-muted-foreground" />
-          )}
-        </Button>
+      {isNumeric && (
+        <div className="mt-2.5 flex items-center gap-2 pl-11">
+          <Progress value={pct} className="h-2 flex-1" />
+          <Button
+            size="icon"
+            variant={habit.done ? 'outline' : 'default'}
+            className="h-7 w-7 shrink-0 rounded-full"
+            onClick={() => onQuickIncrement(habit)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       )}
+    </div>
+  );
+}
+
+function EmptyState({
+  emoji,
+  title,
+  hint,
+  actionLabel,
+  onAction,
+}: {
+  emoji: string;
+  title: string;
+  hint?: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-6 text-center">
+      <span className="text-2xl" aria-hidden="true">
+        {emoji}
+      </span>
+      <p className="text-sm font-medium">{title}</p>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      <Button size="sm" variant="outline" onClick={onAction} className="mt-1">
+        <Plus className="mr-1 h-3.5 w-3.5" /> {actionLabel}
+      </Button>
     </div>
   );
 }
@@ -308,6 +590,24 @@ export default function HomeChecklist() {
           body: { completed: true },
         });
       }
+    } catch {
+      toast({
+        title: t('common.error', 'Error'),
+        description: 'Failed to update habit.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleQuickIncrement = async (habit: RecurringFocus) => {
+    const step = quickStepFor(habit.target_value);
+    const current = habit.today_checkin?.progress_value ?? 0;
+    try {
+      await upsertCheckin.mutateAsync({
+        focusId: habit.id,
+        date: selectedDate,
+        body: { progress_value: current + step },
+      });
     } catch {
       toast({
         title: t('common.error', 'Error'),
@@ -396,7 +696,7 @@ export default function HomeChecklist() {
   return (
     <div className="space-y-4">
       <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
-      <StatusStrip selectedDate={selectedDate} />
+      <MetricCards selectedDate={selectedDate} />
 
       {isLoading && <p>{t('common.loading', 'Loading...')}</p>}
 
@@ -428,9 +728,12 @@ export default function HomeChecklist() {
           <CollapsibleContent>
             <CardContent className="space-y-2">
               {(snapshot?.scheduled.length ?? 0) === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {t('focus.noneScheduled', 'Nothing scheduled for this day.')}
-                </p>
+                <EmptyState
+                  emoji="🎉"
+                  title={t('focus.allCaughtUp', 'All caught up for today!')}
+                  actionLabel={t('focus.addTask', 'Add Task')}
+                  onAction={openAddTodo}
+                />
               )}
               {snapshot?.scheduled.map((focus) => (
                 <ToDoRow
@@ -472,9 +775,16 @@ export default function HomeChecklist() {
           <CollapsibleContent>
             <CardContent className="space-y-2">
               {(snapshot?.daily_recurring.length ?? 0) === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {t('focus.noneRecurring', 'No habits due on this day.')}
-                </p>
+                <EmptyState
+                  emoji="✨"
+                  title={t('focus.noHabitsToday', 'No habits due today')}
+                  hint={t(
+                    'focus.addHabitHint',
+                    'Add one to start building a streak.'
+                  )}
+                  actionLabel={t('focus.addHabit', 'Add Habit')}
+                  onAction={openAddHabit}
+                />
               )}
               {snapshot?.daily_recurring.map((habit) => (
                 <HabitRow
@@ -483,6 +793,7 @@ export default function HomeChecklist() {
                   domainColor={domainColor(habit.domain_id)}
                   onToggle={handleToggleHabit}
                   onOpenNumeric={openNumericHabit}
+                  onQuickIncrement={handleQuickIncrement}
                 />
               ))}
             </CardContent>

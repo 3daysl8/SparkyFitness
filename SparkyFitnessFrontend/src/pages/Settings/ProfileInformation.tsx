@@ -3,11 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { User, Camera } from 'lucide-react';
+import { User, Camera, LogOut } from 'lucide-react';
 import { AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { useTranslation } from 'react-i18next';
 import { getInitials } from '@/utils/settings';
 import { useAuth } from '@/hooks/useAuth';
+import { useSignOut } from '@/hooks/useSignOut';
 import { toast } from '@/hooks/use-toast';
 import {
   useProfileQuery,
@@ -18,6 +19,7 @@ import { ProfileFormContent } from './ProfileFormContent';
 export const ProfileInformation = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const handleSignOut = useSignOut();
 
   const { data: profile, isLoading: isProfileLoading } = useProfileQuery(
     user?.id
@@ -123,6 +125,31 @@ export const ProfileInformation = () => {
         <Separator />
 
         <ProfileFormContent key={profile.id} profile={profile} />
+
+        <Separator />
+
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">
+              {t('settings.profileInformation.signOutTitle', 'Sign out')}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                'settings.profileInformation.signOutDescription',
+                'Sign out of Ouroboros Life on this device.'
+              )}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSignOut}
+            className="flex shrink-0 items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            {t('auth.signOut', 'Sign Out')}
+          </Button>
+        </div>
       </AccordionContent>
     </>
   );
