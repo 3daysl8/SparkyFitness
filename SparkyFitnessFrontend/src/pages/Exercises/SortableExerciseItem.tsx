@@ -340,15 +340,17 @@ export const SortableExerciseItem = ({
       {isExpanded && !isCardio && hasSets && (
         <div className="space-y-3">
           {/* The set grid's columns (Type/Reps/Weight/RPE/Duration/Rest) need
-              more width than fits on a phone screen. Without its own scroll
-              container, an unconstrained-width descendant like this forces
-              every ancestor up to DialogContent (a CSS grid, which sizes its
-              implicit column to its widest content) to grow to match —
-              dragging the *entire* dialog into horizontal scroll instead of
-              just this table. overflow-x-auto here contains it locally: per
-              the CSS box-sizing spec, an element with non-visible overflow
-              has an automatic minimum size of zero, so it can't push its
-              ancestors wider. */}
+              more width than fits on a phone screen. overflow-x-auto here
+              lets this table scroll on its own instead of stretching wider —
+              but that only works because the dialog's own top-level grid
+              item (the "Assignments" wrapper in AddWorkoutPlanDialog.tsx /
+              the "Exercises" wrapper in WorkoutPresetForm.tsx) also carries
+              min-w-0. Without min-w-0 on that direct grid-item ancestor, its
+              automatic minimum size still expands to this table's full
+              min-content width regardless of this overflow-x-auto, and drags
+              the *entire* dialog into horizontal scroll again. If this table
+              pattern is reused inside another dialog, that ancestor needs
+              min-w-0 too. */}
           <div className="overflow-x-auto">
             <div className="min-w-fit space-y-2">
               <SetColumnHeaders modality={setTableModality} />

@@ -252,7 +252,7 @@ const AddWorkoutPlanDialog = ({
               )}
             </p>
 
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               <h4 className="mb-2 text-lg font-medium">
                 {t('addWorkoutPlanDialog.assignmentsTitle', 'Assignments')}
               </h4>
