@@ -15,7 +15,6 @@ import {
 } from '@/contexts/ActiveUserContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import DraggableChatbotButton from '@/components/DraggableChatbotButton';
-import AboutDialog from '@/components/AboutDialog';
 import NewReleaseDialog, { ReleaseInfo } from '@/components/NewReleaseDialog';
 import AnnouncementDialog, {
   AnnouncementInfo,
@@ -29,15 +28,10 @@ import {
   Outlet,
   useNavigate,
   Navigate,
-  useOutletContext,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import OidcCallback from '@/components/OidcCallback';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import {
-  useCurrentVersionQuery,
-  useInvalidateGithubVersion,
-} from './hooks/useGeneralQueries';
 import {
   RootErrorBoundary,
   RouteErrorBoundary,
@@ -143,21 +137,13 @@ export const ComponentFallback = () => {
   return <></>;
 };
 const Root = () => {
-  const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null>(null);
   const [showNewReleaseDialog, setShowNewReleaseDialog] = useState(false);
   const [announcement, setAnnouncement] = useState<AnnouncementInfo | null>(
     null
   );
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
-  const { data: appVersion } = useCurrentVersionQuery();
   const navigate = useNavigate();
-  const invalidateGithubVersion = useInvalidateGithubVersion();
-
-  const handleShowNewReleaseDialog = () => {
-    invalidateGithubVersion();
-    setShowNewReleaseDialog(true);
-  };
 
   const handleDismissRelease = (version: string) => {
     localStorage.setItem('dismissedReleaseVersion', version);
@@ -197,12 +183,7 @@ const Root = () => {
                     </div>
                   }
                 >
-                  <Outlet
-                    context={{
-                      setShowAboutDialog,
-                      setShowNewReleaseDialog: handleShowNewReleaseDialog,
-                    }}
-                  />
+                  <Outlet />
                 </Suspense>
                 <ErrorBoundary
                   fallback={<ComponentFallback />}
@@ -216,23 +197,6 @@ const Root = () => {
                   }}
                 >
                   <DraggableChatbotButton />
-                </ErrorBoundary>
-                <ErrorBoundary
-                  fallback={<ComponentFallback />}
-                  onError={(error, { componentStack }) => {
-                    logError(
-                      getUserLoggingLevel(),
-                      'DraggableChatbotButton failed:',
-                      error,
-                      componentStack
-                    );
-                  }}
-                >
-                  <AboutDialog
-                    isOpen={showAboutDialog}
-                    onClose={() => setShowAboutDialog(false)}
-                    version={appVersion?.version ?? ''}
-                  />
                 </ErrorBoundary>
                 <ErrorBoundary
                   fallback={<ComponentFallback />}
@@ -282,22 +246,6 @@ const Root = () => {
         </PreferencesProvider>
       </TooltipProvider>
     </AuthProvider>
-  );
-};
-
-interface OutletContextType {
-  setShowAboutDialog: (show: boolean) => void;
-  setShowNewReleaseDialog: (show: boolean) => void;
-}
-
-const IndexWrapper = () => {
-  const { setShowAboutDialog, setShowNewReleaseDialog } =
-    useOutletContext<OutletContextType>();
-  return (
-    <Index
-      onShowAboutDialog={() => setShowAboutDialog(true)}
-      onShowNewReleaseDialog={() => setShowNewReleaseDialog(true)}
-    />
   );
 };
 
@@ -367,7 +315,7 @@ const router = createBrowserRouter([
         path: '/',
         element: (
           <PrivateRoute>
-            <IndexWrapper />
+            <Index />
           </PrivateRoute>
         ),
         ErrorBoundary: RootErrorBoundary,

@@ -1,19 +1,10 @@
 import {
-  getCurrentVersion,
   getGitHubRepo,
   getLatestGithubRelease,
   getLatestAnnouncement,
 } from '@/api/general';
 import { generalKeys } from '@/api/keys/general';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-
-export const useCurrentVersionQuery = () => {
-  return useQuery({
-    queryKey: generalKeys.appVersion,
-    queryFn: getCurrentVersion,
-    staleTime: Infinity,
-  });
-};
+import { useQuery } from '@tanstack/react-query';
 
 interface CachedStarData {
   count: number;
@@ -63,13 +54,6 @@ export const useLatestReleaseQuery = ({
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled,
   });
-};
-
-export const useInvalidateGithubVersion = () => {
-  const queryClient = useQueryClient();
-  return () => {
-    queryClient.invalidateQueries({ queryKey: generalKeys.githubVersion });
-  };
 };
 
 export const useAnnouncementQuery = ({
