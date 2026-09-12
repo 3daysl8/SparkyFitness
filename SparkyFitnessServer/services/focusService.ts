@@ -22,6 +22,7 @@ interface RecurringFocusRow {
   target_type: string;
   target_value: number | null;
   today_checkin: CheckinLike | null;
+  recurrence_days_of_week: number[] | null;
   [key: string]: unknown;
 }
 
@@ -54,22 +55,34 @@ function isCheckinDone(
 
 /**
  * Consecutive-day streak ending at `date` (inclusive): walks backward day by
- * day through `history` until the first day that isn't done. A day with no
- * check-in row breaks the streak. Deliberately a simple counter rather than
- * uHabits' exponential-moving-average "strength" score — plenty for a
+ * day through `history` until the first *scheduled* day that isn't done. A
+ * day excluded by `recurrenceDaysOfWeek` is skipped rather than treated as a
+ * miss — otherwise a habit that (say) excludes weekends would have its
+ * streak reset by Monday every week, since no check-in row ever exists for
+ * an excluded day. A day with no check-in row on a day the habit *was*
+ * scheduled still breaks the streak. Deliberately a simple counter rather
+ * than uHabits' exponential-moving-average "strength" score — plenty for a
  * personal single-user tool.
  */
 function computeStreak(
   history: CheckinHistoryRow[],
   targetType: string,
   targetValue: number | null,
-  date: string
+  date: string,
+  recurrenceDaysOfWeek: number[] | null
 ): number {
   const byDate = new Map(history.map((h) => [h.checkin_date, h]));
   let streak = 0;
   let cursor = date;
-  while (isCheckinDone(byDate.get(cursor), targetType, targetValue)) {
-    streak += 1;
+  for (let i = 0; i < STREAK_LOOKBACK_DAYS; i++) {
+    const scheduled =
+      !recurrenceDaysOfWeek ||
+      recurrenceDaysOfWeek.length === 0 ||
+      recurrenceDaysOfWeek.includes(dayOfWeek(cursor));
+    if (scheduled) {
+      if (!isCheckinDone(byDate.get(cursor), targetType, targetValue)) break;
+      streak += 1;
+    }
     cursor = addDays(cursor, -1);
   }
   return streak;
@@ -114,7 +127,13 @@ async function getToday(userId: string, date: string) {
     return {
       ...f,
       done: isCheckinDone(f.today_checkin, f.target_type, f.target_value),
-      current_streak: computeStreak(hist, f.target_type, f.target_value, date),
+      current_streak: computeStreak(
+        hist,
+        f.target_type,
+        f.target_value,
+        date,
+        f.recurrence_days_of_week
+      ),
     };
   });
 
