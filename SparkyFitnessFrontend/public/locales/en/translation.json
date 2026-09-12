@@ -729,6 +729,8 @@
     "weekly": "This Week",
     "daily": "Today",
     "addFocus": "Add focus",
+    "addTodo": "Add To-Do",
+    "addHabit": "Add Daily Habit",
     "statement": "Statement",
     "statementPlaceholder": "e.g. Finish the client proposal",
     "makeRecurring": "Make this recurring",

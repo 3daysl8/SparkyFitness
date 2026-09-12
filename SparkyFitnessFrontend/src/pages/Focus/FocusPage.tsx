@@ -44,6 +44,7 @@ import {
   useTodayFocusSnapshot,
 } from '@/hooks/useFocus';
 import type { Focus, FocusTimeframe, FocusTargetType } from '@/types/focus';
+import WeekdayToggle from './WeekdayToggle';
 
 function FocusHistoryButton({ focus }: { focus: Focus }) {
   const [open, setOpen] = useState(false);
@@ -482,38 +483,10 @@ export default function FocusPage() {
                               <Label>
                                 {t('focus.repeatsOn', 'Repeats on')}
                               </Label>
-                              <div className="flex flex-wrap gap-1">
-                                {[
-                                  'Sun',
-                                  'Mon',
-                                  'Tue',
-                                  'Wed',
-                                  'Thu',
-                                  'Fri',
-                                  'Sat',
-                                ].map((label, idx) => (
-                                  <Button
-                                    key={idx}
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                      recurrenceDays.has(idx)
-                                        ? 'default'
-                                        : 'outline'
-                                    }
-                                    onClick={() =>
-                                      setRecurrenceDays((prev) => {
-                                        const next = new Set(prev);
-                                        if (next.has(idx)) next.delete(idx);
-                                        else next.add(idx);
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    {label}
-                                  </Button>
-                                ))}
-                              </div>
+                              <WeekdayToggle
+                                selected={recurrenceDays}
+                                onChange={setRecurrenceDays}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="focus-recurrence-end">

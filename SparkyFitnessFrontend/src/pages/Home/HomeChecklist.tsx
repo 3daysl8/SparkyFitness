@@ -7,6 +7,8 @@ import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   Collapsible,
@@ -30,10 +32,12 @@ import {
   Dumbbell,
   Droplet,
   Moon,
+  Plus,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
   useFocusDomains,
+  useCreateFocus,
   useUpdateFocus,
   useUpsertFocusCheckin,
   useDeleteFocusCheckin,
@@ -46,6 +50,7 @@ import {
 } from '@/hooks/Diary/useWaterIntake';
 import { useSleepEntriesQuery } from '@/hooks/CheckIn/useSleep';
 import type { Focus, RecurringFocus } from '@/types/focus';
+import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -253,6 +258,7 @@ export default function HomeChecklist() {
   const [selectedDate, setSelectedDate] = useState(todayIso);
 
   const { data: snapshot, isLoading } = useTodayFocusSnapshot(selectedDate);
+  const createFocus = useCreateFocus();
   const updateFocus = useUpdateFocus();
   const upsertCheckin = useUpsertFocusCheckin();
   const deleteCheckin = useDeleteFocusCheckin();
@@ -261,6 +267,17 @@ export default function HomeChecklist() {
   const [isHabitsOpen, setIsHabitsOpen] = useState(true);
   const [numericHabit, setNumericHabit] = useState<RecurringFocus | null>(null);
   const [numericValue, setNumericValue] = useState('');
+
+  const [isAddTodoOpen, setIsAddTodoOpen] = useState(false);
+  const [todoStatement, setTodoStatement] = useState('');
+  const [todoDate, setTodoDate] = useState(selectedDate);
+
+  const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
+  const [habitStatement, setHabitStatement] = useState('');
+  const [habitDays, setHabitDays] = useState<Set<number>>(
+    new Set([0, 1, 2, 3, 4, 5, 6])
+  );
+  const [habitEndDate, setHabitEndDate] = useState('');
 
   const handleToggleTodo = async (focus: Focus) => {
     try {
@@ -325,6 +342,57 @@ export default function HomeChecklist() {
     }
   };
 
+  const openAddTodo = () => {
+    setTodoStatement('');
+    setTodoDate(selectedDate);
+    setIsAddTodoOpen(true);
+  };
+
+  const handleCreateTodo = async () => {
+    if (!todoStatement.trim()) return;
+    try {
+      await createFocus.mutateAsync({
+        timeframe: 'daily',
+        statement: todoStatement.trim(),
+        period_date: todoDate,
+      });
+      setIsAddTodoOpen(false);
+    } catch {
+      toast({
+        title: t('common.error', 'Error'),
+        description: 'Failed to create to-do.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openAddHabit = () => {
+    setHabitStatement('');
+    setHabitDays(new Set([0, 1, 2, 3, 4, 5, 6]));
+    setHabitEndDate('');
+    setIsAddHabitOpen(true);
+  };
+
+  const handleCreateHabit = async () => {
+    if (!habitStatement.trim()) return;
+    try {
+      await createFocus.mutateAsync({
+        timeframe: 'daily',
+        statement: habitStatement.trim(),
+        recurrence_days_of_week:
+          habitDays.size < 7 ? Array.from(habitDays).sort() : undefined,
+        recurrence_end_date: habitEndDate || undefined,
+      });
+      setIsAddHabitOpen(false);
+    } catch {
+      toast({
+        title: t('common.error', 'Error'),
+        description: 'Failed to create habit.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
@@ -342,7 +410,19 @@ export default function HomeChecklist() {
                   {snapshot?.scheduled.length ?? 0}
                 </Badge>
               </CardTitle>
-              <ChevronDown className="h-4 w-4" />
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAddTodo();
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <ChevronDown className="h-4 w-4" />
+              </div>
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -374,7 +454,19 @@ export default function HomeChecklist() {
                   {snapshot?.daily_recurring.length ?? 0}
                 </Badge>
               </CardTitle>
-              <ChevronDown className="h-4 w-4" />
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAddHabit();
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <ChevronDown className="h-4 w-4" />
+              </div>
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -416,6 +508,93 @@ export default function HomeChecklist() {
             <Button
               onClick={handleSaveNumeric}
               disabled={upsertCheckin.isPending}
+            >
+              {t('common.save', 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddTodoOpen} onOpenChange={setIsAddTodoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('focus.addTodo', 'Add To-Do')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="home-todo-statement">
+                {t('focus.statement', 'Statement')}
+              </Label>
+              <Textarea
+                id="home-todo-statement"
+                value={todoStatement}
+                onChange={(e) => setTodoStatement(e.target.value)}
+                placeholder={t(
+                  'focus.statementPlaceholder',
+                  'e.g. Finish the client proposal'
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="home-todo-date">
+                {t('focus.scheduleDate', 'Date')}
+              </Label>
+              <Input
+                id="home-todo-date"
+                type="date"
+                value={todoDate}
+                onChange={(e) => setTodoDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateTodo} disabled={createFocus.isPending}>
+              {t('common.save', 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddHabitOpen} onOpenChange={setIsAddHabitOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('focus.addHabit', 'Add Daily Habit')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="home-habit-statement">
+                {t('focus.statement', 'Statement')}
+              </Label>
+              <Textarea
+                id="home-habit-statement"
+                value={habitStatement}
+                onChange={(e) => setHabitStatement(e.target.value)}
+                placeholder={t(
+                  'focus.statementPlaceholder',
+                  'e.g. Finish the client proposal'
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('focus.repeatsOn', 'Repeats on')}</Label>
+              <WeekdayToggle selected={habitDays} onChange={setHabitDays} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="home-habit-end-date">
+                {t('focus.endDate', 'End date (optional)')}
+              </Label>
+              <Input
+                id="home-habit-end-date"
+                type="date"
+                value={habitEndDate}
+                onChange={(e) => setHabitEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleCreateHabit}
+              disabled={createFocus.isPending}
             >
               {t('common.save', 'Save')}
             </Button>
