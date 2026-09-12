@@ -1190,6 +1190,7 @@
     },
     "exerciseSearch": {
       "add": "Add",
+      "filterByMuscle": "Filter by muscle",
       "noResults": "No exercises found.",
       "placeholder": "Search exercises…",
       "popular": "Most Used",

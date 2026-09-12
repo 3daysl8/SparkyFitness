@@ -9,9 +9,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Loader2, Search, Clock, TrendingUp, Filter } from 'lucide-react';
+import {
+  Plus,
+  Loader2,
+  Search,
+  Clock,
+  TrendingUp,
+  Filter,
+  ChevronDown,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import BodyMapFilter from './BodyMapFilter';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 
 import { Exercise } from '@/types/exercises';
 import { ExerciseSearchListItem } from './ExerciseSearchListItem';
@@ -110,6 +124,10 @@ const ExerciseSearch = ({
   const [ownershipFilter, setOwnershipFilter] = useState<
     'all' | 'mine' | 'family' | 'public'
   >('all');
+  // Collapsed by default: the body map is tall (especially on mobile), and
+  // having it open by default pushed search results below the fold, making
+  // it look like search "did nothing" even when results loaded correctly.
+  const [isBodyMapOpen, setIsBodyMapOpen] = useState(false);
 
   const filteredRecentExercises = useMemo(
     () => filterItems(recentExercises, ownershipFilter, user?.id),
@@ -281,12 +299,32 @@ const ExerciseSearch = ({
         </div>
       )}
 
-      {/* Body map */}
-      <BodyMapFilter
-        selectedMuscles={muscleGroupFilter}
-        onMuscleToggle={handleMuscleToggle}
-        availableMuscleGroups={availableMuscleGroups}
-      />
+      {/* Body map (collapsed by default — see isBodyMapOpen comment) */}
+      <Collapsible open={isBodyMapOpen} onOpenChange={setIsBodyMapOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-600 dark:text-gray-400"
+          >
+            <span className="flex items-center gap-1.5">
+              {t('exercise.exerciseSearch.filterByMuscle', 'Filter by muscle')}
+              {muscleGroupFilter.length > 0 && (
+                <Badge variant="secondary">{muscleGroupFilter.length}</Badge>
+              )}
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${isBodyMapOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-2">
+          <BodyMapFilter
+            selectedMuscles={muscleGroupFilter}
+            onMuscleToggle={handleMuscleToggle}
+            availableMuscleGroups={availableMuscleGroups}
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Loading state */}
       {loading && (
