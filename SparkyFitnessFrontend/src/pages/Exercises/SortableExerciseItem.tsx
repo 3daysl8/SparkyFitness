@@ -201,30 +201,32 @@ export const SortableExerciseItem = ({
       className="border p-3 rounded-md space-y-3 bg-card"
       {...attributes}
     >
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2">
+      <div className="flex justify-between items-center gap-2 min-w-0">
+        <div className="flex items-center space-x-2 min-w-0">
           <div {...listeners}>
-            <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+            <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab shrink-0" />
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               {isWorkoutPreset ? (
-                <Book className="h-4 w-4 text-primary" />
+                <Book className="h-4 w-4 text-primary shrink-0" />
               ) : isCardio ? (
-                <HeartPulse className="h-4 w-4 text-red-500" />
+                <HeartPulse className="h-4 w-4 text-red-500 shrink-0" />
               ) : (
-                <Dumbbell className="h-4 w-4 text-muted-foreground" />
+                <Dumbbell className="h-4 w-4 text-muted-foreground shrink-0" />
               )}
-              <h4 className="font-bold text-sm leading-tight">{displayName}</h4>
+              <h4 className="font-bold text-sm leading-tight truncate">
+                {displayName}
+              </h4>
             </div>
             {linkedPreset && (
-              <div className="flex items-center text-[10px] text-muted-foreground uppercase mt-0.5 font-medium">
+              <div className="flex items-center text-[10px] text-muted-foreground uppercase mt-0.5 font-medium truncate">
                 {linkedPreset.name}
               </div>
             )}
           </div>
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-1 shrink-0">
           {(hasSets || isCardio) && (
             <Button
               variant="ghost"
@@ -337,53 +339,67 @@ export const SortableExerciseItem = ({
 
       {isExpanded && !isCardio && hasSets && (
         <div className="space-y-3">
-          <SetColumnHeaders modality={setTableModality} />
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleSetDragEnd}
-          >
-            <SortableContext
-              items={(ex.sets || []).map((s, i) => {
-                const setWithId = s as typeof s & {
-                  _dndId?: string;
-                  id?: string | number;
-                };
-                return (
-                  setWithId._dndId ||
-                  setWithId.id?.toString() ||
-                  `set-${exerciseIndex}-${i}`
-                );
-              })}
-            >
-              <div className="space-y-2">
-                {(ex.sets || []).map((s, setIndex) => {
-                  const setWithId = s as typeof s & {
-                    _dndId?: string;
-                    id?: string | number;
-                  };
-                  const dndId =
-                    setWithId._dndId ||
-                    setWithId.id?.toString() ||
-                    `set-${exerciseIndex}-${setIndex}`;
-                  return (
-                    <SortableSetItem
-                      key={dndId}
-                      id={dndId}
-                      set={s as SortableSetData}
-                      exerciseIndex={exerciseIndex}
-                      setIndex={setIndex}
-                      onSetChange={onSetChange}
-                      onDuplicateSet={onDuplicateSet}
-                      onRemoveSet={onRemoveSet}
-                      weightUnit={weightUnit}
-                      modality={setTableModality}
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
+          {/* The set grid's columns (Type/Reps/Weight/RPE/Duration/Rest) need
+              more width than fits on a phone screen. Without its own scroll
+              container, an unconstrained-width descendant like this forces
+              every ancestor up to DialogContent (a CSS grid, which sizes its
+              implicit column to its widest content) to grow to match —
+              dragging the *entire* dialog into horizontal scroll instead of
+              just this table. overflow-x-auto here contains it locally: per
+              the CSS box-sizing spec, an element with non-visible overflow
+              has an automatic minimum size of zero, so it can't push its
+              ancestors wider. */}
+          <div className="overflow-x-auto">
+            <div className="min-w-fit space-y-2">
+              <SetColumnHeaders modality={setTableModality} />
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleSetDragEnd}
+              >
+                <SortableContext
+                  items={(ex.sets || []).map((s, i) => {
+                    const setWithId = s as typeof s & {
+                      _dndId?: string;
+                      id?: string | number;
+                    };
+                    return (
+                      setWithId._dndId ||
+                      setWithId.id?.toString() ||
+                      `set-${exerciseIndex}-${i}`
+                    );
+                  })}
+                >
+                  <div className="space-y-2">
+                    {(ex.sets || []).map((s, setIndex) => {
+                      const setWithId = s as typeof s & {
+                        _dndId?: string;
+                        id?: string | number;
+                      };
+                      const dndId =
+                        setWithId._dndId ||
+                        setWithId.id?.toString() ||
+                        `set-${exerciseIndex}-${setIndex}`;
+                      return (
+                        <SortableSetItem
+                          key={dndId}
+                          id={dndId}
+                          set={s as SortableSetData}
+                          exerciseIndex={exerciseIndex}
+                          setIndex={setIndex}
+                          onSetChange={onSetChange}
+                          onDuplicateSet={onDuplicateSet}
+                          onRemoveSet={onRemoveSet}
+                          weightUnit={weightUnit}
+                          modality={setTableModality}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          </div>
 
           <div className="flex justify-between items-center mt-2 border-t pt-2">
             {onAddSet && !isWorkoutPreset ? (
