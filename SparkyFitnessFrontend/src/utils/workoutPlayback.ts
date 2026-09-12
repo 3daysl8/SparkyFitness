@@ -10,7 +10,7 @@ import type { Exercise } from '@/types/exercises';
 
 export const DEFAULT_REST_SECONDS = 90;
 export const WORKOUT_PLAYBACK_SET_GRID_CLASSES =
-  'grid w-full min-w-[48rem] grid-cols-4 gap-2 sm:grid-cols-[7rem_10rem_5rem_6rem_6rem_6rem] sm:gap-x-6 sm:gap-y-2';
+  'grid w-full grid-cols-4 gap-2 sm:min-w-[48rem] sm:grid-cols-[7rem_10rem_5rem_6rem_6rem_6rem] sm:gap-x-6 sm:gap-y-2';
 
 export type WorkoutPlaybackRestState = 'idle' | 'running' | 'paused';
 
