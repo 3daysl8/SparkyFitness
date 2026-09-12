@@ -1,8 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { memo } from 'react';
 import type { WeightUnit } from '@/contexts/PreferencesContext';
-import { MessageSquare, Timer, Trash2, Trophy } from 'lucide-react';
+import {
+  MessageSquare,
+  Minus,
+  Plus,
+  Timer,
+  Trash2,
+  Trophy,
+} from 'lucide-react';
 import { formatWeight } from '@/utils/numberFormatting';
+import { lbsToKg } from '@/utils/unitConversions';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -112,6 +120,20 @@ const WorkoutPlaybackSetRow = ({
     !isTimedExercise &&
     previousSet &&
     (previousSet.weight != null || previousSet.reps != null);
+
+  // "+2.5kg" for kg users; the lbs equivalent of a round +5lb plate jump for
+  // lbs users (weight is always stored/edited in kg — see UnitInput).
+  const weightStepKg = weightUnit === 'lbs' ? lbsToKg(5) : 2.5;
+  const weightStepLabel =
+    weightUnit === 'lbs' ? '5' : Number(weightStepKg.toFixed(1)).toString();
+
+  const stepReps = (delta: number) => {
+    onSetFieldChange(pointer, 'reps', Math.max(0, (reps ?? 0) + delta));
+  };
+  const stepWeight = (delta: number) => {
+    const next = Math.max(0, (weight ?? 0) + delta);
+    onSetFieldChange(pointer, 'weight', Math.round(next * 100) / 100);
+  };
 
   return (
     <div>
@@ -249,19 +271,70 @@ const WorkoutPlaybackSetRow = ({
             </>
           )}
 
-          {hasPreviousSet && (
-            <div className="col-span-4 -mt-1 px-1 text-[10px] text-muted-foreground sm:col-start-3 sm:col-span-2 sm:mt-0">
-              {t(
-                'exercise.workoutPlaybackDialog.previousSet',
-                'Previous: {{weight}} × {{reps}}',
-                {
-                  weight:
-                    previousSet?.weight != null
-                      ? formatWeight(previousSet.weight, weightUnit)
-                      : '—',
-                  reps: previousSet?.reps ?? '—',
-                }
-              )}
+          {!isTimedExercise && (
+            <div
+              className="col-span-4 -mt-1 flex items-center justify-between gap-2 px-1 sm:col-start-3 sm:col-span-2 sm:mt-0"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <span className="min-w-0 truncate text-[10px] text-muted-foreground">
+                {hasPreviousSet &&
+                  t(
+                    'exercise.workoutPlaybackDialog.previousSet',
+                    'Previous: {{weight}} × {{reps}}',
+                    {
+                      weight:
+                        previousSet?.weight != null
+                          ? formatWeight(previousSet.weight, weightUnit)
+                          : '—',
+                      reps: previousSet?.reps ?? '—',
+                    }
+                  )}
+              </span>
+              <div className="flex shrink-0 items-center gap-2.5">
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    aria-label={`Decrease reps for set ${setNumber}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => stepReps(-1)}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="text-[9px] text-muted-foreground">
+                    1{t('exercise.workoutPlaybackDialog.repsAbbrev', 'rep')}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Increase reps for set ${setNumber}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => stepReps(1)}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    aria-label={`Decrease weight for set ${setNumber}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => stepWeight(-weightStepKg)}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="text-[9px] text-muted-foreground">
+                    {weightStepLabel}
+                    {weightUnit === 'lbs' ? 'lb' : 'kg'}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Increase weight for set ${setNumber}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => stepWeight(weightStepKg)}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

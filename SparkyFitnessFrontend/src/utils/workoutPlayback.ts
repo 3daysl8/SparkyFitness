@@ -6,6 +6,7 @@ import {
   type ExerciseModality,
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
+import type { Exercise } from '@/types/exercises';
 
 export const DEFAULT_REST_SECONDS = 90;
 export const WORKOUT_PLAYBACK_SET_GRID_CLASSES =
@@ -372,6 +373,79 @@ export function createWorkoutPlaybackRouteState(
   };
 }
 
+/** A synthetic "no preset" starting point for an ad-hoc workout — same
+ * shape as createWorkoutPlaybackDraftFromPreset's output, just with no
+ * exercises yet. Built up live via addExerciseToWorkoutDraft below. */
+export function createBlankWorkoutPlaybackDraft(
+  entryDate: string
+): WorkoutPlaybackDraft {
+  const createdAt = nowIso();
+  return {
+    version: 1,
+    preset_id: 'blank',
+    name: 'Workout',
+    description: null,
+    entry_date: entryDate,
+    notes: null,
+    source: 'sparky',
+    active_exercise_index: 0,
+    active_set_index: 0,
+    rest_timer: DEFAULT_REST_TIMER,
+    exercises: [],
+    started_at: createdAt,
+    updated_at: createdAt,
+  };
+}
+
+/** Appends one exercise (with a single blank default set) to a live draft —
+ * the sticky bar's "+ Add Exercise" mid-session. Mirrors
+ * createWorkoutPlaybackDraftFromPreset's per-exercise mapping and
+ * addWorkoutSetToExercise's default-set shape. */
+export function addExerciseToWorkoutDraft(
+  draft: WorkoutPlaybackDraft,
+  exercise: Exercise
+): WorkoutPlaybackDraft {
+  const wasEmpty = draft.exercises.length === 0;
+  const timestamp = nowIso();
+
+  const newExercise: WorkoutPlaybackExerciseDraft = {
+    exercise_id: exercise.id,
+    exercise_name: exercise.name,
+    image_url: exercise.images?.[0],
+    modality: resolveExerciseModality(exercise.modality, exercise.category),
+    notes: null,
+    started_at: wasEmpty ? timestamp : null,
+    ended_at: null,
+    sets: [
+      {
+        set_number: 1,
+        set_type: 'Working Set',
+        reps: null,
+        weight: null,
+        duration: null,
+        distance: null,
+        rest_time: DEFAULT_REST_SECONDS,
+        notes: null,
+        rpe: null,
+        completed: false,
+        completed_at: null,
+      },
+    ],
+  };
+
+  const nextDraft: WorkoutPlaybackDraft = {
+    ...draft,
+    exercises: [...draft.exercises, newExercise],
+  };
+
+  if (wasEmpty) {
+    nextDraft.active_exercise_index = 0;
+    nextDraft.active_set_index = 0;
+  }
+
+  return touchDraft(nextDraft);
+}
+
 export function getWorkoutPlaybackRestRemainingSeconds(
   restTimer: WorkoutPlaybackRestTimer,
   nowMs: number = Date.now()
@@ -654,6 +728,38 @@ export function setWorkoutPlaybackRestTimer(
   return touchDraft({ ...draft, rest_timer: restTimer });
 }
 
+/** Adds `seconds` to the rest timer's remaining time — the floating timer's
+ * "+30s" control. Extends `target_end_timestamp_ms` when running (so the
+ * countdown keeps deriving from a wall-clock target rather than drifting),
+ * or just `remaining_seconds` when paused/idle. A no-op when the timer isn't
+ * showing at all (`idle` with nothing queued). */
+export function extendWorkoutPlaybackRestTimer(
+  draft: WorkoutPlaybackDraft,
+  seconds: number
+): WorkoutPlaybackDraft {
+  const timer = draft.rest_timer;
+  if (timer.state === 'idle') {
+    return draft;
+  }
+
+  if (timer.state === 'running') {
+    const currentTarget =
+      timer.target_end_timestamp_ms ??
+      Date.now() + timer.remaining_seconds * 1000;
+    return setWorkoutPlaybackRestTimer(draft, {
+      ...timer,
+      target_end_timestamp_ms: currentTarget + seconds * 1000,
+      duration_seconds: timer.duration_seconds + seconds,
+    });
+  }
+
+  return setWorkoutPlaybackRestTimer(draft, {
+    ...timer,
+    remaining_seconds: Math.max(0, timer.remaining_seconds + seconds),
+    duration_seconds: timer.duration_seconds + seconds,
+  });
+}
+
 // --- Personal record (PR) detection -----------------------------------
 //
 // Ported from SparkyFitnessMobile/src/utils/workoutSession.ts (isWarmupSetType
@@ -737,7 +843,7 @@ export function isPrSet(
       if (!set.completed) return;
       if (set.weight == null) return;
       if (isWarmupSetType(set.set_type)) return;
-      const contender = { weight: set.weight, reps: set.reps };
+      const contender = { weight: set.weight, reps: set.reps ?? null };
       if (best == null || compareSetRecords(contender, best) > 0) {
         best = contender;
       }
@@ -747,7 +853,7 @@ export function isPrSet(
   if (best == null) return false;
   return (
     compareSetRecords(
-      { weight: candidate.weight, reps: candidate.reps },
+      { weight: candidate.weight, reps: candidate.reps ?? null },
       best
     ) > 0
   );

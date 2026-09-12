@@ -12,10 +12,12 @@ import { useTodayFocusSnapshot, useUpsertFocusCheckin } from '@/hooks/useFocus';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   DEFAULT_REST_SECONDS,
+  addExerciseToWorkoutDraft,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
   completeCurrentWorkoutSet,
+  extendWorkoutPlaybackRestTimer,
   getCurrentWorkoutSetPointer,
   getWorkoutPlaybackRestRemainingSeconds,
   getWorkoutPlaybackStats,
@@ -34,12 +36,17 @@ import {
 } from '@/utils/workoutPlayback';
 import { formatSecondsClock } from '@/utils/timeFormatters';
 import { localDateTimeToUtc } from '@workspace/shared';
+import type { Exercise } from '@/types/exercises';
+import AddExerciseDialog from '@/pages/Exercises/AddExerciseDialog';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
+import WorkoutPlaybackFloatingRestTimer from './WorkoutPlaybackFloatingRestTimer';
+import WorkoutPlaybackStickyBar from './WorkoutPlaybackStickyBar';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
 
 const MIN_REST_SECONDS = 15;
 const MAX_REST_SECONDS = 900;
+const REST_EXTEND_SECONDS = 30;
 
 // Auto-completion match rule for the dashboard's "Workout"/"Gym" habit — a
 // plain statement string-match, since Focus has no category field to key
@@ -146,6 +153,7 @@ const WorkoutPlaybackPage = () => {
     useState<WorkoutSetPointer | null>(null);
   const [restEditorCustomValue, setRestEditorCustomValue] = useState('');
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const [isAddExerciseDialogOpen, setIsAddExerciseDialogOpen] = useState(false);
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
@@ -423,6 +431,17 @@ const WorkoutPlaybackPage = () => {
     [updateDraft]
   );
 
+  const handleExerciseAdded = useCallback(
+    (exercise?: Exercise) => {
+      if (!exercise) return;
+      updateDraft((currentDraft) =>
+        addExerciseToWorkoutDraft(currentDraft, exercise)
+      );
+      setIsAddExerciseDialogOpen(false);
+    },
+    [updateDraft]
+  );
+
   const handlePauseResumeRest = useCallback(() => {
     updateDraft((currentDraft) => {
       if (currentDraft.rest_timer.state === 'running') {
@@ -460,6 +479,12 @@ const WorkoutPlaybackPage = () => {
         target_exercise_index: undefined,
         target_set_index: undefined,
       })
+    );
+  }, [updateDraft]);
+
+  const handleExtendRest = useCallback(() => {
+    updateDraft((currentDraft) =>
+      extendWorkoutPlaybackRestTimer(currentDraft, REST_EXTEND_SECONDS)
     );
   }, [updateDraft]);
 
@@ -625,7 +650,7 @@ const WorkoutPlaybackPage = () => {
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <div className="mx-auto w-full max-w-5xl space-y-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:pb-4">
       <WorkoutPlaybackSummary
         draft={draft}
         elapsedSeconds={elapsedSeconds}
@@ -670,6 +695,27 @@ const WorkoutPlaybackPage = () => {
         isDiscardDialogOpen={isDiscardDialogOpen}
         onDiscardDialogChange={setIsDiscardDialogOpen}
         onConfirmDiscard={handleConfirmDiscard}
+      />
+
+      <WorkoutPlaybackFloatingRestTimer
+        restState={draft.rest_timer.state}
+        restRemaining={restRemaining}
+        onPauseResume={handlePauseResumeRest}
+        onSkip={handleSkipRest}
+        onExtend={handleExtendRest}
+      />
+
+      <WorkoutPlaybackStickyBar
+        onAddExercise={() => setIsAddExerciseDialogOpen(true)}
+        onFinishWorkout={handleFinishWorkout}
+        isSaving={isSaving}
+      />
+
+      <AddExerciseDialog
+        open={isAddExerciseDialogOpen}
+        onOpenChange={setIsAddExerciseDialogOpen}
+        onExerciseAdded={handleExerciseAdded}
+        mode="preset"
       />
     </div>
   );

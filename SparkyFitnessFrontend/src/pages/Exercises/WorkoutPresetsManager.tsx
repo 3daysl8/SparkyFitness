@@ -43,7 +43,10 @@ import {
 } from '@/hooks/Exercises/useWorkoutPresets';
 import { useLogWorkoutPresetMutation } from '@/hooks/Exercises/useExerciseEntries';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { createWorkoutPlaybackRouteState } from '@/utils/workoutPlayback';
+import {
+  createWorkoutPlaybackRouteState,
+  createBlankWorkoutPlaybackDraft,
+} from '@/utils/workoutPlayback';
 import { formatWeight } from '@/utils/numberFormatting';
 import WorkoutPresetSelector from './WorkoutPresetSelector';
 
@@ -260,6 +263,16 @@ const WorkoutPresetsManager = () => {
     },
     [location.pathname, location.search, navigate]
   );
+
+  const handleStartBlankWorkout = React.useCallback(() => {
+    const today = formatDateToYYYYMMDD(new Date());
+    navigate(`/workout-playback?date=${today}`, {
+      state: {
+        returnTo: `${location.pathname}${location.search}`,
+        draft: createBlankWorkoutPlaybackDraft(today),
+      },
+    });
+  }, [location.pathname, location.search, navigate]);
 
   const columns = React.useMemo<ColumnDef<WorkoutPreset>[]>(
     () => [
@@ -539,6 +552,19 @@ const WorkoutPresetsManager = () => {
               {t('workoutPresetsManager.startWorkout', 'Start Workout')}
             </DialogTitle>
           </DialogHeader>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit gap-2"
+            onClick={handleStartBlankWorkout}
+          >
+            <Plus className="h-4 w-4" />
+            {t(
+              'workoutPresetsManager.startBlankWorkout',
+              'Start Blank Workout'
+            )}
+          </Button>
           <WorkoutPresetSelector
             onPresetSelected={handleStartWorkoutPlayback}
           />
