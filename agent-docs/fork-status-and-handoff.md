@@ -2,6 +2,19 @@
 
 This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifestyle/habit app for one user (Isaac, `3daysl8@gmail.com`). This doc is a running handoff for picking the work back up in a fresh session — update it as things change, don't let it go stale.
 
+## ⚠️ PICK UP HERE
+
+Nothing is mid-flight or broken — the app is fully deployed and stable as of commit `566da73df`. Verify quickly before starting anything: `ssh -i ~/.ssh/id_ed25519_pi5 pi1@100.103.152.66 "docker compose -f /home/pi1/sparkyfitness/docker-compose.yml ps"` should show all four containers `Up`/`healthy`, and `https://sparkyfitness.tail854f4e.ts.net` should load.
+
+If the user hasn't given a specific task, here's what's actually open, roughly in priority order — everything below is described in full further down this doc, this is just the map:
+
+1. **Hermes morning-briefing integration** — the single biggest open piece (see "Not yet done", item 2). Now has one more source than the doc below originally listed: the new Calendar/Agenda domain's `GET /v2/calendar/agenda?start=...&end=...` gives Hermes "what's on the calendar today" for free (owner-only, needs the same generated API key as everything else) — worth folding in alongside the workout-plan/sleep/meds/focus sources already noted.
+2. **Workout Logging Phase 3 remainder**: muscle-group color tags + the Finish Workout summary modal — spec'd, scoped, just never started (see "Not yet done from this feature" below).
+3. **Phase 4** — "Repeat last session" prefill, not started.
+4. **Optional, low-priority test-suite cleanup** noticed while building Calendar, not fixed because it's unrelated: `translationKeysCoverage.test.ts` has been failing on ~12 pre-existing missing i18n keys since before this session (Focus + Phase 2/3 workout-logging work never added theirs), and `WorkoutPlaybackPage.test.tsx` fails in isolation with an i18next module-loading error unrelated to anything in this doc's recent sessions. Both are described with exact repro in the Calendar status section below.
+
+Also worth knowing before touching anything: the **Known gotchas** section further down (Docker cache/env-reload traps, the PWA stale-cache trap, the disposable-test-account cleanup command) has bitten every session in this doc at least once — skim it first.
+
 ## Status: Calendar / Daily Agenda domain — built, deployed, and live-verified (commit `dcf045b2e`)
 
 New owner-only domain (`calendar_feeds` table, Tier 1) letting the user subscribe to a Google/Apple/Outlook calendar via its iCal (`.ics`) URL and see a Day/Week agenda on the Home dashboard, with a "Launch Workout" quick action on any event whose title looks like a workout. Full domain scaffold following `agent-docs/new-domain-template.md` — see `agent-docs/file-and-domain-reference.md`'s "Focus & Calendar" section for the file map. Server-side fetch is 15-minute cached (`node-cache`, matching `announcementService.ts`'s precedent) and SSRF-guarded through the existing `utils/outboundUrlPolicy.ts` (previously AI-service-only — now documented in `SparkyFitnessServer/AGENTS.md` as general-purpose).
@@ -126,6 +139,7 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
    - Today's planned workout — **real gap**: no existing tool/endpoint answers "what's scheduled today" for the workout-plan system (`ai/tools/workoutPlanTools.ts` has no such action); either add a small one or have Hermes fetch the active plan + filter by day-of-week itself.
    - Sleep-logged reminder, supplements-due reminder — both already fully supported by existing tools (`sparky_manage_checkin`, `sparky_manage_medications`), zero new code needed.
    - The new Focus checklist itself — already exposed via `sparky_manage_focus`'s `get_today`, zero new code needed.
+   - **New since the Calendar/Agenda domain**: `GET /api/v2/calendar/agenda?start=YYYY-MM-DD&end=YYYY-MM-DD` returns the merged, structured agenda across every enabled feed for that range — no MCP tool wrapper was built for it (wasn't asked for), but it's a plain REST route under the same global API-key auth middleware as everything else, so a generated key authenticates it exactly like the MCP-registered tools. Worth having Hermes pull `start=end=today` alongside the workout-plan/sleep/meds/focus sources.
    - Delivery: n8n → Telegram Bot API directly (Hermes has no proactive-send mechanism today) — see the earlier plan file content (superseded, but Track 2's design notes are still valid) for the full mechanics of enabling Hermes' gateway API, timezone handling, etc.
 3. ~~Untested by the user yet~~ — **now tested and confirmed working live** (recurring habit creation, day-of-week exclusion correctly hiding a habit on excluded days, streak counting across a full weekend gap, the Undo action). Found and fixed a real bug in the process (see streak fix above).
 4. **Deferred by choice, not forgotten**: uHabits-style "X times per week, any day" frequency mode (day-of-week exclusion was built instead, per explicit request); quick tap-to-increment for numeric habits (currently opens a small dialog to type a value instead); habit-strength EMA scoring (a simple consecutive-day streak was built instead, deliberately, for a personal single-user tool).
