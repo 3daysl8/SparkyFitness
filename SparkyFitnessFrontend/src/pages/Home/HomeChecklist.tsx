@@ -54,6 +54,13 @@ import {
 } from '@/hooks/Diary/useWaterIntake';
 import { useSleepEntriesQuery } from '@/hooks/CheckIn/useSleep';
 import type { Focus, RecurringFocus } from '@/types/focus';
+import type { ExerciseSessionResponse } from '@workspace/shared';
+import {
+  loadWorkoutPlaybackDraftFromStorage,
+  getWorkoutPlaybackStats,
+  type WorkoutPlaybackDraft,
+} from '@/utils/workoutPlayback';
+import { formatWeight } from '@/utils/numberFormatting';
 import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -90,7 +97,12 @@ const DayPill = forwardRef<
     onSelect: (date: string) => void;
   }
 >(function DayPill({ day, label, selected, onSelect }, ref) {
+  const { activeUserId } = useActiveUser();
   const { data: snapshot } = useTodayFocusSnapshot(day);
+  const { data: exerciseEntries = [] } = useExerciseEntries(
+    day,
+    activeUserId ?? undefined
+  );
   const total =
     (snapshot?.scheduled.length ?? 0) + (snapshot?.daily_recurring.length ?? 0);
   const done =
@@ -104,6 +116,7 @@ const DayPill = forwardRef<
         : done > 0
           ? 'partial'
           : 'none';
+  const hasWorkout = exerciseEntries.length > 0;
 
   return (
     <button
@@ -120,16 +133,26 @@ const DayPill = forwardRef<
         {label}
       </span>
       <span className="text-base leading-none">{Number(day.slice(8, 10))}</span>
-      <span
-        className={cn(
-          'h-1.5 w-1.5 rounded-full',
-          dotState === 'full' &&
-            (selected ? 'bg-primary-foreground' : 'bg-emerald-500'),
-          dotState === 'partial' &&
-            (selected ? 'bg-primary-foreground/50' : 'bg-amber-400'),
-          dotState === 'none' && 'bg-transparent'
+      <span className="flex h-1.5 items-center gap-0.5">
+        {hasWorkout && (
+          <Dumbbell
+            className={cn(
+              'h-2.5 w-2.5',
+              selected ? 'text-primary-foreground' : 'text-metric-workout'
+            )}
+          />
         )}
-      />
+        <span
+          className={cn(
+            'h-1.5 w-1.5 rounded-full',
+            dotState === 'full' &&
+              (selected ? 'bg-primary-foreground' : 'bg-emerald-500'),
+            dotState === 'partial' &&
+              (selected ? 'bg-primary-foreground/50' : 'bg-amber-400'),
+            dotState === 'none' && 'bg-transparent'
+          )}
+        />
+      </span>
     </button>
   );
 });
@@ -197,48 +220,169 @@ function WeekStrip({
   );
 }
 
+/** Watches for a live workout-playback draft for `selectedDate` — the draft
+ * lives only in localStorage (see utils/workoutPlayback.ts) until Finish, so
+ * this re-checks on mount, on cross-tab `storage` events, and when the tab
+ * regains visibility, rather than assuming a single "did it change" signal. */
+function useActiveWorkoutDraft(selectedDate: string) {
+  const [draft, setDraft] = useState<WorkoutPlaybackDraft | null>(() =>
+    loadWorkoutPlaybackDraftFromStorage(selectedDate)
+  );
+
+  useEffect(() => {
+    const recheck = () =>
+      setDraft(loadWorkoutPlaybackDraftFromStorage(selectedDate));
+    recheck();
+    window.addEventListener('storage', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      window.removeEventListener('storage', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, [selectedDate]);
+
+  return draft;
+}
+
+/** "{Routine} • {Duration} mins • {Volume}" for the dashboard card, built
+ * entirely from data useExerciseEntries already fetches (no new query). If
+ * more than one session was logged that day (rare, but possible), sums
+ * across all of them rather than only showing the first. */
+function summarizeWorkoutSessions(sessions: ExerciseSessionResponse[]) {
+  let durationMinutes = 0;
+  let volumeKg = 0;
+
+  for (const session of sessions) {
+    durationMinutes +=
+      session.type === 'preset'
+        ? session.total_duration_minutes
+        : session.duration_minutes;
+    const exercises = session.type === 'preset' ? session.exercises : [session];
+    for (const exercise of exercises) {
+      for (const set of exercise.sets) {
+        volumeKg += (set.weight ?? 0) * (set.reps ?? 0);
+      }
+    }
+  }
+
+  const first = sessions[0];
+  const name =
+    sessions.length === 1 && first
+      ? first.type === 'preset'
+        ? first.name
+        : (first.name ?? first.exercise_snapshot?.name ?? 'Workout')
+      : `${sessions.length} Workouts`;
+
+  return { name, durationMinutes: Math.round(durationMinutes), volumeKg };
+}
+
 function WorkoutCard({ selectedDate }: { selectedDate: string }) {
   const navigate = useNavigate();
   const { activeUserId } = useActiveUser();
+  const { weightUnit } = usePreferences();
   const { data: exerciseEntries = [] } = useExerciseEntries(
     selectedDate,
     activeUserId ?? undefined
   );
+  const activeDraft = useActiveWorkoutDraft(selectedDate);
+
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!activeDraft) return;
+    const interval = window.setInterval(() => setNowTick(Date.now()), 30000);
+    return () => window.clearInterval(interval);
+  }, [activeDraft]);
+
+  const cardClassName =
+    'relative flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors';
+
+  if (activeDraft) {
+    const startedMs = Date.parse(activeDraft.started_at);
+    const elapsedMinutes = Number.isNaN(startedMs)
+      ? 0
+      : Math.max(0, Math.floor((nowTick - startedMs) / 60000));
+    const stats = getWorkoutPlaybackStats(activeDraft);
+
+    return (
+      <button
+        onClick={() => navigate(`/workout-playback?date=${selectedDate}`)}
+        className={cn(
+          cardClassName,
+          'border-metric-workout/40 bg-metric-workout/10'
+        )}
+      >
+        <span className="absolute right-2.5 top-2.5 h-2 w-2 animate-pulse rounded-full bg-metric-workout" />
+        <CircularProgress
+          value={stats.completionRate * 100}
+          size={52}
+          strokeWidth={4}
+          className="text-metric-workout"
+        >
+          <Dumbbell className="h-5 w-5 text-metric-workout" />
+        </CircularProgress>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Workout</p>
+          <p className="text-sm font-semibold text-metric-workout">
+            ⚡ Active ({elapsedMinutes} min{elapsedMinutes === 1 ? '' : 's'})
+          </p>
+        </div>
+      </button>
+    );
+  }
+
   const logged = exerciseEntries.length > 0;
+
+  if (logged) {
+    const summary = summarizeWorkoutSessions(exerciseEntries);
+    return (
+      <button
+        onClick={() => navigate('/exercises')}
+        className={cn(
+          cardClassName,
+          'border-metric-workout/30 bg-metric-workout/10'
+        )}
+      >
+        <CircularProgress
+          value={100}
+          size={52}
+          strokeWidth={4}
+          className="text-metric-workout"
+        >
+          <Dumbbell className="h-5 w-5 text-metric-workout" />
+        </CircularProgress>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Workout</p>
+          <p className="max-w-[110px] truncate text-sm font-semibold text-metric-workout">
+            {summary.name}
+          </p>
+          <p className="text-[10px] text-muted-foreground">
+            {summary.durationMinutes} min
+            {summary.durationMinutes === 1 ? '' : 's'} •{' '}
+            {formatWeight(summary.volumeKg, weightUnit)}
+          </p>
+        </div>
+      </button>
+    );
+  }
 
   return (
     <button
-      onClick={() => navigate('/exercises')}
-      className={cn(
-        'flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors',
-        logged
-          ? 'border-metric-workout/30 bg-metric-workout/10'
-          : 'border-border hover:bg-muted/50'
-      )}
+      onClick={() =>
+        navigate('/exercises', { state: { openStartWorkout: true } })
+      }
+      className={cn(cardClassName, 'border-border hover:bg-muted/50')}
     >
       <CircularProgress
-        value={logged ? 100 : 0}
+        value={0}
         size={52}
         strokeWidth={4}
         className="text-metric-workout"
       >
-        <Dumbbell
-          className={cn(
-            'h-5 w-5',
-            logged ? 'text-metric-workout' : 'text-muted-foreground'
-          )}
-        />
+        <Dumbbell className="h-5 w-5 text-muted-foreground" />
       </CircularProgress>
       <div>
         <p className="text-xs font-medium text-muted-foreground">Workout</p>
-        <p
-          className={cn(
-            'text-sm font-semibold',
-            logged && 'text-metric-workout'
-          )}
-        >
-          {logged ? `${exerciseEntries.length} logged` : 'Log workout'}
-        </p>
+        <p className="text-sm font-semibold">+ Start Workout</p>
       </div>
     </button>
   );

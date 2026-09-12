@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
@@ -74,6 +74,18 @@ const WorkoutPresetsManager = () => {
   const [selectedPreset, setSelectedPreset] = useState<WorkoutPreset | null>(
     null
   );
+
+  // The dashboard's empty Workout card links here with this state flag to
+  // jump straight into the routine picker instead of just landing on the
+  // page — same "signal a dialog to open via router state" convention as
+  // MainLayout's openFoodSearchForMeal (consumed in Diary.tsx).
+  useEffect(() => {
+    const state = location.state as { openStartWorkout?: boolean } | null;
+    if (state?.openStartWorkout) {
+      setIsStartWorkoutDialogOpen(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 

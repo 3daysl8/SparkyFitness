@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader } from '@/components/ui/card';
 import { useCreatePresetSessionMutation } from '@/hooks/Exercises/useExerciseEntries';
+import { useTodayFocusSnapshot, useUpsertFocusCheckin } from '@/hooks/useFocus';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   DEFAULT_REST_SECONDS,
@@ -35,6 +36,11 @@ import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
 
 const MIN_REST_SECONDS = 15;
 const MAX_REST_SECONDS = 900;
+
+// Auto-completion match rule for the dashboard's "Workout"/"Gym" habit — a
+// plain statement string-match, since Focus has no category field to key
+// off instead. See agent-docs/fork-status-and-handoff.md for the rationale.
+const WORKOUT_HABIT_PATTERN = /workout|gym/i;
 
 function clampRestSeconds(seconds: number): number {
   if (!Number.isFinite(seconds)) {
@@ -139,6 +145,8 @@ const WorkoutPlaybackPage = () => {
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
+  const { data: todaySnapshot } = useTodayFocusSnapshot(draft?.entry_date);
+  const upsertHabitCheckin = useUpsertFocusCheckin();
 
   useEffect(() => {
     if (scrubbedRouteStateRef.current || !routeState?.draft) {
@@ -513,6 +521,29 @@ const WorkoutPlaybackPage = () => {
 
     try {
       await createPresetSession(payload);
+
+      // Best-effort: auto-check any "Workout"/"Gym" daily habit for this
+      // day. A failure here must not block the already-saved workout from
+      // navigating away — only boolean/none-target habits have a "done"
+      // state that toggling actually means something for.
+      const matchingHabits = (todaySnapshot?.daily_recurring ?? []).filter(
+        (habit) =>
+          habit.target_type !== 'numeric' &&
+          !habit.done &&
+          WORKOUT_HABIT_PATTERN.test(habit.statement)
+      );
+      if (matchingHabits.length > 0) {
+        await Promise.allSettled(
+          matchingHabits.map((habit) =>
+            upsertHabitCheckin.mutateAsync({
+              focusId: habit.id,
+              date: draft.entry_date,
+              body: { completed: true },
+            })
+          )
+        );
+      }
+
       clearWorkoutPlaybackDraftFromStorage(draft.entry_date);
       setDraft(null);
       setSaveError(null);
@@ -525,7 +556,16 @@ const WorkoutPlaybackPage = () => {
         )
       );
     }
-  }, [createPresetSession, draft, navigate, returnPath, t, timezone]);
+  }, [
+    createPresetSession,
+    draft,
+    navigate,
+    returnPath,
+    t,
+    timezone,
+    todaySnapshot,
+    upsertHabitCheckin,
+  ]);
 
   if (!draft) {
     return (
