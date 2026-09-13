@@ -33,14 +33,6 @@
       "myExercisesTab": "私のエクササイズ"
     }
   },
-  "nutrition": {
-    "calories": "カロリー",
-    "protein": "タンパク質",
-    "carbohydrates": "炭水化物",
-    "carbs": "炭水化物",
-    "vitaminA": "ビタミンA",
-    "vitaminC": "ビタミンB"
-  },
   "nutritionCharts": {
     "protein": "タンパク質",
     "calories": "カロリー"

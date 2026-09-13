@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Clock,
-  Syringe,
   Pill,
   Tablets,
   CheckCircle2,
@@ -14,7 +13,6 @@ import {
   Activity,
   Trophy,
   Flame,
-  AlertTriangle,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -24,7 +22,6 @@ import {
   localDateTimeToUtc,
   utcToLocalDateTimeInput,
   formatDose,
-  INJECTION_SITES,
   type SharedScheduleRule,
 } from '@workspace/shared';
 import { Button } from '@/components/ui/button';
@@ -44,47 +41,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { entryMatchesDue } from '@/utils/medicationUtils';
 import { formatTimeOfDayString } from '@/utils/timeFormatters';
-import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   useCreateMedicationEntryMutation,
   useUpdateMedicationEntryMutation,
   useDeleteMedicationEntryMutation,
-  useLogGlpInjectionEntryMutation,
-  useUpdateInjectionEntryMutation,
-  useDeleteInjectionEntryMutation,
 } from '@/hooks/useMedications';
 import { visibleDoseCards, type MedSubtype } from './medicationUtils';
 import type {
-  Medication,
   MedicationDetail,
   MedicationEntry,
   MedicationSchedule,
 } from '@/types/medications';
 import { MedTypeIcon } from './AddMedicationDialog';
-import GlpDailyCheckIn from './GlpDailyCheckIn';
-import Glp1QuickLogDialog from './Glp1QuickLogDialog';
 import MedicationLogCalendar from './MedicationLogCalendar';
 
 export interface DueDose {
   medication: MedicationDetail;
   schedule: SharedScheduleRule & { id: string };
 }
-
-// GLP-1 injectable doses are logged as injection entries (single source of truth with
-// the Cabinet), same rule as Glp1Coach. Oral GLP-1 meds stay on the adherence path.
-const isGlp1Injectable = (med: Medication) =>
-  med.is_glp1 && med.type_id === 'injection';
 
 export interface TodayMedicationsProps {
   selectedDate: string;
@@ -111,13 +89,6 @@ export default function TodayMedications({
 }: TodayMedicationsProps) {
   const { t } = useTranslation();
   const { timezone, formatTime, timeFormat } = usePreferences();
-  const { hasPermission, activeUserName } = useActiveUser();
-
-  // The GLP-1 check-in stores its data as check-in custom measurements, so it
-  // requires check-in access. A delegate with only medications access would
-  // otherwise trigger a 403 loading custom categories.
-  const canViewGlpCheckIn = hasPermission('checkin');
-  const hasGlpMed = meds.some((m) => m.is_glp1);
 
   // Notes state for logging
   const [logNotes, setLogNotes] = useState<Record<string, string>>({});
@@ -128,31 +99,16 @@ export default function TodayMedications({
   );
   const [editTime, setEditTime] = useState('');
   const [editNotes, setEditNotes] = useState('');
-  const [editSite, setEditSite] = useState('none');
-
-  // GLP-1 injectable dose awaiting the compact site prompt before logging
-  const [pendingInjection, setPendingInjection] = useState<{
-    medication: MedicationDetail;
-    takenAt: string;
-    noteKey: string;
-    notes: string | null;
-  } | null>(null);
 
   // Mutations
   const createEntryMutation = useCreateMedicationEntryMutation();
   const updateEntryMutation = useUpdateMedicationEntryMutation();
   const deleteEntryMutation = useDeleteMedicationEntryMutation();
-  const logInjectionMutation = useLogGlpInjectionEntryMutation();
-  const updateInjectionMutation = useUpdateInjectionEntryMutation();
-  const deleteInjectionMutation = useDeleteInjectionEntryMutation();
 
   const isPending =
     createEntryMutation.isPending ||
     updateEntryMutation.isPending ||
-    deleteEntryMutation.isPending ||
-    logInjectionMutation.isPending ||
-    updateInjectionMutation.isPending ||
-    deleteInjectionMutation.isPending;
+    deleteEntryMutation.isPending;
 
   // Schedules evaluation
   const dueDoses = useMemo(() => {
@@ -172,9 +128,7 @@ export default function TodayMedications({
     });
   }, [meds, dueDoses]);
 
-  // Split the ALREADY subtype-filtered lists for the two Log cards. Partitioning at
-  // render time rather than re-deriving keeps the adherence overview, the progress
-  // ring and completedDosesCount reading the full filtered set, exactly as before.
+  // Split the ALREADY subtype-filtered lists for the two Log cards.
   const medicationDues = useMemo(
     () => dueDoses.filter((d) => !d.medication.is_supplement),
     [dueDoses]
@@ -192,20 +146,12 @@ export default function TodayMedications({
     [prnMeds]
   );
 
-  // The medications card also carries the "nothing scheduled at all" empty state, so
-  // it stays in the All view even with no medications; the narrowed views show
-  // exactly one card, and All only grows the supplement card once there is one.
   const { medications: showMedicationCard, supplements: showSupplementCard } =
     visibleDoseCards(
       subtype,
       supplementDues.length > 0 || supplementPrns.length > 0
     );
 
-  // Renders the Log card once per subtype so medications and supplements read as
-  // separate sections instead of one mixed list. Deliberately a render FUNCTION and
-  // not a child component: the body closes over ~a dozen handlers and per-row note
-  // state, and a component would take a new identity each render, remounting the
-  // note inputs and stealing focus mid-typing.
   const renderDoseCard = ({
     title,
     description,
@@ -288,7 +234,6 @@ export default function TodayMedications({
                       ) : (
                         <MedTypeIcon
                           typeId={due.medication.type_id}
-                          isGlp1={due.medication.is_glp1}
                           className="h-5 w-5"
                         />
                       )}
@@ -436,7 +381,6 @@ export default function TodayMedications({
                     <div className="flex items-center gap-3 min-w-0">
                       <MedTypeIcon
                         typeId={med.type_id}
-                        isGlp1={med.is_glp1}
                         className="h-4.5 w-4.5 shrink-0"
                       />
                       <div className="text-left truncate">
@@ -550,7 +494,6 @@ export default function TodayMedications({
         taken += effectiveTaken;
         if (effectiveTaken >= dayDue.length) perfectDays++;
       } else if (dayPrnTaken > 0) {
-        // PRN-only day with activity counts as a perfect day
         due += 1;
         taken += 1;
         perfectDays++;
@@ -606,22 +549,6 @@ export default function TodayMedications({
     };
   }, [meds, selectedDate, recentEntries, timezone]);
 
-  // The next GLP-1 dose due today (if any), for the next-injection banner.
-  const nextGlpDue = useMemo(() => {
-    return (
-      dueDoses.find((d) => {
-        if (!d.medication.is_glp1) return false;
-        // Check if already logged on the selected date to hide the due banner once taken/skipped
-        const isLogged = entries.some(
-          (e) =>
-            entryMatchesDue(e, d) &&
-            (e.status === 'taken' || e.status === 'skipped')
-        );
-        return !isLogged;
-      }) ?? null
-    );
-  }, [dueDoses, entries]);
-
   const handleLogScheduled = (
     due: DueDose,
     status: 'taken' | 'skipped' | 'snoozed'
@@ -653,19 +580,6 @@ export default function TodayMedications({
         return copy;
       });
 
-    // Taking a GLP-1 injectable logs a real injection (deducting the auto-picked pen)
-    // so the Cabinet and this tab stay in sync. A compact prompt captures the
-    // injection site first. Skip/snooze stay adherence entries.
-    if (status === 'taken' && isGlp1Injectable(due.medication)) {
-      setPendingInjection({
-        medication: due.medication,
-        takenAt,
-        noteKey: due.schedule.id,
-        notes: notesVal,
-      });
-      return;
-    }
-
     createEntryMutation.mutate(
       {
         medication_id: due.medication.id,
@@ -695,16 +609,6 @@ export default function TodayMedications({
         return copy;
       });
 
-    if (isGlp1Injectable(med)) {
-      setPendingInjection({
-        medication: med,
-        takenAt,
-        noteKey: schedId,
-        notes: notesVal,
-      });
-      return;
-    }
-
     createEntryMutation.mutate(
       {
         medication_id: med.id,
@@ -718,46 +622,14 @@ export default function TodayMedications({
     );
   };
 
-  const handleConfirmQuickLog = (site: string | null) => {
-    if (!pendingInjection) return;
-    const { medication, takenAt, noteKey, notes } = pendingInjection;
-    logInjectionMutation.mutate(
-      {
-        medication_id: medication.id,
-        injected_at: takenAt,
-        entry_date: selectedDate,
-        deduct_pen: true,
-        site,
-        notes,
-      },
-      {
-        onSuccess: () => {
-          setLogNotes((prev) => {
-            const copy = { ...prev };
-            delete copy[noteKey];
-            return copy;
-          });
-          setPendingInjection(null);
-        },
-      }
-    );
-  };
-
   const handleUndoEntry = (entry: MedicationEntry) => {
-    // Merged injection rows carry injection ids; deleting through the injection
-    // endpoint also credits the dose back to the pen it was deducted from.
-    if (entry.entry_type === 'injection') {
-      deleteInjectionMutation.mutate(entry.id);
-    } else {
-      deleteEntryMutation.mutate(entry.id);
-    }
+    deleteEntryMutation.mutate(entry.id);
   };
 
   const openEditEntry = (entry: MedicationEntry) => {
     setEditingEntry(entry);
     setEditTime(utcToLocalDateTimeInput(entry.taken_at, timezone));
     setEditNotes(entry.notes ?? '');
-    setEditSite(entry.site ?? 'none');
   };
 
   const handleSaveEditEntry = () => {
@@ -766,36 +638,20 @@ export default function TodayMedications({
     const takenAtUtc = editTime
       ? localDateTimeToUtc(editTime, timezone).toISOString()
       : undefined;
-    // Keep the calendar day aligned with the edited local time.
     const entryDate = editTime ? editTime.substring(0, 10) : undefined;
     const onSuccess = () => setEditingEntry(null);
 
-    if (editingEntry.entry_type === 'injection') {
-      updateInjectionMutation.mutate(
-        {
-          id: editingEntry.id,
-          body: {
-            ...(takenAtUtc ? { injected_at: takenAtUtc } : {}),
-            ...(entryDate ? { entry_date: entryDate } : {}),
-            site: editSite === 'none' ? null : editSite,
-            notes,
-          },
+    updateEntryMutation.mutate(
+      {
+        id: editingEntry.id,
+        body: {
+          ...(takenAtUtc ? { taken_at: takenAtUtc } : {}),
+          ...(entryDate ? { entry_date: entryDate } : {}),
+          notes,
         },
-        { onSuccess }
-      );
-    } else {
-      updateEntryMutation.mutate(
-        {
-          id: editingEntry.id,
-          body: {
-            ...(takenAtUtc ? { taken_at: takenAtUtc } : {}),
-            ...(entryDate ? { entry_date: entryDate } : {}),
-            notes,
-          },
-        },
-        { onSuccess }
-      );
-    }
+      },
+      { onSuccess }
+    );
   };
 
   const formatEntryTime = (timestamp: string) => {
@@ -856,67 +712,6 @@ export default function TodayMedications({
 
   return (
     <div className="space-y-6">
-      {/* Next GLP-1 injection banner */}
-      {nextGlpDue && (
-        <Card className="border-blue-500/30 bg-blue-50/40 dark:bg-blue-950/20">
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-3">
-              <Syringe className="h-5 w-5 text-blue-500" />
-              <div>
-                <p className="font-semibold">
-                  {selectedDate === today
-                    ? t('medications.today.injectionDueToday', {
-                        defaultValue: '{{name}} injection — due today',
-                        name:
-                          nextGlpDue.medication.display_name ||
-                          nextGlpDue.medication.name,
-                      })
-                    : t('medications.today.injectionScheduled', {
-                        defaultValue: '{{name}} injection — scheduled',
-                        name:
-                          nextGlpDue.medication.display_name ||
-                          nextGlpDue.medication.name,
-                      })}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {nextGlpDue.schedule.time_of_day
-                    ? t('medications.today.scheduledAt', {
-                        defaultValue: 'Scheduled {{time}}',
-                        time: formatTimeOfDayString(
-                          nextGlpDue.schedule.time_of_day,
-                          timeFormat
-                        ),
-                      })
-                    : selectedDate === today
-                      ? t('medications.today.anyTimeToday', 'Any time today')
-                      : t('medications.schedule.anyTime', 'Any time')}
-                </p>
-              </div>
-            </div>
-            {!entries.some(
-              (e) =>
-                entryMatchesDue(e, nextGlpDue) &&
-                (e.status === 'taken' || e.status === 'skipped')
-            ) && (
-              <Button
-                size="sm"
-                className="bg-blue-600 text-white hover:bg-blue-700"
-                onClick={() => handleLogScheduled(nextGlpDue, 'taken')}
-                disabled={isPending}
-              >
-                {t('medications.today.logShot', 'Log shot')}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Adherence overview + Today's Checklist (left) alongside the log calendar (right) */}
-      {/* One grid, two flowing columns. The log calendar is taller than the
-          adherence stack, so keeping these as two separate stacked grids left a
-          dead gap under the checklist until the calendar row ended. Column order
-          is unchanged: adherence then doses on the left, calendar then activity
-          on the right. */}
       <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:items-start">
         <div className="space-y-6">
           {/* Today stats + 14-day adherence ring */}
@@ -1008,7 +803,6 @@ export default function TodayMedications({
                     const hasPrn = d.prnTaken > 0;
                     const idle = noScheduled && !hasPrn;
 
-                    // d.pct already includes PRN contribution
                     const color = idle
                       ? 'bg-muted'
                       : d.pct === 100
@@ -1099,33 +893,7 @@ export default function TodayMedications({
               )}
             </CardContent>
           </Card>
-          {hasGlpMed &&
-            (canViewGlpCheckIn ? (
-              <GlpDailyCheckIn selectedDate={selectedDate} />
-            ) : (
-              <Card className="border-amber-300 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30">
-                <CardContent className="flex items-start gap-3 py-4">
-                  <span className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                  </span>
-                  <div className="space-y-0.5 text-sm">
-                    <p className="font-medium">
-                      {t(
-                        'medications.checkin.noAccessTitle',
-                        'GLP-1 daily check-in needs check-in access'
-                      )}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {t('medications.checkin.noAccessBody', {
-                        defaultValue:
-                          'Ask {{name}} to share Check-in access to track hunger, food noise, fullness and energy here.',
-                        name: activeUserName || 'this profile',
-                      })}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
           {/* Today's Medications */}
           {showMedicationCard &&
             renderDoseCard({
@@ -1234,10 +1002,6 @@ export default function TodayMedications({
                           meds.find((m) => m.id === entry.medication_id)
                             ?.type_id
                         }
-                        isGlp1={
-                          meds.find((m) => m.id === entry.medication_id)
-                            ?.is_glp1
-                        }
                         className="h-4 w-4 shrink-0"
                       />
                       <div className="min-w-0">
@@ -1317,16 +1081,6 @@ export default function TodayMedications({
         </div>
       </div>
 
-      {/* Compact site prompt for GLP-1 injectables logged from this tab */}
-      {pendingInjection && (
-        <Glp1QuickLogDialog
-          med={pendingInjection.medication}
-          onConfirm={handleConfirmQuickLog}
-          onClose={() => setPendingInjection(null)}
-          isPending={logInjectionMutation.isPending}
-        />
-      )}
-
       {/* Edit logged dose time/notes */}
       <Dialog
         open={!!editingEntry}
@@ -1354,29 +1108,9 @@ export default function TodayMedications({
                 onChange={(e) => setEditTime(e.target.value)}
               />
             </div>
-            {editingEntry?.entry_type === 'injection' && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">
-                  {t('medications.glp1.injectionSite', 'Injection site')}
-                </Label>
-                <Select value={editSite} onValueChange={setEditSite}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">—</SelectItem>
-                    {INJECTION_SITES.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {t('medications.sites.label.' + s.id, s.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">
-                {t('medications.glp1.notes', 'Notes')}
+                {t('common.notes', 'Notes')}
               </Label>
               <Input
                 value={editNotes}

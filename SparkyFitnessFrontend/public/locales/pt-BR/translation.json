@@ -1435,38 +1435,6 @@
     "entryImageRemoveFailedTitle": "Falha ao remover",
     "savingPhotos": "Salvando fotos…"
   },
-  "foodDiary": {
-    "title": "Diário de alimentação",
-    "pickADate": "Escolha uma data",
-    "success": "Sucesso",
-    "error": "Erro",
-    "genericError": "Um erro inesperado ocorreu.",
-    "entryCopied": "Entradas de comidas copiadas com sucesso",
-    "entryCopyError": "Falha em copiar entradas de comidas.",
-    "copiedFromYesterday": "Comidas copiadas de ontem com sucesso",
-    "copyFromYesterdayError": "Falha em copiar comidas de ontem.",
-    "mealAdded": "Refeição \"{{mealName}}\" adicionada ao diário.",
-    "mealAddError": "Falha em adicionar refeição ao diário.",
-    "entryAdded": "Entrada de comidas adicionada com sucesso",
-    "entryAddError": "Erro ao adicionar comidas:",
-    "entryRemoved": "Entrada de comida removida com sucesso",
-    "entryRemoveError": "Erro ao remover entrada de comida:",
-    "waterIntake": {
-      "title": "Ingestão de água",
-      "updated": "Consumo de água atualizado",
-      "updateError": "Falha ao salvar ingestão de água",
-      "perDrink": "{{volume}} {{unit}} por bebida",
-      "defaultPerDrink": "{{volume}} {{unit}} por bebida (padrão)"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Copiar Entrada de Comidas",
-      "description": "Selecione a data e o tipo de refeição para copiar as comidas.",
-      "targetDate": "Data a ser copiada",
-      "mealType": "Tipo de Refeição",
-      "selectMealTypePlaceholder": "Selecione o tipo de refeição",
-      "copyButton": "Copiar"
-    }
-  },
   "mealCard": {
     "addFoodToMeal": "Adicionar comida para {{mealName}}",
     "searchFoodsForMeal": "Procure comidas para adicionar ao seu {{mealName}}.",
@@ -2004,34 +1972,6 @@
     "hoursShort": "h ",
     "minutesShort": "m"
   },
-  "nutrition": {
-    "calories": "Calorias",
-    "protein": "Proteína",
-    "carbohydrates": "Carboidratos",
-    "carbs": "Carboidratos",
-    "fat": "Gordura",
-    "saturatedFat": "Gordura Saturada",
-    "polyunsaturatedFat": "Gordura Poliinsaturada",
-    "monounsaturatedFat": "Gordura Monosaturada",
-    "transFat": "Gordura Transgênica",
-    "cholesterol": "Colesterol",
-    "sodium": "Sódio",
-    "potassium": "Potássio",
-    "dietaryFiber": "Fibra Alimentar",
-    "fiber": "Fibra",
-    "sugars": "Açúcares",
-    "vitaminA": "Vitamina A",
-    "vitaminC": "Vitamina C",
-    "calcium": "Cálcio",
-    "iron": "Ferro",
-    "netCarbs": "Carboidratos Líquidos",
-    "autoCalculate": "Auto-calculado",
-    "autoCalculateTooltip": "Auto-calculado usando {{algorithm}}",
-    "autoCalculateDisabledNoSex": "Defina seu sexo no Perfil para permitir calculo automático",
-    "autoCalculateSelectAll": "Selecionar tudo",
-    "autoCalculateSelectNone": "Desselecionar todos",
-    "autoCalculateApplySelected": "Calcular selecionados automaticamente ({{count}})"
-  },
   "sync": {
     "syncAll": "Sincronizar todas as fontes ativas",
     "syncingAll": "Sincronizando fontes...",
@@ -2109,9 +2049,6 @@
       "selectMedication": "Selecione um medicamento",
       "allMedications": "Todos os medicamentos",
       "generalSymptom": "Sintomas gerais"
-    },
-    "symptoms": {
-      "addCustom": "Adicionar sintomas personalizados"
     }
   },
   "layout": {
@@ -2273,11 +2210,6 @@
     "title": "Importar registros de diário (CSV)",
     "uploadCsv": "Enviar CSV"
   },
-  "cycle": {
-    "history": {
-      "startDate": "Data de início"
-    }
-  },
   "warning": "Atenção",
   "review": {
     "errorLoadingItems": "Falha ao carregar itens para revisão.",
@@ -2303,10 +2235,6 @@
   "preferences": {
     "resetError": "Falha ao redefinir as preferências"
   },
-  "foods": {
-    "providerVerified": "Alimentos verificados",
-    "removeNutrient": "Remover {{nutrient}}"
-  },
   "foodPhoto": {
     "analyzing": "Analisando foto da refeição...",
     "errors": {
@@ -2326,10 +2254,6 @@
     "recalcFromGrams": "Recalcular a partir de gramas",
     "removeIngredient": "Remover {{name}}",
     "logFailedMessage": "Por favor, tente novamente."
-  },
-  "food": {
-    "mainImage": "Principal",
-    "imagesLabel": "Imagens"
   },
   "nutrientGoalDirection": {
     "min": "Min",

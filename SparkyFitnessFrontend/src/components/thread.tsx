@@ -7,7 +7,6 @@ import { MarkdownText } from '@/components/markdown-text';
 import { Reasoning } from '@/components/reasoning';
 import { ASK_USER_TOOL_NAME } from '@workspace/shared';
 import { AskUserToolUI } from '@/components/ai/AskUserToolUI';
-import { FoodPhotoEstimateToolUI } from '@/components/ai/FoodPhotoEstimateToolUI';
 import { ToolFallback } from '@/components/tool-fallback';
 import { TooltipIconButton } from '@/components/tooltip-icon-button';
 import { Button } from '@/components/ui/button';
@@ -141,10 +140,10 @@ const ThreadWelcome: FC = () => {
 };
 
 const WELCOME_SUGGESTIONS = [
-  'Log two eggs and a banana for breakfast',
   'Log a 30 minute run today',
-  'How many calories do I have left today?',
-  'Suggest a high-protein snack',
+  'How is my workout streak this week?',
+  'Track 500ml water intake',
+  'What habits or routines are due today?',
 ];
 
 const ThreadSuggestions: FC = () => {

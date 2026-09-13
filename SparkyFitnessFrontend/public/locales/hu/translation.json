@@ -7,27 +7,6 @@
     "settings": "Beállítások",
     "admin": "Administrátor"
   },
-  "nutrition": {
-    "calories": "Kalóriák",
-    "protein": "Protein",
-    "carbohydrates": "Szénhidrátok",
-    "carbs": "Szénhidrátok",
-    "fat": "Zsír",
-    "saturatedFat": "Telített zsírsavak",
-    "polyunsaturatedFat": "Többszörösen telítettlen zsírsavak",
-    "monounsaturatedFat": "Egyszeresen telített zsírsavak",
-    "transFat": "Transzzsírsav",
-    "cholesterol": "Koleszterin",
-    "sodium": "Só",
-    "potassium": "Kálium",
-    "dietaryFiber": "Élelmi rost",
-    "fiber": "Rost",
-    "sugars": "Cukor",
-    "vitaminA": "A vitamin",
-    "vitaminC": "C vitamin",
-    "calcium": "Kálcium",
-    "iron": "Vas"
-  },
   "aboutDialog": {
     "title": "SparkyFitness-ről",
     "description1": "SparkyFittness: Családokank készült. AI vezérelt. Monitoroza az ételeket, mozgást, vizet és egészséget együtt.",

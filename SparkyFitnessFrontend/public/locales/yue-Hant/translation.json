@@ -79,31 +79,6 @@
       "reflux": "胃酸倒流 / 星期",
       "avgBristol": "平均 布里斯托 大便分級"
     },
-    "symptoms": {
-      "logTitle": "身體徵狀記錄",
-      "calendarTitle": "徵狀發生日曆",
-      "logsTitle": "已記錄嘅徵狀紀錄",
-      "subtitle": "記錄 嚴重程度同身體感覺 嘅副作用",
-      "symptom": "徵狀",
-      "addCustom": "新增自訂徵狀",
-      "customName": "徵狀內部名稱",
-      "customNamePlaceholder": "例如：皮膚出疹",
-      "displayLabel": "介面顯示名稱",
-      "displayLabelPlaceholder": "例如：皮膚敏感出疹",
-      "saveCustom": "儲存自訂徵狀",
-      "severity": "嚴重程度",
-      "mild": "輕微（1-3分）",
-      "moderate": "中等（4-6分）",
-      "severe": "嚴重（7-10分）",
-      "primaryLocation": "主要發作位置",
-      "customLocationPlaceholder": "例如：左肩、下顎…",
-      "linkMed": "關聯藥物（非必要）",
-      "noMedLinked": "冇關聯任何藥物",
-      "context": "情況 / 備註",
-      "contextPlaceholder": "例如：食咗晚飯 4 個鐘頭之後，先開始唔舒服.",
-      "bristol": "大便紀錄（布里斯托分級）",
-      "bristolType": "布里斯托分級 {{n}}"
-    },
     "fasting": {
       "title": "口服 GLP-1 類藥物，空腹倒數計時",
       "instructions": "用 4 至 6 安士水送服，之後要等 {{min}} 分鐘先可以食嘢、飲咖啡或者食其他藥物.",
@@ -122,56 +97,6 @@
         "fullness": "飽肚感",
         "energy": "體力狀態"
       }
-    },
-    "sites": {
-      "customize": "自訂注射位置",
-      "dialogTitle": "注射部位設定",
-      "subtitle": "揀自己常用嘅位置，系統會跟返個順序建議輪流注射.",
-      "label": {
-        "upper_arm_left": "左上臂",
-        "forearm_left": "左前臂",
-        "upper_arm_right": "右上臂",
-        "forearm_right": "右前臂",
-        "abdomen_left": "左邊腹部",
-        "abdomen_right": "右邊腹部",
-        "thigh_front_left": "左大腿前側",
-        "thigh_front_right": "右大腿前側",
-        "upper_back_left": "左上背",
-        "upper_back_right": "右上背",
-        "lower_back_left": "左下背",
-        "lower_back_right": "左下背",
-        "buttock_left": "左臀",
-        "buttock_right": "右臀",
-        "thigh_back_left": "左大腿後側",
-        "thigh_back_right": "右大腿後側"
-      }
-    },
-    "glp1": {
-      "logInjection": "記錄注射",
-      "logInjectionAt": "記錄注射 — {{site}}",
-      "injectionSite": "注射位置",
-      "legendSuggested": "綠色 = 建議可打位置",
-      "legendResting": "琥珀色 = 呢個位置仲休息緊，唔夠 {{days}} 日",
-      "selected": "已選：",
-      "tapZone": "點擊區域揀選",
-      "lipoWarning": "呢個位置近期先至用過，建議轉第二個位打，避免皮下脂肪增生.",
-      "doseMg": "藥量（mg）",
-      "dateTime": "日期同時間",
-      "deduct": "從筆筒藥量扣減",
-      "dontDeduct": "唔扣減筆筒存量",
-      "pkTitle": "血清藥物濃度模擬曲線",
-      "pkEmpty": "記錄注射紀錄先會計算血清濃度（需要揀對應 GLP-1 藥物，藥物設定喺藥物資料頁面更改）",
-      "penInventory": "藥筆 / 藥樽存量",
-      "addPen": "新增藥筆",
-      "noPens": "暫時冇登記任何藥筆或者藥樽.",
-      "titrationTitle": "藥量調整計劃",
-      "addStep": "新增階段",
-      "statusPlanned": "計劃中",
-      "statusActive": "進行中（現行藥量）",
-      "statusDone": "已完成",
-      "noTitration": "暫時冇設定任何調藥階段，撳「新增階段」規劃逐步加藥嘅時間表.",
-      "recentInjections": "近期注射紀錄",
-      "noInjections": "仲未記錄任何注射紀錄."
     },
     "types": {
       "pill": "藥丸",
@@ -262,35 +187,6 @@
     "reports": "趨勢報告",
     "pregnancy": "懷孕監察",
     "medications": "食藥"
-  },
-  "nutrition": {
-    "calories": "熱量",
-    "protein": "蛋白質",
-    "carbohydrates": "碳水化合物",
-    "netCarbs": "淨碳水",
-    "carbs": "碳水",
-    "fat": "脂肪",
-    "saturatedFat": "飽和脂肪",
-    "polyunsaturatedFat": "多元不飽和脂肪",
-    "monounsaturatedFat": "單元不飽和脂肪",
-    "transFat": "反式脂肪",
-    "cholesterol": "膽固醇",
-    "sodium": "鈉（鹽分）",
-    "potassium": "鉀",
-    "dietaryFiber": "膳食纖維",
-    "fiber": "纖維",
-    "sugars": "糖分",
-    "vitaminA": "維他命 A",
-    "vitaminC": "維他命 C",
-    "calcium": "鈣質",
-    "iron": "鐵質",
-    "autoCalculate": "自動運算",
-    "autoCalculateTooltip": "系統會使用 {{algorithm}} 演算法自動幫您計算",
-    "autoCalculateDisabledNoSex": "麻煩您去到個人檔案設定性別，先可以開啟自動運算功能",
-    "autoCalculateSelect": "納入批量自動計算範圍",
-    "autoCalculateSelectAll": "全部選取",
-    "autoCalculateSelectNone": "取消所有選取",
-    "autoCalculateApplySelected": "為已選項目執行自動計算 「{{count}}」"
   },
   "calculationSettings": {
     "showNetCarbs": "顯示淨碳水（總碳水減去膳食纖維）",
@@ -769,28 +665,6 @@
       "description": "更改個人資料同大頭相",
       "bio": "自我簡介"
     },
-    "cycle": {
-      "title": "生理週期 & 懷孕監察",
-      "description": "管理月經週期、生理期記錄同懷孕相關追蹤功能",
-      "enableLabel": "開啟週期同懷孕追蹤功能",
-      "enableHint": "開啟之後，側邊導覽列先會出現對應嘅頁面.",
-      "mode": "追蹤模式",
-      "bcMethod": "避孕方式",
-      "terminology": "用詞風格",
-      "terminologyDefault": "預設（分男女用詞）",
-      "terminologyNeutral": "性別中立用語",
-      "avgCycleOverride": "平均週期長度（日數）",
-      "avgPeriodOverride": "平均經期維持日數",
-      "lutealLength": "黃體期長度（日數）",
-      "showFertileWindow": "顯示易受孕期預測",
-      "showFertileWindowHint": "控制面板同日曆上面顯示或者隱藏排卵期、易孕期推算.",
-      "conditions": "相關身體狀況",
-      "learned": "由日常紀錄自動計算",
-      "successTitle": "執行成功",
-      "successDesc": "週期設定已經更新.",
-      "errorTitle": "發生錯誤",
-      "errorDesc": "儲存週期設定失敗，請重新嘗試."
-    },
     "preferences": {
       "title": "介面偏好設定",
       "description": "自訂介面顯示風格同各項參數",
@@ -844,10 +718,6 @@
     "customCategories": {
       "title": "自訂體測分類",
       "description": "建立同管理自己專用嘅身體數值紀錄項目"
-    },
-    "customNutrients": {
-      "title": "自訂營養項目",
-      "subtitle": "管理自行新增嘅營養數值定義"
     },
     "customMeals": {
       "title": "自訂餐點類型",
@@ -1452,49 +1322,6 @@
     },
     "of": "/",
     "over": "超出"
-  },
-  "foodDiary": {
-    "title": "飲食日記",
-    "pickADate": "揀選日期",
-    "success": "操作成功",
-    "error": "發生錯誤",
-    "genericError": "出現未預期嘅故障.",
-    "pastDateWarning": "注意：您而家為咗以前嘅日子新增飲食紀錄.",
-    "futureDateWarning": "注意：您而家幫緊未來嘅日子寫低飲食資料.",
-    "entryCopied": "飲食內容複製成功",
-    "entryCopyError": "複製飲食資料失敗咗.",
-    "copiedFromYesterday": "順利抄寫昨日嘅全部飲食紀錄",
-    "copyFromYesterdayError": "拎唔到昨日紀錄做複製動作.",
-    "mealAdded": "「{{mealName}}」 呢餐已經加入日記入面.",
-    "mealAddError": "新增餐單紀錄唔成功.",
-    "entryAdded": "食物資料記錄妥當",
-    "entryAddError": "寫入食物紀錄時出事：",
-    "entryRemoved": "已經刪除呢項食物紀錄",
-    "entryRemoveError": "剷除食物紀錄發生問題：",
-    "selectMealType": "揀返對應用餐時段",
-    "waterIntake": {
-      "title": "飲水記錄",
-      "updated": "飲水量數值已經更新",
-      "updateError": "儲存飲水數據失敗",
-      "perDrink": "{{volume}} {{unit}}",
-      "defaultPerDrink": "{{volume}} {{unit}} （系統預設）",
-      "defaultContainer": "盛水器皿",
-      "logTitle": "今日飲水清單",
-      "logEmpty": "仲未記錄過任何飲水",
-      "deleteEntry": "刪除呢條飲水紀錄",
-      "deleteConfirm": "確實要刪走呢個 {{volume}} {{unit}} 嘅飲水紀錄？",
-      "deletedSuccess": "飲水紀錄已經移除",
-      "deletedError": "刪除飲水資料 撻Q咗",
-      "editTime": "撳落去修改記錄時間"
-    },
-    "copyFoodEntryDialog": {
-      "title": "複製飲食紀錄",
-      "description": "揀目標日期同餐種，就可以將現有食物資料抄過去.",
-      "targetDate": "目標日期",
-      "mealType": "用餐類別",
-      "selectMealTypePlaceholder": "揀一個用餐時段",
-      "copyButton": "執行複製"
-    }
   },
   "mealCard": {
     "addFoodToMeal": "幫 {{mealName}} 加食材",
@@ -2706,109 +2533,6 @@
   "onboarding": {
     "completeSetup": "完成全部初始設定"
   },
-  "cycle": {
-    "hub": "經期同懷孕綜合面板",
-    "pregnancyHub": "懷孕專區面板",
-    "hubSubtitle": "記錄、拆解自己身體變化，數據自動同步.",
-    "tabs": {
-      "today": "今日狀況",
-      "calendar": "月曆總覽",
-      "insights": "數據分析",
-      "care": "身體護理提醒"
-    },
-    "comingSoon": {
-      "calendarTitle": "經期月曆功能",
-      "calendarDesc": "互動式月曆、過往經期流量紀錄、預測下次日子會係第二階段先推出.",
-      "insightsTitle": "經期數據分析",
-      "insightsDesc": "基礎體溫曲線、身體不適熱力圖、週期長度走勢圖留待第二版更新.",
-      "careTitle": "護理事項同提醒",
-      "careDesc": "避孕藥提醒、衛生用品更換提示、醫生報表匯出功能規劃喺第五階段.",
-      "placeholder": "開發中，遲啲先有得用"
-    },
-    "onboarding": {
-      "stepIndicator": "第 {{step}} 步，總共4個步驟",
-      "step1Title": "揀您用呢個功能嘅目的",
-      "step1Desc": "選一個最主要嘅追蹤用途就得.",
-      "step2Title": "經期日子同週期長度",
-      "step2Desc": "話我知您平時週期同來 M 維持幾耐.",
-      "step3Title": "個人健康資料",
-      "step3Desc": "額外資料用嚟優化預測，可以唔填跳過.",
-      "step4Title": "免責聲明同確認設定",
-      "step4Desc": "睇清楚條文之後確認，先至會完成整個設定流程.",
-      "successTitle": "歡迎使用經期追蹤功能！",
-      "successDesc": "您嘅個人週期設定已經搞掂晒.",
-      "errorTitle": "設定流程失敗咗",
-      "errorDesc": "儲存偏好設定出錯，退出去重新試一次啦.",
-      "lastPeriodStart": "上一次黎 M 開始嘅日期係幾時？",
-      "avgCycleLength": "一般週期幾多日",
-      "avgPeriodLength": "一次 M 大約維持幾多日",
-      "bcMethod": "急避孕/常規避孕方式",
-      "bcHint": "荷爾蒙類避孕藥會壓抑排卵期，系統淨係預計出血日子㗎咋.",
-      "conditions": "已知嘅婦科問題（唔使填）",
-      "complete": "同意條款 + 完成設定"
-    },
-    "disclaimer": {
-      "title": "重要嘅健康免責聲明",
-      "text1": "本經期追蹤功能淨係用作日常記錄、健身參考用途，絕對唔可以當成主要避孕或者生育規劃嘅依據.",
-      "text2": "系統所有預測都只係估算值，會受個人體質、健康狀況、週期紊亂影響而出現偏差，身體有唔舒服一定要搵醫生睇唔好淨係睇軟件數據."
-    },
-    "mode": {
-      "standard": "一般經期紀錄模式",
-      "standardDesc": "記錄黎 M 日子、各種身體徵狀，自動推算之後週期階段.",
-      "ttc": "備孕追蹤模式 (TTC)",
-      "ttcDesc": "專門標示易孕期、排卵日、黃體期各項身體指標變化.",
-      "pregnant": "懷孕監察模式",
-      "pregnantDesc": "記錄胎兒發育階段、陣痛計時、產檢事項提醒."
-    },
-    "today": {
-      "cycleDay": "今個週期第幾日",
-      "late": "遲咗 {{n}} 日仲未嚟 M",
-      "periodIn": "距離下次 M 仲有 {{n}} 日",
-      "nextPeriod": "預計下次經期",
-      "ovulation": "排卵時間",
-      "cycleLength": "今次週期長度",
-      "lateBanner": "您個 M 已經遲咗 {{n}} 日，正式嚟嘅時候記錄低就得，或者去設定度改返週期數值."
-    },
-    "legend": {
-      "period": "來經中",
-      "fertile": "易受孕時段",
-      "ovulation": "排卵當日"
-    },
-    "stats": {
-      "cycleAvg": "平均週期日數",
-      "periodAvg": "平均行經天數",
-      "lastBbt": "最新基礎體溫數值"
-    },
-    "regularity": {
-      "regular": "週期好穩定",
-      "somewhat": "大致正常，間中亂少少",
-      "irregular": "週期經常紊亂唔定時"
-    },
-    "insight": {
-      "menstrual_rest": "而家處於行經階段，多休息同做啲輕鬆運動會舒緩好多.",
-      "menstrual_iron": "來經期間多食含鐵豐富嘅食物，補返流失嘅鐵質會舒服啲.",
-      "follicular_energy": "濾泡期身體精力會慢慢回升，呢段時間適合做強度高少少嘅訓練.",
-      "fertile_window": "您而家處於易受孕嘅時間窗口入面.",
-      "ovulation_peak": "大概呢幾日就會排卵，係整個週期最容易受孕嘅日子.",
-      "luteal_dip": "黃體期後段體力同訓覺質素容易下滑，對自己好啲唔好太捱苦.",
-      "luteal_pms": "經前綜合徵各種不適多數會喺呢段時間出現，記低身體感覺有助掌握規律.",
-      "generic_log": "每日記錄低身體狀況，系統預測準確度會越來越高㗎."
-    },
-    "log": {
-      "title": "今日身體狀況記錄",
-      "saved": "資料已經存妥",
-      "flow": "經血流量多少",
-      "products": "使用緊嘅生理用品",
-      "fewerProducts": "收埋唔顯示咁多選項",
-      "moreProducts": "睇多啲用品選項",
-      "bbt": "基礎體溫數值",
-      "mucus": "宮頸分泌物狀態",
-      "moods": "當下情緒狀態",
-      "energy": "體力充沛程度",
-      "notes": "額外備註",
-      "notesPlaceholder": "有其他身體情況、特別感覺就寫喺度…"
-    }
-  },
   "chat": {
     "toolCategories": {
       "checkin": "身體狀況及每日打卡",
@@ -2858,9 +2582,6 @@
     "nameRequired": "「名稱」欄位唔可以留空.",
     "booleanTrue": "係",
     "booleanFalse": "唔係"
-  },
-  "foods": {
-    "providerVerified": "已核證食物資料"
   },
   "nutrientGoalDirection": {
     "min": "最小值",

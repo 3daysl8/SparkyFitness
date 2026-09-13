@@ -7,8 +7,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Utensils,
-  NotebookPen,
   HeartPulse,
   Dumbbell,
   Upload,
@@ -17,19 +15,13 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from '@/hooks/use-toast';
-import FoodImportFromCSV from '@/pages/Foods/FoodImportFromCSV';
-import FoodDiaryImportCSV from '@/pages/Diary/FoodDiaryImportCSV';
 import HealthDataImportCSV from '@/pages/CheckIn/HealthDataImportCSV';
 import ExerciseImportCSV, {
   type ExerciseCSVData,
 } from '@/pages/Exercises/ExerciseImportCSV';
 import ExerciseEntryHistoryImportCSV from '@/pages/Exercises/ExerciseEntryHistoryImportCSV';
 import ExerciseImportFit from '@/pages/Exercises/ExerciseImportFit';
-import { useImportCsvMutation } from '@/hooks/Foods/useFoods';
-import { useImportFoodDiaryCsvMutation } from '@/hooks/Diary/useFoodEntries';
 import { useImportExercisesJsonMutation } from '@/hooks/Exercises/useExercises';
-import type { FoodDataForBackend } from '@/types/food';
-import type { FoodDiaryImportRow, FoodDiaryImportScope } from '@/types/diary';
 
 interface ImportConflictError {
   status?: number;
@@ -86,22 +78,7 @@ const ImportLauncher = ({
 
 export const DataImportSettings = () => {
   const { t } = useTranslation();
-  const { mutateAsync: importFoodsCsv } = useImportCsvMutation();
-  const { mutateAsync: importFoodDiaryCsv } = useImportFoodDiaryCsvMutation();
   const { mutateAsync: importExercisesJson } = useImportExercisesJsonMutation();
-
-  const handleFoodSave = async (
-    foods: FoodDataForBackend[],
-    overwrite: boolean
-  ) => {
-    await importFoodsCsv({ foods, overwrite });
-  };
-
-  const handleFoodDiarySave = (
-    entries: FoodDiaryImportRow[],
-    scope: FoodDiaryImportScope,
-    overrideNutrition: boolean
-  ) => importFoodDiaryCsv({ entries, scope, overrideNutrition });
 
   // Mirrors AddExerciseDialog.handleImportFromCSV: surfaces the 409 duplicate
   // conflict as a toast instead of failing silently.
@@ -147,27 +124,6 @@ export const DataImportSettings = () => {
       </p>
 
       <div className="mt-4 flex flex-col gap-3">
-        <ImportLauncher
-          icon={Utensils}
-          title={t('settings.dataImport.food.title', 'Food Database (CSV)')}
-          description={t(
-            'settings.dataImport.food.description',
-            'Add reusable foods (with servings and nutrition) to your food library.'
-          )}
-        >
-          {() => <FoodImportFromCSV onSave={handleFoodSave} />}
-        </ImportLauncher>
-        <ImportLauncher
-          icon={NotebookPen}
-          title={t('settings.dataImport.diary.title', 'Food Diary (CSV)')}
-          description={t(
-            'settings.dataImport.diary.description',
-            'Log past meals to your food diary by date and meal type, matching or creating foods as needed.'
-          )}
-        >
-          {() => <FoodDiaryImportCSV onSave={handleFoodDiarySave} />}
-        </ImportLauncher>
-
         <ImportLauncher
           icon={HeartPulse}
           title={t(

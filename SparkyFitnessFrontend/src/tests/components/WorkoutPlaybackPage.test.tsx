@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import WorkoutPlaybackPage from '@/pages/Diary/WorkoutPlaybackPage';
+import WorkoutPlaybackPage from '@/pages/Exercises/WorkoutPlaybackPage';
 import type { WorkoutPreset } from '@/types/workout';
 import { createWorkoutPlaybackDraftFromPreset } from '@/utils/workoutPlayback';
 
@@ -9,19 +9,9 @@ const mockCreatePresetSession = jest.fn();
 const mockSearchParams = new URLSearchParams('date=2026-04-27');
 let mockLocationState: { returnTo?: string; draft?: unknown } | null = null;
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (
-      key: string,
-      defaultValue?: string,
-      values?: Record<string, string | number>
-    ) =>
-      (defaultValue || key).replace(
-        '{{setNumber}}',
-        String(values?.['setNumber'] ?? '{{setNumber}}')
-      ),
-  }),
-}));
+jest.mock('react-i18next', () =>
+  jest.requireActual('@/tests/mocks/reactI18next')
+);
 
 jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
@@ -32,6 +22,12 @@ jest.mock('react-router-dom', () => ({
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({ weightUnit: 'kg', timezone: 'UTC' }),
 }));
+
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
+jest.mock('@/pages/Exercises/AddExerciseDialog', () => () => null);
 
 jest.mock('@/hooks/Exercises/useExerciseEntries', () => ({
   useCreatePresetSessionMutation: () => ({
@@ -270,7 +266,7 @@ describe('WorkoutPlaybackPage', () => {
     expect(
       screen.getAllByRole('button', { name: 'Pause' }).length
     ).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Pause')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Pause').length).toBeGreaterThan(0);
     expect(screen.getByText('640')).toBeInTheDocument();
   });
 
@@ -377,12 +373,12 @@ describe('WorkoutPlaybackPage', () => {
     render(<WorkoutPlaybackPage />);
 
     fireEvent.click(screen.getAllByLabelText('Complete set 1')[0]!);
-    expect(screen.getByLabelText('Pause')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Pause').length).toBeGreaterThan(0);
 
     fireEvent.click(
       screen.getAllByLabelText('Select set 2 for Bench Press')[0]!
     );
 
-    expect(screen.getByLabelText('Pause')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Pause').length).toBeGreaterThan(0);
   });
 });

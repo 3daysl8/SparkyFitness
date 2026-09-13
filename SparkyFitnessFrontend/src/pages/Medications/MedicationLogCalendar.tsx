@@ -4,7 +4,6 @@ import { isEntryVisibleForSubtype, type MedSubtype } from './medicationUtils';
 import { buildMonthGrid } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useMedicationEntries } from '@/hooks/useMedications';
-import { useSymptomEntries } from '@/hooks/useSymptoms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -23,26 +22,12 @@ interface DayCounts {
   snoozed: number;
 }
 
-interface DaySymptomInfo {
-  sideEffect: boolean;
-  general: boolean;
-  /** Deduped symptom names logged that day, for the hover tooltip. */
-  names: string[];
-}
+const COLOR_ALL_TAKEN = '#10b981'; // emerald-500
+const COLOR_PARTIAL_TAKEN = '#f59e0b'; // amber-500
+const COLOR_MOSTLY_SKIPPED = '#f97316'; // orange-500
+const COLOR_ALL_SKIPPED = '#ef4444'; // red-500
+const COLOR_SNOOZED_ONLY = '#94a3b8'; // slate-400
 
-// Ratio-based coloring: a day's fill reflects how complete that day's doses
-// were (taken+PRN vs. skipped), not just "was anything taken" — so a day with
-// 2 taken + 1 skipped reads as partial (amber), not solid "taken" green.
-const COLOR_ALL_TAKEN = '#10b981'; // emerald-500 — every dose taken
-const COLOR_PARTIAL_TAKEN = '#f59e0b'; // amber-500 — some taken, some skipped
-const COLOR_MOSTLY_SKIPPED = '#f97316'; // orange-500 — mostly skipped
-const COLOR_ALL_SKIPPED = '#ef4444'; // red-500 — none taken, all skipped
-const COLOR_SNOOZED_ONLY = '#94a3b8'; // slate-400 — only snoozed doses logged
-
-const SIDE_EFFECT_COLOR = '#f43f5e'; // rose-500
-const GENERAL_SYMPTOM_COLOR = '#8b5cf6'; // violet-500
-
-/** Sentinel dropdown value meaning "aggregate across every medication". */
 const ALL_MEDS = '__all__';
 
 interface DayColor {
@@ -50,7 +35,6 @@ interface DayColor {
   textColor?: string;
 }
 
-/** Colors a day by completion ratio: taken+PRN vs. skipped, not by a single dominant status. */
 const getDayColor = (counts: DayCounts): DayColor | null => {
   const active = counts.taken + counts.prn;
   const total = active + counts.skipped;
@@ -84,9 +68,6 @@ export default function MedicationLogCalendar({
   const { t } = useTranslation();
   const { firstDayOfWeek } = usePreferences();
 
-  // The calendar already receives the subtype-filtered list, so only its wording
-  // needs to follow the filter. In the mixed All view the picker's catch-all is just
-  // "All", because the list it heads can hold both medications and supplements.
   const copy = useMemo(() => {
     if (subtype === 'supplements') {
       return {
@@ -98,35 +79,32 @@ export default function MedicationLogCalendar({
           'medications.calendar.noSupplements',
           'Add a supplement to see its log calendar here.'
         ),
-        all: t('medications.calendar.allSupplements', 'All supplements'),
         placeholder: t(
-          'medications.calendar.selectSupplement',
-          'Select a supplement'
+          'medications.calendar.allSupplements',
+          'All supplements'
         ),
+        all: t('medications.calendar.allSupplements', 'All supplements'),
       };
     }
     if (subtype === 'meds') {
       return {
-        title: t('medications.calendar.title', 'Medication Log Calendar'),
+        title: t('medications.calendar.titleMeds', 'Protocol Log Calendar'),
         empty: t(
           'medications.calendar.noMeds',
-          'Add a medication to see its log calendar here.'
+          'Add a protocol/routine to see its log calendar here.'
         ),
-        all: t('medications.calendar.allMedications', 'All medications'),
-        placeholder: t(
-          'medications.calendar.selectMedication',
-          'Select a medication'
-        ),
+        placeholder: t('medications.calendar.allMeds', 'All protocols'),
+        all: t('medications.calendar.allMeds', 'All protocols'),
       };
     }
     return {
-      title: t('medications.calendar.titleAll', 'Log Calendar'),
+      title: t('medications.calendar.title', 'Log Calendar'),
       empty: t(
-        'medications.calendar.noEntries',
-        'Add a medication or supplement to see its log calendar here.'
+        'medications.calendar.noMeds',
+        'Add a protocol or supplement to see its log calendar here.'
       ),
-      all: t('medications.calendar.allEntries', 'All'),
-      placeholder: t('medications.calendar.selectEntry', 'Select an item'),
+      placeholder: t('medications.calendar.allMeds', 'All items'),
+      all: t('medications.calendar.allMeds', 'All items'),
     };
   }, [subtype, t]);
 
@@ -139,14 +117,6 @@ export default function MedicationLogCalendar({
   const isAllSelected = selectedMedId === ALL_MEDS;
   const activeMedId = isAllSelected ? undefined : selectedMedId;
 
-  // `medications` arrives already narrowed by the subtype filter, but the entries
-  // below are fetched by date and only constrained when a single item is picked.
-  // With the catch-all selected the month total and day colours would therefore
-  // count the subtype the user just filtered out. Narrow them by the visible ids.
-  //
-  // `all` deliberately does NOT filter: an entry outlives the medication it came
-  // from, and those orphans match no visible id, so filtering the mixed view would
-  // silently drop history it exists to show.
   const visibleMedIds = useMemo(
     () => new Set(medications.map((m) => m.id)),
     [medications]
@@ -157,8 +127,6 @@ export default function MedicationLogCalendar({
     [subtype, visibleMedIds]
   );
 
-  // A selection made under one filter can survive a switch that hides it, leaving
-  // the calendar pinned to an item the list no longer offers.
   useEffect(() => {
     if (!isAllSelected && !visibleMedIds.has(selectedMedId)) {
       setSelectedMedId(ALL_MEDS);
@@ -172,9 +140,6 @@ export default function MedicationLogCalendar({
     return { year: parts[0] ?? 2026, monthVal: parts[1] ?? 1 };
   }, [month]);
 
-  // Fetch the exact grid range shown by MonthCalendar (which uses the same
-  // buildMonthGrid + firstDayOfWeek inputs), so entries/symptoms cover every
-  // visible leading/trailing day from adjacent months.
   const { gridStart: fetchFrom, gridEnd: fetchTo } = useMemo(
     () => buildMonthGrid(year, monthVal, firstDayOfWeek),
     [year, monthVal, firstDayOfWeek]
@@ -184,10 +149,6 @@ export default function MedicationLogCalendar({
     fromDate: fetchFrom,
     toDate: fetchTo,
     medicationId: activeMedId,
-  });
-  const { data: symptomEntries = [] } = useSymptomEntries({
-    fromDate: fetchFrom,
-    toDate: fetchTo,
   });
 
   const entriesByDay = useMemo(() => {
@@ -205,35 +166,6 @@ export default function MedicationLogCalendar({
     });
     return map;
   }, [entries, activeMedId, isAllSelected, entryIsVisible]);
-
-  const symptomsByDay = useMemo(() => {
-    const map: Record<string, DaySymptomInfo> = {};
-    symptomEntries.forEach((s) => {
-      const day = s.entry_date.split('T')[0];
-      if (!day) return;
-      // A symptom linked to an item the subtype filter hides belongs to the other
-      // kind, so drop it outright. Reclassifying it as "general" would keep its dot
-      // and its name on a calendar that is meant to exclude it. Symptoms with no
-      // medication at all are genuinely general and always stay.
-      if (s.medication_id && !entryIsVisible(s.medication_id)) return;
-      if (!map[day])
-        map[day] = { sideEffect: false, general: false, names: [] };
-      // In catch-all mode any medication-linked symptom counts as a side effect;
-      // otherwise only symptoms linked to the selected item do.
-      const isSideEffect = isAllSelected
-        ? !!s.medication_id
-        : s.medication_id === activeMedId;
-      if (isSideEffect) {
-        map[day].sideEffect = true;
-      } else {
-        map[day].general = true;
-      }
-      if (!map[day].names.includes(s.symptom_name_snapshot)) {
-        map[day].names.push(s.symptom_name_snapshot);
-      }
-    });
-    return map;
-  }, [symptomEntries, activeMedId, isAllSelected, entryIsVisible]);
 
   const monthTotal = useMemo(() => {
     return Object.entries(entriesByDay).reduce((sum, [day, counts]) => {
@@ -306,14 +238,6 @@ export default function MedicationLogCalendar({
       label: t('medications.calendar.snoozedOnly', 'Snoozed only'),
       color: COLOR_SNOOZED_ONLY,
     },
-    {
-      label: t('medications.calendar.sideEffect', 'Side-effect symptom'),
-      color: SIDE_EFFECT_COLOR,
-    },
-    {
-      label: t('medications.calendar.generalSymptom', 'General symptom'),
-      color: GENERAL_SYMPTOM_COLOR,
-    },
   ];
 
   return (
@@ -353,7 +277,6 @@ export default function MedicationLogCalendar({
       }
       renderDay={(day): DayCellRender => {
         const counts = entriesByDay[day];
-        const symptoms = symptomsByDay[day];
         const color = counts ? getDayColor(counts) : null;
         const total = counts ? counts.taken + counts.prn : 0;
 
@@ -363,9 +286,6 @@ export default function MedicationLogCalendar({
           cell.textColor = color.textColor;
         }
 
-        // Hover tooltip: exact breakdown, since the fill color alone can't
-        // distinguish e.g. "2 taken + 1 skipped" from other combinations
-        // that land in the same amber/orange band.
         if (counts) {
           const parts: string[] = [];
           if (counts.taken > 0) {
@@ -396,13 +316,6 @@ export default function MedicationLogCalendar({
               })
             );
           }
-          if (symptoms && symptoms.names.length > 0) {
-            parts.push(
-              t('medications.calendar.tooltipSymptoms', 'Symptoms: {{names}}', {
-                names: symptoms.names.join(', '),
-              })
-            );
-          }
           if (parts.length > 0) {
             cell.title = parts.join(' · ');
           }
@@ -417,24 +330,6 @@ export default function MedicationLogCalendar({
             >
               {total}
             </span>
-          );
-        }
-        if (symptoms?.sideEffect) {
-          badges.push(
-            <span
-              key="side-effect"
-              className="absolute bottom-1 left-1/2 -translate-x-[5px] h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: SIDE_EFFECT_COLOR }}
-            />
-          );
-        }
-        if (symptoms?.general) {
-          badges.push(
-            <span
-              key="general"
-              className="absolute bottom-1 left-1/2 translate-x-[1px] h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: GENERAL_SYMPTOM_COLOR }}
-            />
           );
         }
         if (badges.length > 0) {

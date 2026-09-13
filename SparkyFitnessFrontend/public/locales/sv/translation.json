@@ -187,27 +187,6 @@
       "errorEditingExercise": "Fel vid redigering av övning:"
     }
   },
-  "nutrition": {
-    "calories": "Kalorier",
-    "protein": "Protein",
-    "carbohydrates": "Kolhydrater",
-    "carbs": "Kolhydrater",
-    "fat": "Fett",
-    "saturatedFat": "Mättat fett",
-    "polyunsaturatedFat": "Fleromättat fett",
-    "monounsaturatedFat": "Enkelomättat fett",
-    "transFat": "Transfett",
-    "cholesterol": "Kolesterol",
-    "sodium": "Natrium",
-    "potassium": "Kalium",
-    "dietaryFiber": "Kostfiber",
-    "fiber": "Fiber",
-    "sugars": "Sockerarter",
-    "vitaminA": "Vitamin A",
-    "vitaminC": "Vitamin C",
-    "calcium": "Kalcium",
-    "iron": "Järn"
-  },
   "layout": {
     "welcome": "Välkommen {{activeUserName}}"
   },

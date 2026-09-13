@@ -814,38 +814,6 @@
       "calcium": "kalsium"
     }
   },
-  "foodDiary": {
-    "title": "Ruokapäiväkirja",
-    "pickADate": "Valitse päivämäärä",
-    "success": "Onnistui",
-    "error": "Virhe",
-    "genericError": "Tapahtui odottamaton virhe.",
-    "entryCopied": "Ruoat kopioitiin onnistuneesti",
-    "entryCopyError": "Ruokien kopiointi epäonnistui.",
-    "copiedFromYesterday": "Eilisen ruoat kopioitiin onnistuneesti",
-    "copyFromYesterdayError": "Eilisen ruokien kopiointi epäonnistui.",
-    "mealAdded": "{{mealName}} lisättiin päiväkirjaan.",
-    "mealAddError": "Ruoan lisääminen epäonnistui.",
-    "entryAdded": "Ruoka lisättiin onnistuneesti",
-    "entryAddError": "Virhe ruokaa lisättäessä:",
-    "entryRemoved": "Ruoka poistettiin onnistuneesti",
-    "entryRemoveError": "Ruoan poistaminen epäonnistui:",
-    "waterIntake": {
-      "title": "Vettä",
-      "updated": "Vedenjuominen päivitettiin",
-      "updateError": "Vedenjuomisen tallennus ei onnistunut",
-      "perDrink": "{{volume}} {{unit}} kerralla",
-      "defaultPerDrink": "{{volume}} {{unit}} kerralla (oletus)"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Kopioi ruokia",
-      "description": "Valitse kohdepäivämäärä ja aterian tyyppi.",
-      "targetDate": "Kohdepäivämäärä",
-      "mealType": "Aterian tyyppi",
-      "selectMealTypePlaceholder": "Valitse aterian tyyppi",
-      "copyButton": "Kopioi"
-    }
-  },
   "mealCard": {
     "addFoodToMeal": "Lisää ruoka ateriaan {{mealName}}",
     "searchFoodsForMeal": "Lisää ruokia ateriaasi {{mealName}}.",

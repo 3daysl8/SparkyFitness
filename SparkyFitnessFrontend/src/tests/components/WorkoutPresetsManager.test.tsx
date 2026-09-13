@@ -43,7 +43,7 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('react-router-dom', () => ({
   useNavigate: () => jest.fn(),
-  useLocation: () => ({ pathname: '/exercises', search: '' }),
+  useLocation: () => ({ pathname: '/workouts', search: '' }),
 }));
 
 jest.mock('@/contexts/PreferencesContext', () => ({

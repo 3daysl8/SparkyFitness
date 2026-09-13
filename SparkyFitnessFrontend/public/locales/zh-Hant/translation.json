@@ -57,31 +57,6 @@
     "bodymap": {
       "label": "注射部位人體示意圖"
     },
-    "symptoms": {
-      "severe": "重度 (7-10)",
-      "primaryLocation": "主要不適位置",
-      "customLocationPlaceholder": "範例：左肩、下顎…",
-      "linkMed": "綁定對應藥品 (選填)",
-      "noMedLinked": "未綁定任何藥品",
-      "context": "狀況 / 備註",
-      "contextPlaceholder": "範例：晚餐用藥四小時後出現症狀。",
-      "bristol": "排便紀錄 (布里斯托糞便量表)",
-      "bristolType": "布里斯托類型 {{n}}",
-      "logTitle": "記錄症狀",
-      "calendarTitle": "症狀發生行事曆",
-      "logsTitle": "已儲存的症狀紀錄",
-      "subtitle": "記錄副作用的嚴重度與當時身體狀況",
-      "symptom": "症狀項目",
-      "addCustom": "新增自訂症狀",
-      "customName": "症狀內部名稱",
-      "customNamePlaceholder": "範例：skin_rash",
-      "displayLabel": "顯示名稱",
-      "displayLabelPlaceholder": "範例：皮膚疹",
-      "saveCustom": "儲存自訂症狀",
-      "severity": "嚴重度",
-      "mild": "輕微 (1-3)",
-      "moderate": "中度 (4-6)"
-    },
     "fasting": {
       "title": "口服 GLP-1 用藥空腹計時器",
       "instructions": "搭配 4–6 盎司的水服用，之後需間隔 {{min}} 分鐘才能進食、喝咖啡或是使用其他藥物。",
@@ -100,56 +75,6 @@
         "fullness": "飽足感",
         "energy": "體力狀態"
       }
-    },
-    "sites": {
-      "customize": "自訂注射部位",
-      "dialogTitle": "注射部位設定",
-      "subtitle": "開啟或關閉你使用的部位，並排序順序；系統會依照此順序給予輪換建議。",
-      "label": {
-        "upper_arm_left": "左上臂",
-        "upper_arm_right": "右上臂",
-        "forearm_left": "左前臂",
-        "forearm_right": "右前臂",
-        "abdomen_left": "左側腹部",
-        "abdomen_right": "右側腹部",
-        "thigh_front_left": "左大腿 (正面)",
-        "thigh_front_right": "右大腿 (正面)",
-        "upper_back_left": "左上背",
-        "upper_back_right": "右上背",
-        "lower_back_left": "左下背",
-        "lower_back_right": "右下背",
-        "buttock_right": "右臀部",
-        "thigh_back_left": "左大腿 (後側)",
-        "thigh_back_right": "右大腿 (後側)",
-        "buttock_left": "左臀部"
-      }
-    },
-    "glp1": {
-      "logInjection": "登記注射紀錄",
-      "logInjectionAt": "登記注射 — {{site}}",
-      "injectionSite": "注射部位",
-      "legendSuggested": "綠色 = 建議使用區域",
-      "legendResting": "琥珀色 = 需休息未滿 {{days}} 天",
-      "selected": "已選取：",
-      "tapZone": "點擊區塊選擇",
-      "lipoWarning": "此部位近期剛使用過，建議更換位置以避免皮下脂肪增生。",
-      "doseMg": "劑量 (mg)",
-      "dateTime": "日期與時間",
-      "deduct": "從筆筒 / 藥瓶庫存扣減用量",
-      "dontDeduct": "不扣減庫存數量",
-      "pkTitle": "血清藥物濃度曲線",
-      "pkEmpty": "登記注射紀錄後系統才會建模計算血清濃度。(需先在藥品設定選擇對應的 GLP-1 藥物。)",
-      "penInventory": "筆式藥劑 / 藥瓶庫存",
-      "addPen": "新增筆劑",
-      "noPens": "目前沒有登記任何筆劑或藥瓶庫存。",
-      "titrationTitle": "劑量調整計畫",
-      "addStep": "新增階段",
-      "statusActive": "執行中 (目前階段)",
-      "statusPlanned": "規劃中",
-      "statusDone": "已完成",
-      "noTitration": "尚未建立任何調整階段，點選「新增階段」規劃你的劑量提升步驟。",
-      "recentInjections": "近期注射紀錄",
-      "noInjections": "尚未登記任何注射資料。"
     },
     "types": {
       "pill": "藥丸",
@@ -250,28 +175,6 @@
     "admin": "管理後台",
     "cycle": "生理週期",
     "pregnancy": "孕期追蹤"
-  },
-  "nutrition": {
-    "calories": "熱量",
-    "protein": "蛋白質",
-    "carbohydrates": "碳水化合物",
-    "netCarbs": "淨碳水",
-    "carbs": "碳水",
-    "fat": "脂肪",
-    "saturatedFat": "飽和脂肪",
-    "polyunsaturatedFat": "多元不飽和脂肪",
-    "monounsaturatedFat": "單元不飽和脂肪",
-    "transFat": "反式脂肪",
-    "cholesterol": "膽固醇",
-    "sodium": "鈉",
-    "potassium": "鉀",
-    "dietaryFiber": "膳食纖維",
-    "fiber": "纖維",
-    "sugars": "醣類",
-    "vitaminA": "維生素 A",
-    "vitaminC": "維生素 C",
-    "calcium": "鈣",
-    "iron": "鐵"
   },
   "calculationSettings": {
     "showNetCarbs": "顯示淨碳水數值 (總碳水扣除纖維量)",
@@ -714,28 +617,6 @@
       "saveProfile": "儲存個人資料",
       "saving": "儲存中…"
     },
-    "cycle": {
-      "title": "生理週期與孕期追蹤",
-      "description": "管理生殖健康、月經週期與孕期相關紀錄",
-      "enableLabel": "開啟週期與孕期追蹤功能",
-      "enableHint": "切換開關即可啟用健康模組，開啟後側邊欄會顯示對應頁籤。",
-      "mode": "追蹤模式",
-      "bcMethod": "避孕方式",
-      "terminology": "用詞顯示風格",
-      "terminologyDefault": "預設 (區分生理性別用詞)",
-      "terminologyNeutral": "性別中立用詞",
-      "avgCycleOverride": "平均週期天數",
-      "avgPeriodOverride": "平均經期天數",
-      "lutealLength": "黃體期天數",
-      "showFertileWindow": "顯示易孕期預測資訊",
-      "showFertileWindowHint": "在儀表板、行事曆顯示或隱藏易受孕日與排卵預測。",
-      "conditions": "相關身體狀況",
-      "learned": "依照紀錄自動計算",
-      "successTitle": "執行成功",
-      "successDesc": "週期設定更新完畢。",
-      "errorTitle": "錯誤",
-      "errorDesc": "無法儲存週期設定，請重新嘗試。"
-    },
     "preferences": {
       "title": "個人偏好設定",
       "description": "自訂程式各項設定與介面顯示風格",
@@ -789,10 +670,6 @@
     "customCategories": {
       "title": "自訂量測分類",
       "description": "建立並管理自行新增的身體數值紀錄分類"
-    },
-    "customNutrients": {
-      "title": "自訂營養項目",
-      "subtitle": "管理手動新增的營養素定義內容"
     },
     "customMeals": {
       "title": "自訂餐點類型",
@@ -1357,49 +1234,6 @@
       "calcium": "鈣"
     },
     "of": "/ 目標"
-  },
-  "foodDiary": {
-    "title": "飲食日記",
-    "pickADate": "選擇日期",
-    "success": "執行成功",
-    "error": "錯誤",
-    "genericError": "發生非預期錯誤。",
-    "pastDateWarning": "警告：您正在補填過去日期的飲食資料。",
-    "futureDateWarning": "警告：您正在新增未來日期的飲食紀錄。",
-    "entryCopied": "飲食紀錄複製完成",
-    "entryCopyError": "複製飲食紀錄失敗。",
-    "copiedFromYesterday": "已成功複製昨日的飲食內容",
-    "copyFromYesterdayError": "複製昨日飲食紀錄失敗。",
-    "mealAdded": "「{{mealName}}」餐點已新增至日記。",
-    "mealAddError": "新增餐點至日記失敗。",
-    "entryAdded": "食物項目新增成功",
-    "entryAddError": "新增食物項目發生錯誤：",
-    "entryRemoved": "食物項目已刪除",
-    "entryRemoveError": "刪除食物項目發生錯誤：",
-    "selectMealType": "選擇餐別",
-    "waterIntake": {
-      "title": "飲水紀錄",
-      "updated": "飲水量已更新",
-      "updateError": "儲存飲水量失敗",
-      "perDrink": "{{volume}} {{unit}}",
-      "defaultPerDrink": "{{volume}} {{unit}}（預設值）",
-      "defaultContainer": "容器",
-      "logTitle": "今日飲水紀錄",
-      "logEmpty": "尚未登記任何飲水資料",
-      "deleteEntry": "刪除這筆飲水紀錄",
-      "deleteConfirm": "刪除這筆 {{volume}} {{unit}} 的紀錄嗎？",
-      "deletedSuccess": "飲水紀錄已移除",
-      "deletedError": "刪除飲水資料失敗",
-      "editTime": "點擊修改登記時間"
-    },
-    "copyFoodEntryDialog": {
-      "title": "複製飲食紀錄",
-      "description": "選取目標日期與餐別，執行飲食資料複製。",
-      "targetDate": "目標日期",
-      "mealType": "餐別",
-      "selectMealTypePlaceholder": "請選擇餐別",
-      "copyButton": "開始複製"
-    }
   },
   "mealCard": {
     "addFoodToMeal": "新增食物至 {{mealName}}",
@@ -2601,108 +2435,5 @@
   },
   "onboarding": {
     "completeSetup": "完成初始設定"
-  },
-  "cycle": {
-    "hub": "生理週期與懷孕管理中心",
-    "hubSubtitle": "紀錄、解析身體狀態並配合生理時程安排日常作息。",
-    "pregnancyHub": "懷孕追蹤專區",
-    "tabs": {
-      "today": "今日狀態",
-      "calendar": "行事曆",
-      "insights": "數據分析",
-      "care": "健康提醒"
-    },
-    "comingSoon": {
-      "calendarTitle": "生理週期行事曆",
-      "calendarDesc": "互動式檢視過往週期、經血量紀錄與預測下次生理期功能，預計於第二階段開放更新。",
-      "insightsTitle": "週期數據分析",
-      "insightsDesc": "基礎體溫折線圖、症狀熱區圖、歷史週期長度走勢等詳細圖表，預計於第二階段上線。",
-      "careTitle": "健康照護與提醒事項",
-      "careDesc": "避孕藥提醒、生理用品更換通知、醫療報表 PDF 匯出功能，預計第五階段開發完成。",
-      "placeholder": "即將推出"
-    },
-    "onboarding": {
-      "stepIndicator": "第 {{step}} 步，共 4 個步驟",
-      "step1Title": "選擇您的追蹤目的",
-      "step1Desc": "挑選此工具主要的使用模式。",
-      "step2Title": "生理期日期與週期長度",
-      "step2Desc": "填寫您平常的生理週期相關數據。",
-      "step3Title": "個人健康資料",
-      "step3Desc": "選填資訊，用來提升預測精準度（可跳過不填）。",
-      "step4Title": "免責聲明與確認",
-      "step4Desc": "閱讀內容並同意後即可完成設定。",
-      "successTitle": "歡迎使用生理週期追蹤功能！",
-      "successDesc": "您的個人週期資料設定已初始化完畢。",
-      "errorTitle": "設定失敗",
-      "errorDesc": "無法儲存您的偏好設定，請重新嘗試。",
-      "lastPeriodStart": "上次生理期第一天是哪一天？",
-      "avgCycleLength": "平均週期天數",
-      "avgPeriodLength": "平均生理期持續天數",
-      "bcMethod": "避孕方式",
-      "bcHint": "荷爾蒙類避孕藥會抑制排卵期區間，系統只會預測出血時段。",
-      "conditions": "已知病史（選填）",
-      "complete": "同意並完成設定"
-    },
-    "disclaimer": {
-      "title": "重要健康免責聲明",
-      "text1": "本生理週期追蹤功能僅供學習知識、健身管理與個人紀錄使用，不得做為主要避孕或生育規劃依據。",
-      "text2": "系統預測數值皆為估計值，會依照個人作息穩定度、身體疾病、週期不規律情形有所差異；身體有任何醫療相關問題，務必諮詢專業醫護人員。"
-    },
-    "mode": {
-      "standard": "一般生理週期追蹤",
-      "standardDesc": "紀錄生理期、各類身體不適症狀，並預測後續週期階段。",
-      "ttc": "備孕追蹤（TTC）",
-      "ttcDesc": "標記易孕期、排卵日與黃體期各項身體指標。",
-      "pregnant": "懷孕狀況紀錄",
-      "pregnantDesc": "紀錄胎兒發育里程碑、宮縮計時與產檢相關事項。"
-    },
-    "today": {
-      "cycleDay": "週期第幾天",
-      "late": "已遲到 {{n}} 天",
-      "periodIn": "距離下次生理期剩 {{n}} 天",
-      "nextPeriod": "預計下次生理期",
-      "ovulation": "排卵日",
-      "cycleLength": "週期長度",
-      "lateBanner": "您的生理期已經晚 {{n}} 天，開始出血時請登記紀錄，或是至設定頁面調整週期天數。"
-    },
-    "legend": {
-      "period": "生理期",
-      "fertile": "易孕期",
-      "ovulation": "排卵日"
-    },
-    "stats": {
-      "cycleAvg": "平均週期",
-      "periodAvg": "平均生理期",
-      "lastBbt": "最新基礎體溫"
-    },
-    "regularity": {
-      "regular": "規律",
-      "somewhat": "略為規律略為規律",
-      "irregular": "不規律"
-    },
-    "insight": {
-      "menstrual_rest": "現在處於經期階段，適合多休息並搭配輕度伸展活動。",
-      "menstrual_iron": "生理期可多攝取富含鐵質的食物補充營養。",
-      "follicular_energy": "濾泡期體力通常會逐漸回升，這段時間適合安排強度較高的訓練。",
-      "fertile_window": "您目前落在易孕期範圍內。",
-      "ovulation_peak": "近期為排卵高峰期，是整個週期中受孕機率最高的時段。",
-      "luteal_dip": "黃體期後期容易出現體力下滑、睡眠品質變差的狀況，請多留意自身狀態。",
-      "luteal_pms": "經前症候群容易在此階段出現，建議記錄身體感受觀察規律。",
-      "generic_log": "每日填寫紀錄，長期下來能夠提升系統預測的準確度。"
-    },
-    "log": {
-      "title": "今日狀態紀錄",
-      "saved": "已儲存",
-      "flow": "經血量",
-      "products": "生理用品",
-      "fewerProducts": "收起選項",
-      "moreProducts": "+ 更多用品",
-      "bbt": "基礎體溫",
-      "mucus": "子宮頸黏液狀態",
-      "moods": "心情狀態",
-      "energy": "體力狀況",
-      "notes": "備註",
-      "notesPlaceholder": "其他想要備註的內容…"
-    }
   }
 }

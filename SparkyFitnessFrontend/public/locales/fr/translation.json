@@ -329,10 +329,6 @@
       "emailUpdateSuccess": "E-mail mis à jour avec succès.",
       "emailUpdateError": "Échec de la mise à jour de l'e-mail"
     },
-    "customNutrients": {
-      "title": "Nutriments personnalisés",
-      "subtitle": "Gère vos définitions de nutriments personnalisés"
-    },
     "customMeals": {
       "title": "Repas personnalisés",
       "subtitle": "Crée et gère des types de repas personnalisés"
@@ -373,28 +369,6 @@
         "success": "Données synchronisées supprimées.",
         "error": "Échec de la suppression des données synchronisées."
       }
-    },
-    "cycle": {
-      "title": "Cycle et grossesse",
-      "description": "Gérez la santé reproductive, les cycles menstruels et le suivi de grossesse",
-      "enableLabel": "Activer le suivi du cycle et de la grossesse",
-      "enableHint": "Active le centre de santé reproductive. L'activer affiche l'onglet correspondant dans la barre latérale.",
-      "mode": "Mode de suivi",
-      "bcMethod": "Contraception",
-      "terminology": "Terminologie",
-      "terminologyDefault": "Par défaut (genré)",
-      "terminologyNeutral": "Neutre",
-      "avgCycleOverride": "Durée moyenne du cycle (jours)",
-      "avgPeriodOverride": "Durée moyenne des règles (jours)",
-      "lutealLength": "Durée de la phase lutéale (jours)",
-      "showFertileWindow": "Afficher les prévisions de fenêtre de fertilité",
-      "showFertileWindowHint": "Affiche ou masque les jours fertiles et les prévisions d'ovulation sur les tableaux de bord et calendriers.",
-      "conditions": "Problèmes de santé",
-      "learned": "Calculé à partir des journaux",
-      "successTitle": "Succès",
-      "successDesc": "Paramètres du cycle mis à jour.",
-      "errorTitle": "Erreur",
-      "errorDesc": "Impossible d'enregistrer les paramètres du cycle. Veuillez réessayer."
     },
     "nutrientGoalDirection": {
       "title": "Sens de l'objectif nutritionnel",
@@ -1239,49 +1213,6 @@
       "layoutErrorNotice": "La disposition personnalisable a rencontré une erreur, une vue simplifiée est donc affichée. Votre disposition enregistrée est conservée."
     },
     "over": "sur"
-  },
-  "foodDiary": {
-    "title": "Journal alimentaire",
-    "pickADate": "Sélectionner une date",
-    "success": "Succès",
-    "error": "Erreur",
-    "genericError": "Une erreur inattendue s'est produite.",
-    "entryCopied": "Entrées alimentaires copiées avec succès",
-    "entryCopyError": "Échec de la copie des entrées alimentaires.",
-    "copiedFromYesterday": "Entrées alimentaires copiées depuis hier avec succès",
-    "copyFromYesterdayError": "Échec de la copie des entrées alimentaires depuis hier.",
-    "mealAdded": "Repas \"{{mealName}}\" ajouté au journal.",
-    "mealAddError": "Échec de l'ajout du repas au journal.",
-    "entryAdded": "Entrée alimentaire ajoutée avec succès",
-    "entryAddError": "Erreur lors de l'ajout de l'entrée alimentaire :",
-    "entryRemoved": "Entrée alimentaire supprimée avec succès",
-    "entryRemoveError": "Erreur lors de la suppression de l'entrée alimentaire :",
-    "waterIntake": {
-      "title": "Consommation d'eau",
-      "updated": "Consommation d'eau mise à jour",
-      "updateError": "Échec de la sauvegarde de la consommation d'eau",
-      "perDrink": "{{volume}} {{unit}}",
-      "defaultPerDrink": "{{volume}} {{unit}} (par défaut)",
-      "defaultContainer": "Récipient",
-      "logTitle": "Boissons du jour",
-      "logEmpty": "Aucune boisson enregistrée pour le moment",
-      "deleteEntry": "Supprimez cette boisson",
-      "deleteConfirm": "Supprimer cette entrée {{volume}} {{unit}} ?",
-      "deletedSuccess": "Boisson retirée",
-      "deletedError": "Impossible de supprimer la boisson",
-      "editTime": "Cliquez pour modifier l'heure"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Copier les entrées alimentaires",
-      "description": "Sélectionnez la date cible et le type de repas pour copier les entrées alimentaires.",
-      "targetDate": "Date cible",
-      "mealType": "Type de repas",
-      "selectMealTypePlaceholder": "Sélectionner le type de repas",
-      "copyButton": "Copier"
-    },
-    "selectMealType": "Sélectionnez le type de repas",
-    "pastDateWarning": "Attention : vous ajoutez des entrées alimentaires pour une date passée.",
-    "futureDateWarning": "Attention : vous ajoutez des entrées alimentaires pour une date future."
   },
   "mealCard": {
     "addFoodToMeal": "Ajouter un aliment à {{mealName}}",
@@ -2437,35 +2368,6 @@
     "liveAiContextDescription": "Voici le contexte actuel qui serait fourni à l'assistant IA",
     "loadingAiContext": "Chargement du contexte IA..."
   },
-  "nutrition": {
-    "calories": "Calories",
-    "protein": "Protéines",
-    "carbohydrates": "Glucides",
-    "carbs": "Glucides",
-    "saturatedFat": "Acides gras saturés",
-    "polyunsaturatedFat": "Acides gras polyinsaturés",
-    "monounsaturatedFat": "Acides gras monoinsaturrés",
-    "transFat": "Acides gras trans",
-    "cholesterol": "Cholestérol",
-    "sodium": "Sodium",
-    "potassium": "Potassium",
-    "dietaryFiber": "Fibres",
-    "fiber": "Fibres",
-    "sugars": "Sucres",
-    "vitaminA": "Vitamine A",
-    "vitaminC": "Vitamine C",
-    "calcium": "Calcium",
-    "iron": "Fer",
-    "fat": "Lipides",
-    "netCarbs": "Glucides nets",
-    "autoCalculate": "Calcul automatique",
-    "autoCalculateTooltip": "Calcul automatique avec {{algorithm}}",
-    "autoCalculateDisabledNoSex": "Définissez votre sexe dans le profil pour activer le calcul automatique",
-    "autoCalculateSelect": "Inclure dans le calcul automatique groupé",
-    "autoCalculateSelectAll": "Tout sélectionner",
-    "autoCalculateSelectNone": "Tout désélectionner",
-    "autoCalculateApplySelected": "Calculer automatiquement la sélection ({{count}})"
-  },
   "sync": {
     "syncAll": "Synchroniser tous les fournisseurs actifs",
     "syncingAll": "Synchronisation de tous les fournisseurs...",
@@ -2694,31 +2596,6 @@
       "reflux": "Reflux / sem",
       "avgBristol": "Bristol moy."
     },
-    "symptoms": {
-      "logTitle": "Enregistrer un symptôme",
-      "calendarTitle": "Calendrier des symptômes",
-      "logsTitle": "Historique des symptômes enregistrés",
-      "subtitle": "Enregistrez la sévérité et le contexte physique de vos effets secondaires",
-      "symptom": "Symptôme",
-      "addCustom": "Ajouter un symptôme personnalisé",
-      "customName": "Nom du symptôme (interne)",
-      "customNamePlaceholder": "ex. eruption_cutanee",
-      "displayLabel": "Libellé affiché",
-      "displayLabelPlaceholder": "ex. Éruption cutanée",
-      "saveCustom": "Enregistrer le symptôme personnalisé",
-      "severity": "Sévérité",
-      "mild": "Léger (1-3)",
-      "moderate": "Modéré (4-6)",
-      "severe": "Sévère (7-10)",
-      "primaryLocation": "Emplacement principal",
-      "customLocationPlaceholder": "ex. Épaule gauche, mâchoire…",
-      "linkMed": "Lier à un médicament (facultatif)",
-      "noMedLinked": "Aucun médicament lié",
-      "context": "Contexte / notes",
-      "contextPlaceholder": "ex. Survenu 4 heures après la prise de ma dose du soir.",
-      "bristol": "Journal des selles (échelle de Bristol)",
-      "bristolType": "Type de Bristol {{n}}"
-    },
     "fasting": {
       "title": "Minuteur de jeûne GLP-1 oral",
       "instructions": "Prendre avec 4 à 6 oz d'eau, puis attendre {{min}} min avant de manger, de boire du café ou de prendre d'autres médicaments.",
@@ -2739,66 +2616,6 @@
       },
       "noAccessBody": "Demandez à {{name}} de partager l'accès au suivi pour enregistrer ici la faim, les pensées obsédantes liées à la nourriture, la satiété et le niveau d'énergie.",
       "noAccessTitle": "Le suivi quotidien GLP-1 nécessite un accès au suivi"
-    },
-    "sites": {
-      "customize": "Personnaliser les sites",
-      "dialogTitle": "Sites d'injection",
-      "subtitle": "Activez les sites que vous utilisez et classez-les : les suggestions de rotation suivent cet ordre.",
-      "label": {
-        "upper_arm_left": "Bras gauche (haut)",
-        "upper_arm_right": "Bras droit (haut)",
-        "forearm_left": "Avant-bras gauche",
-        "forearm_right": "Avant-bras droit",
-        "abdomen_left": "Abdomen gauche",
-        "abdomen_right": "Abdomen droit",
-        "thigh_front_left": "Cuisse gauche (avant)",
-        "thigh_front_right": "Cuisse droite (avant)",
-        "upper_back_left": "Haut du dos gauche",
-        "upper_back_right": "Haut du dos droit",
-        "lower_back_left": "Bas du dos gauche",
-        "lower_back_right": "Bas du dos droit",
-        "buttock_left": "Fesse gauche",
-        "buttock_right": "Fesse droite",
-        "thigh_back_left": "Cuisse gauche (arrière)",
-        "thigh_back_right": "Cuisse droite (arrière)"
-      }
-    },
-    "glp1": {
-      "logInjection": "Enregistrer une injection",
-      "logInjectionAt": "Enregistrer une injection : {{site}}",
-      "injectionSite": "Site d'injection",
-      "legendSuggested": "vert = suggéré",
-      "legendResting": "orange = repos <{{days}}j",
-      "selected": "Sélectionné :",
-      "tapZone": "Touchez une zone",
-      "lipoWarning": "Ce site a été utilisé récemment : alternez pour éviter une lipohypertrophie.",
-      "doseMg": "Dose (mg)",
-      "dateTime": "Date et heure",
-      "deduct": "Déduire du stylo/flacon",
-      "dontDeduct": "Ne pas déduire",
-      "pkTitle": "Taux sérique PK",
-      "pkEmpty": "Enregistrez des injections pour modéliser votre taux sérique. (Nécessite un médicament GLP-1 reconnu : à définir sur le médicament.)",
-      "penInventory": "Inventaire stylos / flacons",
-      "addPen": "Ajouter un stylo",
-      "noPens": "Aucun stylo/flacon suivi.",
-      "titrationTitle": "Plan de titration des doses",
-      "addStep": "Ajouter une étape",
-      "statusPlanned": "Planifié",
-      "statusActive": "Actif (en cours)",
-      "statusDone": "Terminé",
-      "noTitration": "Aucune étape de titration pour l'instant : touchez « Ajouter une étape » pour planifier l'augmentation de dose.",
-      "recentInjections": "Injections récentes",
-      "noInjections": "Aucune injection enregistrée pour l'instant.",
-      "pkAxisDates": "Dates",
-      "pkAxisDays": "Jours",
-      "pkDayLabel": "Jour {{day}}",
-      "editInjection": "Modifier l'injection",
-      "notes": "Notes",
-      "quickLogTitle": "Où avez-vous effectué l'injection ?",
-      "skipSite": "Ignorer le site",
-      "addInventory": "Ajouter du stock",
-      "notesPlaceholder": "Par ex. : légère sensation de picotement, je me sentais bien",
-      "quickLogHint": "{{name}} — la dose est automatiquement déduite de votre stylo en cours d'utilisation. Vert = site de rotation recommandé."
     },
     "types": {
       "pill": "pilule",
@@ -3062,111 +2879,6 @@
     "skipFailed": "Impossible de passer l'étape de présentation. Veuillez réessayer.",
     "submissionFailed": "Impossible d'enregistrer votre plan. Veuillez réessayer."
   },
-  "cycle": {
-    "hub": "Centre cycle et grossesse",
-    "pregnancyHub": "Centre grossesse",
-    "hubSubtitle": "Suivez, comprenez et synchronisez-vous avec votre corps.",
-    "tabs": {
-      "today": "Aujourd'hui",
-      "calendar": "Calendrier",
-      "insights": "Analyses",
-      "care": "Soins"
-    },
-    "comingSoon": {
-      "calendarTitle": "Calendrier du cycle",
-      "calendarDesc": "Une vue interactive de vos cycles passés, du volume des règles et des prévisions futures arrive en phase 2.",
-      "insightsTitle": "Analyses du cycle",
-      "insightsDesc": "Des graphiques détaillés de la température basale, des cartes de chaleur des symptômes et l'historique de durée des cycles arrivent en phase 2.",
-      "careTitle": "Soins et rappels",
-      "careDesc": "Les rappels de contraception, de changement de protection et l'export PDF pour le médecin arrivent en phase 5.",
-      "placeholder": "Bientôt disponible"
-    },
-    "onboarding": {
-      "stepIndicator": "Étape {{step}} sur 4",
-      "step1Title": "Choisissez votre objectif de suivi",
-      "step1Desc": "Sélectionnez le mode principal de votre suivi.",
-      "step2Title": "Dates et durées du cycle",
-      "step2Desc": "Indiquez-nous les caractéristiques habituelles de votre cycle.",
-      "step3Title": "Votre profil de santé",
-      "step3Desc": "Informations facultatives pour personnaliser les prévisions (peut être ignoré).",
-      "step4Title": "Avertissement et confirmation",
-      "step4Desc": "À lire et à accepter avant de finaliser.",
-      "successTitle": "Bienvenue dans le suivi du cycle !",
-      "successDesc": "Votre profil de cycle a été initialisé avec succès.",
-      "errorTitle": "Échec de la configuration",
-      "errorDesc": "Impossible d'enregistrer vos préférences. Veuillez réessayer.",
-      "lastPeriodStart": "Quand ont commencé vos dernières règles ?",
-      "avgCycleLength": "Cycle habituel (jours)",
-      "avgPeriodLength": "Règles habituelles (jours)",
-      "bcMethod": "Méthode de contraception",
-      "bcHint": "La contraception hormonale supprime les fenêtres de fertilité et n'affiche que les prévisions de règles.",
-      "conditions": "Pathologies connues (facultatif)",
-      "complete": "Accepter et terminer"
-    },
-    "disclaimer": {
-      "title": "Avertissement de santé important",
-      "text1": "Cette fonctionnalité de suivi du cycle est destinée uniquement à des fins éducatives, sportives et de tenue de journal. Elle n'est ni conçue ni destinée à être utilisée comme méthode principale de contraception ou de planification familiale.",
-      "text2": "Les prévisions sont des estimations qui varient selon la régularité individuelle, l'état de santé ou l'irrégularité du cycle. Consultez toujours un professionnel de santé pour toute question médicale."
-    },
-    "mode": {
-      "standard": "Suivi de cycle standard",
-      "standardDesc": "Suivez les règles, les symptômes et prévoyez les futures phases du cycle.",
-      "ttc": "Essai de conception",
-      "ttcDesc": "Suivez la fenêtre de fertilité, l'ovulation et les indicateurs de la phase lutéale.",
-      "pregnant": "Suivi de grossesse",
-      "pregnantDesc": "Suivez les étapes du développement fœtal, le minuteur de contractions et le suivi prénatal.",
-      "menopause": "Sensibilisé à la ménopause",
-      "postpartum": "Post-partum"
-    },
-    "today": {
-      "cycleDay": "Jour du cycle",
-      "late": "{{n}} jours de retard",
-      "periodIn": "Règles dans {{n}} jours",
-      "nextPeriod": "Prochaines règles",
-      "ovulation": "Ovulation",
-      "cycleLength": "Durée du cycle",
-      "lateBanner": "Vos règles ont {{n}} jours de retard. Enregistrez-les à leur début, ou ajustez la durée de votre cycle dans les paramètres."
-    },
-    "legend": {
-      "period": "Règles",
-      "fertile": "Fertile",
-      "ovulation": "Ovulation"
-    },
-    "stats": {
-      "cycleAvg": "Cycle moy.",
-      "periodAvg": "Règles moy.",
-      "lastBbt": "Dernière T° basale"
-    },
-    "regularity": {
-      "regular": "Régulier",
-      "somewhat": "Assez régulier",
-      "irregular": "Irrégulier"
-    },
-    "insight": {
-      "menstrual_rest": "Vous êtes en phase menstruelle : le repos et une activité douce peuvent aider.",
-      "menstrual_iron": "Les aliments riches en fer peuvent vous aider pendant vos règles.",
-      "follicular_energy": "L'énergie augmente souvent en phase folliculaire : une bonne semaine pour des entraînements plus intenses.",
-      "fertile_window": "Vous êtes dans votre fenêtre de fertilité.",
-      "ovulation_peak": "L'ovulation approche : c'est votre jour de fertilité maximale.",
-      "luteal_dip": "L'énergie et le sommeil peuvent baisser en fin de phase lutéale. Soyez indulgent·e envers vous-même.",
-      "luteal_pms": "Des symptômes prémenstruels peuvent apparaître maintenant : notez comment vous vous sentez.",
-      "generic_log": "Enregistrez aujourd'hui pour améliorer vos prévisions au fil du temps."
-    },
-    "log": {
-      "title": "Journal du jour",
-      "saved": "Enregistré",
-      "flow": "Flux",
-      "products": "Protections périodiques",
-      "fewerProducts": "Afficher moins",
-      "moreProducts": "+ plus de produits",
-      "bbt": "Température basale",
-      "mucus": "Glaire cervicale",
-      "moods": "Humeur",
-      "energy": "Énergie",
-      "notes": "Notes",
-      "notesPlaceholder": "Autre chose à noter…"
-    }
-  },
   "foodCsvImport": {
     "title": "Importer des données alimentaires",
     "addRow": "Ajouter une ligne",
@@ -3206,10 +2918,6 @@
     "missingDefaultValidationError": "Au moins une variante par aliment doit être définie comme unité par défaut.",
     "filterMissingDefault": "Afficher les valeurs par défaut manquantes ({{count}})",
     "showAllRows": "Afficher toutes les lignes ({{count}})"
-  },
-  "foods": {
-    "providerVerified": "Aliment vérifié",
-    "removeNutrient": "Retirer {{nutrient}}"
   },
   "nutrientGoalDirection": {
     "min": "Min",
@@ -3251,23 +2959,6 @@
   },
   "layout": {
     "welcome": "Bienvenue {{activeUserName}}"
-  },
-  "food": {
-    "imagesReorderHint": "Faire glisser pour réorganiser. La première image est utilisée comme vignette.",
-    "moveImageLater": "Déplacer l'image à droite",
-    "moveImageEarlier": "Déplacer l'image à gauche",
-    "mainImage": "Principale",
-    "pauseSlideshow": "Mettre en pause le diaporama",
-    "playSlideshow": "Lancer le diaporama",
-    "nextImage": "Image suivante",
-    "previousImage": "Image précédente",
-    "imageViewer": "Visionneuse d'images",
-    "viewImages": "Voir les images",
-    "removeImage": "Supprimer l'image",
-    "newImagePreviewAlt": "Nouvelle image {{number}}",
-    "imagePreviewAlt": "Image alimentaire {{number}}",
-    "imagesLimitReached": "Maximum de {{count}} images atteint.",
-    "imagesLabel": "Images"
   },
   "foodPhoto": {
     "openInMealBuilder": "Ouvrir dans le générateur de repas",
@@ -3384,60 +3075,5 @@
   "providers": {
     "updateSuccess": "Fournisseur de données externe mis à jour avec succès",
     "updateError": "Échec de la mise à jour du fournisseur de données externe"
-  },
-  "pregnancy": {
-    "setup": {
-      "disclaimer": "Les estimations sont informatives et ne remplacent pas les soins médicaux.",
-      "conceptionLabel": "Conception / date d'ovulation",
-      "conception": "Conception",
-      "babies": "Nombre de bébés"
-    },
-    "safety": {
-      "noResults": "Pas de correspondance. Essayez un autre terme.",
-      "meds": "Médicaments",
-      "medPlaceholder": "Puis-je prendre...",
-      "foodPlaceholder": "Puis-je manger ...",
-      "food": "Aliments"
-    },
-    "photos": {
-      "weekAlt": "Photo de la semaine {{n}} de grossesse",
-      "week": "Sem {{n}}",
-      "uploading": "Chargement…",
-      "title": "Journal photo de grossesse",
-      "empty": "Capturez votre ventre chaque semaine pour voir le parcours.",
-      "delete": "Supprimer la photo",
-      "add": "Ajouter la semaine {{n}}"
-    },
-    "kicks": {
-      "title": "Compteur de coups de pied",
-      "tap": "Appuyez pour compter un coup de pied",
-      "stop": "Terminer la session",
-      "start": "Commencez à compter",
-      "recent": "Sessions récentes",
-      "movements": "mouvements"
-    },
-    "growth": {
-      "you": "Votre corps",
-      "week": "Semaine",
-      "sizeThisWeek": "Taille de bébé cette semaine",
-      "prevWeek": "Semaine précédente",
-      "nextWeek": "Semaine suivante",
-      "jumpToCurrent": "Aller à cette semaine ({{n}})",
-      "chart": "Croissance tout au long de la grossesse",
-      "baby": "Votre bébé"
-    },
-    "disclaimer": "Les informations sur la grossesse sont éducatives et ne remplacent pas les soins médicaux.",
-    "contractions": {
-      "title": "Minuteur de contractions",
-      "stop": "Stop",
-      "start": "Commencer les contractions",
-      "long": "longue",
-      "int": "intervalle",
-      "dur": "Durée",
-      "count": "dans la dernière heure"
-    },
-    "checklist": {
-      "week": "Semaine {{n}}"
-    }
   }
 }

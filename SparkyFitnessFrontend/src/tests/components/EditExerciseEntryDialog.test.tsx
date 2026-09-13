@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import EditExerciseEntryDialog from '@/pages/Diary/EditExerciseEntryDialog';
+import EditExerciseEntryDialog from '@/pages/Exercises/EditExerciseEntryDialog';
 import type { ExerciseEntry } from '@/types/exercises';
 
 const mockUpdateExerciseEntry = jest.fn();

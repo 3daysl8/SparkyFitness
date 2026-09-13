@@ -17,8 +17,9 @@ import { useUpdateFastMutation } from '@/hooks/Fasting/useFasting';
 import { FastingLog } from '@/types/fasting';
 import { CombinedMeasurement } from '@/types/checkin';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Timer, Activity, Moon, Camera } from 'lucide-react';
+import { Timer, Activity, Moon, Camera, Pill } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import Medications from '../Medications/Medications';
 
 const CheckIn = () => {
   const { user } = useAuth();
@@ -118,6 +119,14 @@ const CheckIn = () => {
                 icon: Activity,
               },
               {
+                id: 'protocols',
+                label: t(
+                  'checkIn.tabs.protocols',
+                  'Daily Protocols & Supplements'
+                ),
+                icon: Pill,
+              },
+              {
                 id: 'fasting',
                 label: t('checkIn.tabs.fasting', 'Fasting & Mood'),
                 icon: Timer,
@@ -174,6 +183,10 @@ const CheckIn = () => {
             />
           </div>
         </div>
+
+        <TabsContent value="protocols" className="focus-visible:outline-none">
+          <Medications />
+        </TabsContent>
 
         <TabsContent
           value="fasting"

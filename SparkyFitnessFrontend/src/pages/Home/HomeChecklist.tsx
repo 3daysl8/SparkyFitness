@@ -1,12 +1,24 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { todayInZone, addDays, dayOfWeek } from '@workspace/shared';
+import {
+  todayInZone,
+  addDays,
+  dayOfWeek,
+  getDueDosesForDate,
+  formatDose,
+} from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { useWaterContainer } from '@/contexts/WaterContainerContext';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,6 +48,9 @@ import {
   Droplet,
   Moon,
   Plus,
+  Tablets,
+  RotateCcw,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -53,7 +68,14 @@ import {
   useUpdateWaterIntakeMutation,
 } from '@/hooks/Diary/useWaterIntake';
 import { useSleepEntriesQuery } from '@/hooks/CheckIn/useSleep';
+import {
+  useMedications,
+  useMedicationEntries,
+  useCreateMedicationEntryMutation,
+  useDeleteMedicationEntryMutation,
+} from '@/hooks/useMedications';
 import type { Focus, RecurringFocus } from '@/types/focus';
+import type { MedicationDetail, MedicationEntry } from '@/types/medications';
 import type { ExerciseSessionResponse } from '@workspace/shared';
 import {
   loadWorkoutPlaybackDraftFromStorage,
@@ -61,6 +83,7 @@ import {
   type WorkoutPlaybackDraft,
 } from '@/utils/workoutPlayback';
 import { formatWeight } from '@/utils/numberFormatting';
+import { entryMatchesDue } from '@/utils/medicationUtils';
 import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
 import AgendaCard from '@/pages/Home/AgendaCard';
 
@@ -70,11 +93,6 @@ function sundayOf(date: string): string {
   return addDays(date, -dayOfWeek(date));
 }
 
-/** A sensible round increment for a numeric habit's quick "+" stepper —
- * roughly 10 taps to fill the target, rounded to a "nice" 1/2/5x10^n step.
- * There's no explicit step field on the habit, so this is a judgment call;
- * the precise-entry dialog (tap the progress label) still covers exact
- * values. */
 function quickStepFor(target: number | null): number {
   if (!target || target <= 0) return 1;
   const raw = target / 10;
@@ -84,11 +102,6 @@ function quickStepFor(target: number | null): number {
   return Math.max(1, Math.round(niceNorm * pow10));
 }
 
-/** One pill in the week strip, including its own completion dot — done as
- * its own component (rather than a loop calling the hook 7 times) so each
- * day's snapshot is a normal, rules-of-hooks-safe query. The selected day's
- * snapshot is already cached by HomeChecklist's own fetch of it, so this
- * adds at most 6 extra lightweight requests per visible week, not 7. */
 const DayPill = forwardRef<
   HTMLButtonElement,
   {
@@ -172,10 +185,6 @@ function WeekStrip({
   );
   const selectedPillRef = useRef<HTMLButtonElement>(null);
 
-  // Not every day fits in the pill row at phone width (7 pills + the two
-  // chevrons), so without this the selected pill — the whole point of the
-  // strip — can silently scroll out of view (e.g. Saturday, the last pill,
-  // on first load).
   useEffect(() => {
     selectedPillRef.current?.scrollIntoView({
       behavior: 'smooth',
@@ -221,10 +230,6 @@ function WeekStrip({
   );
 }
 
-/** Watches for a live workout-playback draft for `selectedDate` — the draft
- * lives only in localStorage (see utils/workoutPlayback.ts) until Finish, so
- * this re-checks on mount, on cross-tab `storage` events, and when the tab
- * regains visibility, rather than assuming a single "did it change" signal. */
 function useActiveWorkoutDraft(selectedDate: string) {
   const [draft, setDraft] = useState<WorkoutPlaybackDraft | null>(() =>
     loadWorkoutPlaybackDraftFromStorage(selectedDate)
@@ -245,10 +250,6 @@ function useActiveWorkoutDraft(selectedDate: string) {
   return draft;
 }
 
-/** "{Routine} • {Duration} mins • {Volume}" for the dashboard card, built
- * entirely from data useExerciseEntries already fetches (no new query). If
- * more than one session was logged that day (rare, but possible), sums
- * across all of them rather than only showing the first. */
 function summarizeWorkoutSessions(sessions: ExerciseSessionResponse[]) {
   let durationMinutes = 0;
   let volumeKg = 0;
@@ -337,7 +338,7 @@ function WorkoutCard({ selectedDate }: { selectedDate: string }) {
     const summary = summarizeWorkoutSessions(exerciseEntries);
     return (
       <button
-        onClick={() => navigate('/exercises')}
+        onClick={() => navigate('/workouts')}
         className={cn(
           cardClassName,
           'border-metric-workout/30 bg-metric-workout/10'
@@ -369,7 +370,7 @@ function WorkoutCard({ selectedDate }: { selectedDate: string }) {
   return (
     <button
       onClick={() =>
-        navigate('/exercises', { state: { openStartWorkout: true } })
+        navigate('/workouts', { state: { openStartWorkout: true } })
       }
       className={cn(cardClassName, 'border-border hover:bg-muted/50')}
     >
@@ -396,7 +397,6 @@ function WaterCard({
   selectedDate: string;
   userId?: string;
 }) {
-  const navigate = useNavigate();
   const { data: waterMl = 0 } = useWaterIntakeQuery(selectedDate, userId);
   const { data: waterGoalMl = 1920 } = useWaterGoalQuery(selectedDate, userId);
   const { activeContainer } = useWaterContainer();
@@ -405,10 +405,6 @@ function WaterCard({
   const pct =
     waterGoalMl > 0 ? Math.min(100, (waterMl / waterGoalMl) * 100) : 0;
 
-  // Mirrors the common case of WaterIntake.tsx's getVolumeDisplay() (an
-  // explicit container volume, else the 250ml default) without the
-  // linked-food serving-size math — this is a quick-add shortcut, the full
-  // Diary water card remains the source of truth for that edge case.
   const mlPerDrink = (() => {
     if (!activeContainer) return 250;
     const servings = Math.max(1, activeContainer.servings_per_container || 1);
@@ -429,18 +425,7 @@ function WaterCard({
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => navigate('/diary')}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          navigate('/diary');
-        }
-      }}
-      className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-border p-3 text-center transition-colors hover:bg-muted/50"
-    >
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-border p-3 text-center transition-colors">
       <CircularProgress
         value={pct}
         size={52}
@@ -479,7 +464,7 @@ function SleepCard({ selectedDate }: { selectedDate: string }) {
 
   return (
     <button
-      onClick={() => navigate('/checkin')}
+      onClick={() => navigate('/checkin?tab=sleep')}
       className={cn(
         'flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors',
         logged
@@ -524,11 +509,6 @@ function MetricCards({ selectedDate }: { selectedDate: string }) {
   );
 }
 
-/** The circular check-target shared by to-dos and boolean habits. Purely
- * visual (the enclosing row is the real tap target) so it stays valid HTML
- * and one big touch target, but reads as a dedicated checkbox. Remounting
- * the icon via `key` on every toggle re-triggers the check-pop animation
- * only on the actual state change, not on every render. */
 function CheckTarget({ done }: { done: boolean }) {
   return (
     <span
@@ -659,6 +639,231 @@ function HabitRow({
         </div>
       )}
     </div>
+  );
+}
+
+function SupplementsSnapshotCard({ selectedDate }: { selectedDate: string }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { timezone } = usePreferences();
+  const { data: meds = [], isLoading: loadingMeds } = useMedications({
+    activeOnly: true,
+  });
+  const { data: entries = [], isLoading: loadingEntries } =
+    useMedicationEntries({
+      fromDate: selectedDate,
+      toDate: selectedDate,
+    });
+
+  const createEntry = useCreateMedicationEntryMutation();
+  const deleteEntry = useDeleteMedicationEntryMutation();
+
+  const supplementMeds = useMemo(
+    () => (meds as MedicationDetail[]).filter((m) => m.is_supplement),
+    [meds]
+  );
+
+  const dueDoses = useMemo(() => {
+    if (loadingMeds || supplementMeds.length === 0) return [];
+    return getDueDosesForDate(supplementMeds, selectedDate, timezone);
+  }, [supplementMeds, selectedDate, timezone, loadingMeds]);
+
+  const prnSupplements = useMemo(() => {
+    return supplementMeds.filter((m) => {
+      if (dueDoses.some((d) => d.medication.id === m.id)) return false;
+      return (
+        !m.schedules ||
+        m.schedules.length === 0 ||
+        m.schedules.some((s) => s.schedule_type_id === 'prn')
+      );
+    });
+  }, [supplementMeds, dueDoses]);
+
+  const completedCount = useMemo(() => {
+    return dueDoses.filter((due) =>
+      entries.some(
+        (e) =>
+          entryMatchesDue(e, due) &&
+          (e.status === 'taken' || e.status === 'skipped')
+      )
+    ).length;
+  }, [dueDoses, entries]);
+
+  const handleTakeScheduled = (due: (typeof dueDoses)[0]) => {
+    createEntry.mutate({
+      medication_id: due.medication.id,
+      schedule_id: due.schedule.id,
+      status: 'taken',
+      taken_at: new Date().toISOString(),
+      entry_date: selectedDate,
+    });
+  };
+
+  const handleTakePrn = (med: MedicationDetail) => {
+    createEntry.mutate({
+      medication_id: med.id,
+      schedule_id: null,
+      status: 'prn_taken',
+      taken_at: new Date().toISOString(),
+      entry_date: selectedDate,
+    });
+  };
+
+  const handleUndo = (entry: MedicationEntry) => {
+    deleteEntry.mutate(entry.id);
+  };
+
+  if (!loadingMeds && supplementMeds.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-50/20 via-card to-card">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60">
+              <Tablets className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            </span>
+            {t('medications.today.supplementsTitle', "Today's Supplements")}
+          </CardTitle>
+          <CardDescription className="text-xs mt-0.5">
+            {dueDoses.length > 0
+              ? `${completedCount} of ${dueDoses.length} completed`
+              : `${supplementMeds.length} active supplements in cabinet`}
+          </CardDescription>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => navigate('/checkin?tab=protocols')}
+        >
+          <span>Cabinet</span>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm pt-0">
+        {loadingMeds || loadingEntries ? (
+          <p className="text-xs text-muted-foreground">
+            {t('common.loading', 'Loading...')}
+          </p>
+        ) : (
+          <>
+            {dueDoses.map((due, idx) => {
+              const entry = entries.find((e) => entryMatchesDue(e, due));
+              const isTaken = entry?.status === 'taken';
+
+              return (
+                <div
+                  key={`${due.medication.id}-${due.schedule.id}-${idx}`}
+                  className="flex items-center justify-between p-2.5 rounded-lg border bg-card/60"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={cn(
+                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs',
+                        isTaken
+                          ? 'border-emerald-500 bg-emerald-500 text-white'
+                          : 'border-muted-foreground/30 text-transparent'
+                      )}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p
+                        className={cn(
+                          'font-medium text-xs truncate',
+                          isTaken && 'line-through text-muted-foreground'
+                        )}
+                      >
+                        {due.medication.display_name || due.medication.name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDose(due.medication, due.schedule) ?? '1 dose'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isTaken && entry ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[11px] text-muted-foreground"
+                      onClick={() => handleUndo(entry)}
+                      disabled={deleteEntry.isPending}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      {t('common.undo', 'Undo')}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => handleTakeScheduled(due)}
+                      disabled={createEntry.isPending}
+                    >
+                      {t('medications.today.take', 'Take')}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+
+            {dueDoses.length === 0 &&
+              prnSupplements.map((med) => {
+                const prnEntry = entries.find(
+                  (e) => e.medication_id === med.id && e.status === 'prn_taken'
+                );
+                return (
+                  <div
+                    key={med.id}
+                    className="flex items-center justify-between p-2.5 rounded-lg border bg-card/60"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-xs truncate">
+                        {med.display_name || med.name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatDose(med) ?? 'As needed'}
+                      </p>
+                    </div>
+                    {prnEntry ? (
+                      <div className="flex items-center gap-1.5">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                        >
+                          Taken
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground"
+                          onClick={() => handleUndo(prnEntry)}
+                          disabled={deleteEntry.isPending}
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-3 text-xs"
+                        onClick={() => handleTakePrn(med)}
+                        disabled={createEntry.isPending}
+                      >
+                        {t('medications.today.take', 'Take')}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -860,6 +1065,8 @@ export default function HomeChecklist() {
       <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
       <MetricCards selectedDate={selectedDate} />
       <AgendaCard selectedDate={selectedDate} />
+
+      <SupplementsSnapshotCard selectedDate={selectedDate} />
 
       {isLoading && <p>{t('common.loading', 'Loading...')}</p>}
 

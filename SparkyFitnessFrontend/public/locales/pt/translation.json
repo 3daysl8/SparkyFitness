@@ -8,27 +8,6 @@
     "settings": "Configurações",
     "admin": "Administrador"
   },
-  "nutrition": {
-    "calories": "Calorias",
-    "protein": "Proteína",
-    "carbohydrates": "Carboidratos",
-    "carbs": "Carb",
-    "fat": "Gordura",
-    "saturatedFat": "Gordura Saturada",
-    "polyunsaturatedFat": "Gordura Poliinsaturada",
-    "monounsaturatedFat": "Gordura Monosaturada",
-    "transFat": "Gordura Transgênica",
-    "cholesterol": "Colesterol",
-    "sodium": "Sódio",
-    "potassium": "Potássio",
-    "dietaryFiber": "Fibra Alimentar",
-    "fiber": "Fibra",
-    "sugars": "Açúcares",
-    "vitaminA": "Vitamina A",
-    "vitaminC": "Vitamina C",
-    "calcium": "Cálcio",
-    "iron": "Ferro"
-  },
   "aboutDialog": {
     "title": "Sobre SparkyFitness",
     "description1": "SparkyFitness: Feito para famílias. Com tecnologia de IA. Acompanhe a sua alimentação, exercícios físicos, ingestão de água e saúde — tudo num só lugar.",
@@ -829,36 +808,6 @@
       "calcium": "cálcio"
     },
     "of": "de"
-  },
-  "foodDiary": {
-    "title": "Diário de alimentação",
-    "pickADate": "Escolha uma data",
-    "success": "Sucesso",
-    "error": "Erro",
-    "genericError": "Um erro inesperado ocorreu.",
-    "entryCopied": "Entradas de comidas copiadas com sucesso",
-    "entryCopyError": "Falha ao copiar entradas de comidas.",
-    "copiedFromYesterday": "Comidas copiadas de ontem com sucesso",
-    "copyFromYesterdayError": "Falha ao copiar comidas de ontem.",
-    "mealAdded": "Refeição \"{{mealName}}\" adicionada ao diário.",
-    "mealAddError": "Falha em adicionar refeição ao diário.",
-    "entryAdded": "Entrada de comidas adicionada com sucesso",
-    "entryAddError": "Erro ao adicionar comidas:",
-    "entryRemoved": "Entrada de comida removida com sucesso",
-    "entryRemoveError": "Erro ao remover entrada de comida:",
-    "waterIntake": {
-      "title": "Ingestão de água",
-      "updated": "Consumo de água atualizado",
-      "updateError": "Falha ao gravar ingestão de água"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Copiar Entrada de Comidas",
-      "description": "Selecione a data e o tipo de refeição para copiar as comidas.",
-      "targetDate": "Data a ser copiada",
-      "mealType": "Tipo de Refeição",
-      "selectMealTypePlaceholder": "Selecione o tipo de refeição",
-      "copyButton": "Copiar"
-    }
   },
   "mealCard": {
     "addFoodToMeal": "Adicionar comida para {{mealName}}",

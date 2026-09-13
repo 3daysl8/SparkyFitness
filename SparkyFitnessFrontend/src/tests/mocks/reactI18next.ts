@@ -28,3 +28,4 @@ export const translateForTest = (
 };
 
 export const useTranslation = () => ({ t: translateForTest });
+export const initReactI18next = { type: '3rdParty', init: () => {} };

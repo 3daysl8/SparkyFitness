@@ -1,6 +1,6 @@
 import { screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import WaterIntake from '@/pages/Diary/WaterIntake';
+import WaterIntake from '@/components/Water/WaterIntake';
 import { useWaterContainer } from '@/contexts/WaterContainerContext';
 import {
   useWaterIntakeQuery,
@@ -16,15 +16,15 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) => {
       if (
-        key === 'foodDiary.waterIntake.perDrink' ||
-        key === 'foodDiary.waterIntake.defaultPerDrink'
+        key === 'waterIntake.perDrink' ||
+        key === 'waterIntake.defaultPerDrink'
       ) {
         return `${options?.['volume']} ${options?.['unit']}`;
       }
-      if (key === 'foodDiary.waterIntake.title') {
+      if (key === 'waterIntake.title') {
         return 'Water Intake';
       }
-      if (key === 'foodDiary.waterIntake.fromFood') {
+      if (key === 'waterIntake.fromFood') {
         return `Includes ${options?.['volume']} ${options?.['unit']} from food`;
       }
       if (key === 'drink_presets.quickAdd') {

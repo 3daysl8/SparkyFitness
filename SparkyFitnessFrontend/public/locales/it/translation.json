@@ -691,10 +691,6 @@
       "currentPassword": "Password attuale",
       "enterCurrentPassword": "Immetti password attuale"
     },
-    "customNutrients": {
-      "title": "Nutrienti Personalizzati",
-      "subtitle": "Gestisci la definizione dei tuoi nutrienti personalizzati"
-    },
     "customMeals": {
       "title": "Pasti Personalizzati",
       "subtitle": "Crea e gestisci tipi di pasto personalizzati"
@@ -1020,47 +1016,6 @@
       "calcium": "calcio"
     },
     "of": "di"
-  },
-  "foodDiary": {
-    "title": "Diario alimentare",
-    "pickADate": "Scegli una data",
-    "success": "Successo",
-    "error": "Errore",
-    "genericError": "Si è verificato un errore imprevisto.",
-    "entryCopied": "Voci relative agli alimenti copiate con successo",
-    "entryCopyError": "Impossibile copiare le voci relative agli alimenti.",
-    "copiedFromYesterday": "Voci relative al cibo copiate da ieri con successo",
-    "copyFromYesterdayError": "Impossibile copiare le voci relative al cibo di ieri.",
-    "mealAdded": "Pasto “{{mealName}}” aggiunto al diario.",
-    "mealAddError": "Impossibile aggiungere il pasto al diario.",
-    "entryAdded": "Voce relativa agli alimenti aggiunta con successo",
-    "entryAddError": "Errore durante l'aggiunta della voce relativa al cibo:",
-    "entryRemoved": "Voce relativa agli alimenti rimossa con successo",
-    "entryRemoveError": "Errore durante la rimozione della voce relativa al cibo:",
-    "waterIntake": {
-      "title": "Assunzione di acqua",
-      "updated": "Assunzione di acqua aggiornata",
-      "updateError": "Impossibile salvare il consumo idrico",
-      "perDrink": "{{volume}} {{unit}}",
-      "defaultPerDrink": "{{volume}} {{unit}} (impostazione predefinita)",
-      "defaultContainer": "Contenitore",
-      "logTitle": "Drink di oggi",
-      "logEmpty": "Nessun drink registrato ancora",
-      "deleteEntry": "Cancella questo drink",
-      "deleteConfirm": "Rimuovi questa entrata {{volume}} {{unit}}?",
-      "deletedSuccess": "Drink rimosso",
-      "deletedError": "Rimozione drink fallita",
-      "editTime": "Clicca per cambiare tempo"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Copia voci relative agli alimenti",
-      "description": "Seleziona la data di destinazione e il tipo di pasto per copiare le voci relative agli alimenti.",
-      "targetDate": "Data prevista",
-      "mealType": "Tipo di pasto",
-      "selectMealTypePlaceholder": "Seleziona il tipo di pasto",
-      "copyButton": "Copia"
-    },
-    "selectMealType": "Seleziona tipo di pasto"
   },
   "mealCard": {
     "addFoodToMeal": "Aggiungi cibo a {{mealName}}",
@@ -2120,28 +2075,6 @@
     "updateSuccessToast": "Voce relativa agli alimenti aggiornata con successo",
     "updateErrorToast": "Impossibile aggiornare la voce relativa agli alimenti"
   },
-  "nutrition": {
-    "calories": "Calorie",
-    "protein": "Proteine",
-    "carbohydrates": "Carboidrati",
-    "carbs": "Carboidrati",
-    "fat": "Grasso",
-    "saturatedFat": "Grassi saturi",
-    "polyunsaturatedFat": "Grassi polinsaturi",
-    "monounsaturatedFat": "Grassi monoinsaturi",
-    "transFat": "Grasso Trans",
-    "cholesterol": "Colesterolo",
-    "sodium": "Sodio",
-    "potassium": "Potassio",
-    "dietaryFiber": "Fibra Alimentare",
-    "fiber": "Fibra",
-    "sugars": "Zuccheri",
-    "vitaminA": "Vitamina A",
-    "vitaminC": "Vitamina C",
-    "calcium": "Calcio",
-    "iron": "Ferro",
-    "netCarbs": "Carboidrati Netti"
-  },
   "sync": {
     "syncAll": "Sincronizza tutti i servizi attivi",
     "syncingAll": "Sincronizzazione di tutti i servizi...",
@@ -2345,10 +2278,6 @@
     "fitnessAge": "Età fisica: {{val}}",
     "readiness": "Preparazione",
     "recHours": "Rec: {{val}}"
-  },
-  "foods": {
-    "providerVerified": "Alimenti certificati",
-    "removeNutrient": "Rimuovi {{nutrient}}"
   },
   "medications": {
     "tabs": {

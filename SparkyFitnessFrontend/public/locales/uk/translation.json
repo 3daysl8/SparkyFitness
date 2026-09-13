@@ -583,10 +583,6 @@
       "comma": "Кома (,)",
       "exportSuccess": "Експорт виконано успішно"
     },
-    "customNutrients": {
-      "title": "Користувальницькі поживні речовини",
-      "subtitle": "Керуйте своїми користувальницькими визначеннями поживних речовин"
-    },
     "customMeals": {
       "title": "Користувальницькі прийоми їжі",
       "subtitle": "Створюйте та керуйте користувальницькими типами прийомів їжі"
@@ -890,38 +886,6 @@
     },
     "of": "з"
   },
-  "foodDiary": {
-    "title": "Щоденник харчування",
-    "pickADate": "Оберіть дату",
-    "success": "Успіх",
-    "error": "Помилка",
-    "genericError": "Сталася неочікувана помилка.",
-    "entryCopied": "Записи харчування успішно скопійовано",
-    "entryCopyError": "Не вдалося скопіювати записи харчування.",
-    "copiedFromYesterday": "Записи з вчора успішно скопійовано",
-    "copyFromYesterdayError": "Не вдалося скопіювати записи з вчора.",
-    "mealAdded": "Страву \\\"{{mealName}}\\\" додано до щоденника.",
-    "mealAddError": "Не вдалося додати страву до щоденника.",
-    "entryAdded": "Запис харчування додано",
-    "entryAddError": "Помилка додавання запису:",
-    "entryRemoved": "Запис харчування видалено",
-    "entryRemoveError": "Помилка видалення запису:",
-    "waterIntake": {
-      "title": "Вода",
-      "updated": "Споживання води оновлено",
-      "updateError": "Не вдалося зберегти дані про воду",
-      "perDrink": "{{volume}} {{unit}}",
-      "defaultPerDrink": "{{volume}} {{unit}} (за замовчуванням)"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Копіювання записів про їжу",
-      "description": "Оберіть дату та тип прийому їжі для копіювання.",
-      "targetDate": "Цільова дата",
-      "mealType": "Тип прийому їжі",
-      "selectMealTypePlaceholder": "Оберіть тип",
-      "copyButton": "Копіювати"
-    }
-  },
   "mealCard": {
     "addFoodToMeal": "Додати їжу до {{mealName}}",
     "searchFoodsForMeal": "Знайдіть продукти, щоб додати до {{mealName}}.",
@@ -1159,28 +1123,6 @@
     "noFoodsInMeal": "До цієї страви ще не додано жодних продуктів.",
     "totalNutrition": "Загальна харчова цінність: калорії: {{calories}}, білки: {{protein}}г, вуглеводи: {{carbs}}г, жири: {{fat}}г",
     "addFoodToMealDialogDescription": "Знайдіть продукт, який можна додати до цієї страви."
-  },
-  "nutrition": {
-    "calories": "Калорії",
-    "protein": "Білок",
-    "carbohydrates": "Вуглеводи",
-    "carbs": "Вуглеводи",
-    "cholesterol": "Холестерин",
-    "fat": "Жири",
-    "potassium": "Калій",
-    "vitaminA": "Вітамін A",
-    "vitaminC": "Вітамін C",
-    "calcium": "Кальцій",
-    "iron": "Залізо",
-    "saturatedFat": "Насичені жири",
-    "polyunsaturatedFat": "Поліненасичені жири",
-    "monounsaturatedFat": "Мононенасичені жири",
-    "transFat": "Трансжири",
-    "netCarbs": "Чисті вуглеводи",
-    "sodium": "Натрій",
-    "dietaryFiber": "Харчові волокна",
-    "fiber": "Клітковина",
-    "sugars": "Цукор"
   },
   "reports": {
     "loadingReports": "Завантажуємо звіти...",

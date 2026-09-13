@@ -815,38 +815,6 @@
     },
     "of": "od"
   },
-  "foodDiary": {
-    "title": "Dnevnik hrane",
-    "pickADate": "Izberi datum",
-    "success": "Uspeh",
-    "error": "Napaka",
-    "genericError": "Prišlo je do nepričakovane napake.",
-    "entryCopied": "Vnosi hrane so bili uspešno kopirani",
-    "entryCopyError": "Kopiranje vnosov hrane ni uspelo.",
-    "copiedFromYesterday": "Vnosi hrane so bili uspešno kopirani od včeraj",
-    "copyFromYesterdayError": "Kopiranje vnosov hrane od včeraj ni uspelo.",
-    "mealAdded": "Obrok \"{{mealName}}\" je bil dodan v dnevnik.",
-    "mealAddError": "Dodajanje obroka v dnevnik ni uspelo.",
-    "entryAdded": "Vnos hrane uspešno dodan",
-    "entryAddError": "Napaka pri dodajanju vnosa hrane:",
-    "entryRemoved": "Vnos hrane uspešno odstranjen",
-    "entryRemoveError": "Napaka pri odstranjevanju vnosa hrane:",
-    "waterIntake": {
-      "title": "Vnos vode",
-      "updated": "Vnos vode posodobljen",
-      "updateError": "Shranjevanje vnosa vode ni uspelo",
-      "perDrink": "{{volume}} {{unit}} na pijačo",
-      "defaultPerDrink": "{{volume}} {{unit}} na pijačo (privzeto)"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Kopiraj vnose hrane",
-      "description": "Izberite ciljni datum in vrsto obroka za kopiranje vnosov hrane.",
-      "targetDate": "Ciljni datum",
-      "mealType": "Vrsta obroka",
-      "selectMealTypePlaceholder": "Izberi vrsto obroka",
-      "copyButton": "Kopiraj"
-    }
-  },
   "mealCard": {
     "addFoodToMeal": "Dodaj hrano k {{mealName}}",
     "searchFoodsForMeal": "Išči hrano, ki jo želiš dodati k svojemu {{mealName}}.",

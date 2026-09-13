@@ -1,29 +1,9 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-
 import { Database } from 'lucide-react';
 import AddExternalProviderForm from './AddExternalProviderForm';
 import ExternalProviderList from './ExternalProviderList';
 import GarminConnectSettings from './GarminConnectSettings';
-import { OpenFoodFactsContributionSettingsCard } from './OpenFoodFactsContributionSettingsCard';
-import { usePreferences } from '@/contexts/PreferencesContext';
-import { useExternalProviders } from '@/hooks/Settings/useExternalProviderSettings';
-import { useAuth } from '@/hooks/useAuth';
-import {
-  ALL_PROVIDERS_VALUE,
-  resolveSettingsFoodProviderValue,
-} from '@/utils/settings';
 
 export interface ExternalDataProvider {
   id: string;
@@ -43,7 +23,7 @@ export interface ExternalDataProvider {
   categories?: string[];
   required_fields?: string[];
   field_labels?: Record<string, string>;
-  last_sync_at?: string; // Generic last sync for providers that don't have specific fields
+  last_sync_at?: string;
   sync_frequency?: 'hourly' | 'daily' | 'manual';
   has_token?: boolean;
   garmin_connect_status?: 'linked' | 'connected' | 'disconnected';
@@ -68,32 +48,11 @@ export interface ExternalDataProvider {
 }
 
 const ExternalProviderSettings = () => {
-  const { t } = useTranslation();
   const [showAddForm, setShowAddForm] = useState(false);
   const [showGarminMfaInputFromAddForm, setShowGarminMfaInputFromAddForm] =
     useState(false);
   const [garminClientStateFromAddForm, setGarminClientStateFromAddForm] =
     useState<string | null>(null);
-  const { user } = useAuth();
-  const {
-    defaultFoodDataProviderId,
-    setDefaultFoodDataProviderId,
-    defaultBarcodeProviderId,
-    setDefaultBarcodeProviderId,
-    barcodeFallbackOpenFoodFacts,
-    setBarcodeFallbackOpenFoodFacts,
-    foodSearchAllProvidersDefault,
-    setFoodSearchAllProvidersDefault,
-    saveAllPreferences,
-  } = usePreferences();
-  const { data: providers = [] } = useExternalProviders(user?.activeUserId);
-
-  const foodProviders = providers.filter(
-    (p) => p.is_active && (p.categories ?? []).includes('food')
-  );
-  const barcodeProviders = providers.filter(
-    (p) => p.is_active && p.supports_barcode
-  );
 
   const handleAddProviderSuccess = () => {
     setShowAddForm(false);
@@ -105,144 +64,37 @@ const ExternalProviderSettings = () => {
   };
 
   return (
-    <>
-      <Separator />
-      <h3 className="text-lg font-medium">
-        Configured External Data Providers
-      </h3>
-      <div className="space-y-6">
-        <OpenFoodFactsContributionSettingsCard />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Wearable & Fitness Data Providers
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <AddExternalProviderForm
+            showAddForm={showAddForm}
+            setShowAddForm={setShowAddForm}
+            onAddSuccess={handleAddProviderSuccess}
+            onGarminMfaRequired={handleGarminMfaRequiredFromAddForm}
+          />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              External Data Providers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AddExternalProviderForm
-              showAddForm={showAddForm}
-              setShowAddForm={setShowAddForm}
-              onAddSuccess={handleAddProviderSuccess}
-              onGarminMfaRequired={handleGarminMfaRequiredFromAddForm}
+          {showGarminMfaInputFromAddForm && garminClientStateFromAddForm && (
+            <GarminConnectSettings
+              key={garminClientStateFromAddForm || 'default'}
+              initialClientState={garminClientStateFromAddForm}
+              onMfaComplete={() => {
+                setShowGarminMfaInputFromAddForm(false);
+                setGarminClientStateFromAddForm(null);
+              }}
             />
+          )}
 
-            {showGarminMfaInputFromAddForm && garminClientStateFromAddForm && (
-              <GarminConnectSettings
-                key={garminClientStateFromAddForm || 'default'}
-                initialClientState={garminClientStateFromAddForm}
-                onMfaComplete={() => {
-                  setShowGarminMfaInputFromAddForm(false);
-                  setGarminClientStateFromAddForm(null);
-                }}
-              />
-            )}
-
-            {foodProviders.length > 0 && (
-              <div className="flex items-end gap-6">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="food-provider">
-                    Default Food Data Provider
-                  </Label>
-                  <Select
-                    value={resolveSettingsFoodProviderValue(
-                      defaultFoodDataProviderId,
-                      foodProviders,
-                      foodSearchAllProvidersDefault
-                    )}
-                    onValueChange={(value) => {
-                      if (value === ALL_PROVIDERS_VALUE) {
-                        // Leave defaultFoodDataProviderId alone: it is a uuid
-                        // column that cannot store the sentinel, and keeping it
-                        // means turning "All Providers" back off restores the
-                        // provider the user had picked.
-                        setFoodSearchAllProvidersDefault(true);
-                        saveAllPreferences({
-                          foodSearchAllProvidersDefault: true,
-                        });
-                        return;
-                      }
-                      const id = value || null;
-                      setDefaultFoodDataProviderId(id);
-                      setFoodSearchAllProvidersDefault(false);
-                      saveAllPreferences({
-                        defaultFoodDataProviderId: id,
-                        foodSearchAllProvidersDefault: false,
-                      });
-                    }}
-                  >
-                    <SelectTrigger id="food-provider">
-                      <SelectValue placeholder="Select a food provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {/* Matches the food-search dropdown, which only offers the
-                          aggregated view with more than one provider. */}
-                      {foodProviders.length > 1 && (
-                        <SelectItem value={ALL_PROVIDERS_VALUE}>
-                          {t(
-                            'enhancedFoodSearch.allProviders',
-                            'All Providers'
-                          )}
-                        </SelectItem>
-                      )}
-                      {foodProviders.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.provider_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {barcodeProviders.length > 0 && (
-              <div className="flex items-end gap-6">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="barcode-provider">
-                    Default Barcode Provider
-                  </Label>
-                  <Select
-                    value={defaultBarcodeProviderId ?? ''}
-                    onValueChange={(value) => {
-                      const id = value || null;
-                      setDefaultBarcodeProviderId(id);
-                      saveAllPreferences({ defaultBarcodeProviderId: id });
-                    }}
-                  >
-                    <SelectTrigger id="barcode-provider">
-                      <SelectValue placeholder="Select a barcode provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {barcodeProviders.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.provider_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col items-center gap-2 pb-0.5">
-                  <Label htmlFor="barcode-fallback-off">
-                    Open Food Facts Fallback
-                  </Label>
-                  <Switch
-                    id="barcode-fallback-off"
-                    checked={barcodeFallbackOpenFoodFacts}
-                    onCheckedChange={setBarcodeFallbackOpenFoodFacts}
-                  />
-                </div>
-              </div>
-            )}
-
-            <Separator />
-
-            <ExternalProviderList showAddForm={showAddForm} />
-          </CardContent>
-        </Card>
-      </div>
-    </>
+          <ExternalProviderList showAddForm={showAddForm} />
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

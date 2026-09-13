@@ -2,15 +2,7 @@ import { apiCall } from '@/api/api';
 import type {
   Medication,
   MedicationSchedule,
-  MedicationPen,
-  InjectionEntry,
-  TitrationStep,
-  SerumCurveResponse,
-  SiteSuggestionResponse,
   ListMedicationsOptions,
-  LogInjectionInput,
-  UpdateInjectionInput,
-  UpdateTitrationStepInput,
   MedicationEntry,
   CreateMedicationEntryInput,
   UpdateMedicationEntryInput,
@@ -71,85 +63,3 @@ export const addSchedule = (
 
 export const deleteSchedule = (id: string): Promise<void> =>
   apiCall(`/v2/medications/schedules/${id}`, { method: 'DELETE' });
-
-// --- Pens / vials ----------------------------------------------------------
-
-export const listPens = (medicationId: string): Promise<MedicationPen[]> =>
-  apiCall(`/v2/medications/${medicationId}/pens`, { method: 'GET' });
-
-export const createPen = (
-  medicationId: string,
-  body: Partial<MedicationPen>
-): Promise<MedicationPen> =>
-  apiCall(`/v2/medications/${medicationId}/pens`, { method: 'POST', body });
-
-export const updatePen = (
-  id: string,
-  body: Partial<MedicationPen>
-): Promise<MedicationPen> =>
-  apiCall(`/v2/medications/pens/${id}`, { method: 'PUT', body });
-
-export const deletePen = (id: string): Promise<void> =>
-  apiCall(`/v2/medications/pens/${id}`, { method: 'DELETE' });
-
-// --- Injections ------------------------------------------------------------
-
-export const listInjections = (
-  medicationId: string
-): Promise<InjectionEntry[]> =>
-  apiCall(`/v2/medications/${medicationId}/injections`, { method: 'GET' });
-
-export const logInjection = (
-  body: LogInjectionInput
-): Promise<InjectionEntry & { pen: MedicationPen | null }> =>
-  apiCall('/v2/medications/injections', { method: 'POST', body });
-
-export const updateInjection = (
-  id: string,
-  body: UpdateInjectionInput
-): Promise<InjectionEntry> =>
-  apiCall(`/v2/medications/injections/${id}`, { method: 'PUT', body });
-
-export const deleteInjection = (id: string): Promise<void> =>
-  apiCall(`/v2/medications/injections/${id}`, { method: 'DELETE' });
-
-// --- Titration -------------------------------------------------------------
-
-export const listTitration = (medicationId: string): Promise<TitrationStep[]> =>
-  apiCall(`/v2/medications/${medicationId}/titration`, { method: 'GET' });
-
-export const addTitrationStep = (
-  medicationId: string,
-  body: Partial<TitrationStep> & { dose_mg: number }
-): Promise<TitrationStep> =>
-  apiCall(`/v2/medications/${medicationId}/titration`, {
-    method: 'POST',
-    body,
-  });
-
-export const updateTitrationStep = (
-  id: string,
-  body: UpdateTitrationStepInput
-): Promise<TitrationStep> =>
-  apiCall(`/v2/medications/titration/${id}`, { method: 'PUT', body });
-
-export const deleteTitrationStep = (id: string): Promise<void> =>
-  apiCall(`/v2/medications/titration/${id}`, { method: 'DELETE' });
-
-// --- GLP-1 derived ---------------------------------------------------------
-
-export const getSerumCurve = (
-  medicationId: string,
-  query?: { fromDay?: number; toDay?: number; stepDays?: number }
-): Promise<SerumCurveResponse> =>
-  apiCall(`/v2/medications/${medicationId}/glp1/serum-curve`, {
-    method: 'GET',
-    params: query,
-  });
-
-export const getSiteSuggestion = (
-  medicationId: string
-): Promise<SiteSuggestionResponse> =>
-  apiCall(`/v2/medications/${medicationId}/glp1/site-suggestion`, {
-    method: 'GET',
-  });

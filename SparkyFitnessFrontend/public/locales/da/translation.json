@@ -96,23 +96,6 @@
     }
   },
   "medications": {
-    "symptoms": {
-      "linkMed": "Link til Medicin (Valgfri)",
-      "logTitle": "Log Symptom",
-      "symptom": "Symptomer",
-      "addCustom": "Tilføj brugerdefineret symptom",
-      "customName": "Symptom Navn (internt)",
-      "customNamePlaceholder": "f.eks. hududslæt",
-      "displayLabelPlaceholder": "f.eks. Skin Rash",
-      "saveCustom": "Gem Tilpasset Symptom",
-      "severity": "Alvorlighed",
-      "mild": "Mild (1-3)",
-      "moderate": "Moderat (4-6)",
-      "severe": "Hårde (7-10)",
-      "primaryLocation": "Primær placering",
-      "customLocationPlaceholder": "f.eks. Venstre skulder, Kæbe..",
-      "context": "Kontekst / noter"
-    },
     "checkin": {
       "metric": {
         "energy": "Energi"
@@ -191,9 +174,6 @@
     "fasting": {
       "start": "Tablet taget — start timer",
       "waterOnly": "Kun Vand"
-    },
-    "sites": {
-      "customize": "Tilpas websteder"
     }
   },
   "exerciseSearch": {
@@ -268,11 +248,5 @@
     "noDataText": "CSV-filen indeholder overskrifter, men ingen data rækker.",
     "validationErrorTitle": "Valideringsfejl",
     "nameRequired": "Feltet 'navn' må ikke være tomt."
-  },
-  "nutrition": {
-    "calories": "Kalorier",
-    "protein": "Protein",
-    "carbohydrates": "Kulhydrater",
-    "netCarbs": "Netto Kulhydrater"
   }
 }

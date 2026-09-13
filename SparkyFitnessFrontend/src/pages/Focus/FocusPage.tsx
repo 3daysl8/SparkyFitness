@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { todayInZone, dayOfWeek, addDays } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,6 +35,8 @@ import {
   Target as TargetIcon,
   CheckCircle2,
   History,
+  Sparkles,
+  Flame,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -89,9 +97,13 @@ const TIMEFRAME_SECTIONS: {
   titleKey: string;
   fallback: string;
 }[] = [
-  { key: 'long_term', titleKey: 'focus.longTerm', fallback: 'Long-Term Focus' },
-  { key: 'weekly', titleKey: 'focus.weekly', fallback: 'This Week' },
-  { key: 'daily', titleKey: 'focus.daily', fallback: 'Today' },
+  {
+    key: 'long_term',
+    titleKey: 'focus.longTerm',
+    fallback: 'Long-Term Vision',
+  },
+  { key: 'weekly', titleKey: 'focus.weekly', fallback: 'Weekly Focus' },
+  { key: 'daily', titleKey: 'focus.daily', fallback: 'Daily Actions' },
 ];
 
 function FocusStatementLine({
@@ -182,6 +194,37 @@ export default function FocusPage() {
   const [completed, setCompleted] = useState<boolean | null>(null);
   const [reflectionNote, setReflectionNote] = useState('');
 
+  // Weekly Motivation Checkpoint state
+  const [motivationScore, setMotivationScore] = useState<number>(() => {
+    const saved = localStorage.getItem('focus.weeklyMotivationScore');
+    return saved ? Number(saved) : 8;
+  });
+  const [weeklyWin, setWeeklyWin] = useState<string>(() => {
+    return localStorage.getItem('focus.weeklyWin') || '';
+  });
+  const [weeklyAdjustment, setWeeklyAdjustment] = useState<string>(() => {
+    return localStorage.getItem('focus.weeklyAdjustment') || '';
+  });
+  const [checkpointSaved, setCheckpointSaved] = useState(false);
+
+  const handleSaveCheckpoint = () => {
+    localStorage.setItem(
+      'focus.weeklyMotivationScore',
+      String(motivationScore)
+    );
+    localStorage.setItem('focus.weeklyWin', weeklyWin);
+    localStorage.setItem('focus.weeklyAdjustment', weeklyAdjustment);
+    setCheckpointSaved(true);
+    toast({
+      title: t('focus.checkpointSaved', 'Motivation Checkpoint Saved'),
+      description: t(
+        'focus.checkpointSavedDesc',
+        'Your weekly motivation reflection has been updated.'
+      ),
+    });
+    setTimeout(() => setCheckpointSaved(false), 3000);
+  };
+
   const todayIso = useMemo(() => todayInZone(timezone), [timezone]);
   // Monday-based week start, matching focusService.weekStartFor on the server.
   const weekStartIso = useMemo(() => {
@@ -211,7 +254,7 @@ export default function FocusPage() {
     } catch {
       toast({
         title: t('common.error', 'Error'),
-        description: 'Failed to create domain.',
+        description: 'Failed to create life pillar.',
         variant: 'destructive',
       });
     }
@@ -285,7 +328,7 @@ export default function FocusPage() {
     } catch {
       toast({
         title: t('common.error', 'Error'),
-        description: 'Failed to delete domain.',
+        description: 'Failed to delete life pillar.',
         variant: 'destructive',
       });
     }
@@ -336,18 +379,20 @@ export default function FocusPage() {
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Plus className="mr-1 h-4 w-4" />
-              {t('focus.addDomain', 'Add Domain')}
+              {t('focus.addDomain', 'Add Life Pillar')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t('focus.addDomain', 'Add Domain')}</DialogTitle>
+              <DialogTitle>
+                {t('focus.addDomain', 'Add Life Pillar')}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="domain-name">
                 {t(
                   'focus.domainName',
-                  'Domain name (e.g. Health, Work, Relationship)'
+                  'Life Pillar name (e.g. Health & Vitality, Career & Wealth, Relationships, Mindfulness)'
                 )}
               </Label>
               <Input
@@ -386,6 +431,105 @@ export default function FocusPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Weekly Motivation Checkpoint Card */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            {t('focus.motivationCheckpoint', 'Weekly Motivation Checkpoint')}
+          </CardTitle>
+          <CardDescription>
+            {t(
+              'focus.motivationCheckpointDesc',
+              'Reflect on your energy, align your mindset, and define your intention for the week ahead.'
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-muted-foreground">
+                {t('focus.motivationLevel', 'Motivation & Drive Level (1-10)')}
+              </Label>
+              <span className="flex items-center gap-1 font-bold text-primary">
+                <Flame className="h-4 w-4 text-amber-500 fill-amber-500/20" />
+                {motivationScore}/10
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                <button
+                  key={score}
+                  type="button"
+                  onClick={() => setMotivationScore(score)}
+                  className={`flex-1 h-8 rounded text-xs font-semibold transition-all ${
+                    motivationScore === score
+                      ? 'bg-primary text-primary-foreground shadow-sm scale-105'
+                      : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {score}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="weekly-win"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                {t('focus.weeklyWin', 'Top Win or Breakthrough')}
+              </Label>
+              <Textarea
+                id="weekly-win"
+                placeholder={t(
+                  'focus.weeklyWinPlaceholder',
+                  'What worked well or gave you momentum?'
+                )}
+                value={weeklyWin}
+                onChange={(e) => setWeeklyWin(e.target.value)}
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="weekly-adjustment"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                {t('focus.weeklyAdjustment', 'Key Focus & Alignment Shift')}
+              </Label>
+              <Textarea
+                id="weekly-adjustment"
+                placeholder={t(
+                  'focus.weeklyAdjustmentPlaceholder',
+                  'What is the single most important action to prioritize?'
+                )}
+                value={weeklyAdjustment}
+                onChange={(e) => setWeeklyAdjustment(e.target.value)}
+                rows={2}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <Button
+              size="sm"
+              onClick={handleSaveCheckpoint}
+              className="h-8 gap-1.5 text-xs font-semibold"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {checkpointSaved
+                ? t('common.saved', 'Saved!')
+                : t('focus.saveCheckpoint', 'Save Checkpoint')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {today &&
         (today.scheduled.length > 0 ||
@@ -518,7 +662,7 @@ export default function FocusPage() {
                       </div>
                     )}
                     <div className="space-y-2">
-                      <Label>{t('focus.domain', 'Domain')}</Label>
+                      <Label>{t('focus.domain', 'Life Pillar')}</Label>
                       <Select value={domainId} onValueChange={setDomainId}>
                         <SelectTrigger>
                           <SelectValue

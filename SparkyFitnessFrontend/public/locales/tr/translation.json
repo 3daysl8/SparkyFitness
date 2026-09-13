@@ -80,31 +80,6 @@
       "reflux": "Reflü / hafta",
       "avgBristol": "Ortalama Bristol"
     },
-    "symptoms": {
-      "logTitle": "Günlük Belirtisi",
-      "calendarTitle": "Belirti Etkinlik Takvimi",
-      "logsTitle": "Günlüğe Kaydedilen Belirti Günlükleri",
-      "subtitle": "Yan etkilerinizin ciddiyetini ve fiziksel bağlamını günlüğe kaydedin",
-      "symptom": "Belirti",
-      "addCustom": "Özel Belirti Ekle",
-      "customName": "Belirti Adı (dahili)",
-      "customNamePlaceholder": "örneğin cilt_rash",
-      "displayLabel": "Etiketi Görüntüle",
-      "displayLabelPlaceholder": "örneğin Cilt Döküntüsü",
-      "saveCustom": "Özel Belirtiyi Kaydet",
-      "severity": "Şiddet",
-      "mild": "Hafif (1-3)",
-      "moderate": "Orta (4-6)",
-      "severe": "Şiddetli (7-10)",
-      "primaryLocation": "Birincil Konum",
-      "customLocationPlaceholder": "örneğin Sol omuz, Çene…",
-      "linkMed": "İlaç Bağlantısı (İsteğe bağlı)",
-      "noMedLinked": "İlaç bağlantılı değil",
-      "context": "Bağlam / Notlar",
-      "contextPlaceholder": "örneğin Akşam yemeği dozumu aldıktan 4 saat sonra meydana geldi.",
-      "bristol": "Bağırsak Günlüğü (Bristol Dışkı Ölçeği)",
-      "bristolType": "Bristol Türü {{n}}"
-    },
     "fasting": {
       "title": "Oral GLP-1 oruç zamanlayıcısı",
       "instructions": "4–6 oz. suyla alın ve yemek yemeden, kahve içmeden veya diğer ilaçlardan önce {{min}} dakika bekleyin.",
@@ -123,56 +98,6 @@
         "fullness": "dolgunluk",
         "energy": "Enerji"
       }
-    },
-    "sites": {
-      "customize": "Siteleri özelleştirin",
-      "dialogTitle": "Enjeksiyon bölgeleri",
-      "subtitle": "Kullandığınız siteleri değiştirin ve sıralayın; rotasyon önerileri bu sırayı takip eder.",
-      "label": {
-        "upper_arm_left": "Sol Üst Kol",
-        "upper_arm_right": "Sağ Üst Kol",
-        "forearm_left": "Sol Önkol",
-        "forearm_right": "Sağ Önkol",
-        "abdomen_left": "Sol Karın",
-        "abdomen_right": "Sağ Karın",
-        "thigh_front_left": "Sol Uyluk (Ön)",
-        "thigh_front_right": "Sağ Uyluk (Ön)",
-        "upper_back_left": "Sol Üst Arka",
-        "upper_back_right": "Sağ Üst Arka",
-        "lower_back_left": "Sol Alt Sırt",
-        "lower_back_right": "Sağ Alt Sırt",
-        "buttock_left": "Sol Kalça",
-        "buttock_right": "Sağ Kalça",
-        "thigh_back_left": "Sol Uyluk (Arka)",
-        "thigh_back_right": "Sağ Uyluk (Arka)"
-      }
-    },
-    "glp1": {
-      "logInjection": "Günlük enjeksiyonu",
-      "logInjectionAt": "Günlük ekleme — {{site}}",
-      "injectionSite": "Enjeksiyon bölgesi",
-      "legendSuggested": "yeşil = önerilen",
-      "legendResting": "sarı = dinlenme <{{days}}d",
-      "selected": "Seçilen:",
-      "tapZone": "Bir bölgeye dokunun",
-      "lipoWarning": "Bu site yakın zamanda kullanıldı - lipohipertrofiyi önlemek için döndürün.",
-      "doseMg": "Doz (mg)",
-      "dateTime": "Tarih ve saat",
-      "deduct": "Kalemden/flakondan düş",
-      "dontDeduct": "Düşme",
-      "pkTitle": "PK serum seviyesi",
-      "pkEmpty": "Serum seviyenizi modellemek için enjeksiyonları kaydedin. (Tanınmış bir GLP-1 ilacına ihtiyaç duyar; bunu ilaca göre ayarlayın.)",
-      "penInventory": "Kalem / flakon envanteri",
-      "addPen": "Kalem ekle",
-      "noPens": "Takip edilen kalem/şişe yok.",
-      "titrationTitle": "Doz titrasyonu planı",
-      "addStep": "Adım ekle",
-      "statusPlanned": "Planlanan",
-      "statusActive": "Aktif (mevcut)",
-      "statusDone": "Bitti",
-      "noTitration": "Henüz titrasyon adımı yok — doz artırımınızı planlamak için \"Adım ekle\"ye dokunun.",
-      "recentInjections": "Son enjeksiyonlar",
-      "noInjections": "Henüz hiçbir enjeksiyon kaydedilmedi."
     },
     "types": {
       "pill": "hap",
@@ -251,28 +176,6 @@
     "admin": "Yönetici",
     "cycle": "Döngü",
     "pregnancy": "Hamilelik"
-  },
-  "nutrition": {
-    "calories": "Kalori",
-    "protein": "Protein",
-    "carbohydrates": "Karbonhidratlar",
-    "netCarbs": "Net Karbonhidrat",
-    "carbs": "Karbonhidratlar",
-    "fat": "Yağ",
-    "saturatedFat": "Doymuş Yağ",
-    "polyunsaturatedFat": "Çoklu Doymamış Yağ",
-    "monounsaturatedFat": "Tekli Doymamış Yağ",
-    "transFat": "Trans Yağ",
-    "cholesterol": "Kolesterol",
-    "sodium": "Sodyum",
-    "potassium": "Potasyum",
-    "dietaryFiber": "Diyet Lifi",
-    "fiber": "Elyaf",
-    "sugars": "Şekerler",
-    "vitaminA": "A vitamini",
-    "vitaminC": "C vitamini",
-    "calcium": "Kalsiyum",
-    "iron": "Demir"
   },
   "calculationSettings": {
     "showNetCarbs": "Net karbonhidratları göster (karbonhidrat eksi lif)",
@@ -717,28 +620,6 @@
       "saveProfile": "Profili Kaydet",
       "saving": "Kaydediliyor..."
     },
-    "cycle": {
-      "title": "Döngü ve Gebelik",
-      "description": "Üreme sağlığını, adet döngülerini ve hamilelik takibini yönetin",
-      "enableLabel": "Döngü ve Gebelik Takibini Etkinleştir",
-      "enableHint": "Üreme sağlığı merkezini açın. Etkinleştirildiğinde kenar çubuğu gezinme sekmesi ortaya çıkar.",
-      "mode": "Takipçi Modu",
-      "bcMethod": "Doğum Kontrolü",
-      "terminology": "Terminoloji",
-      "terminologyDefault": "Varsayılan (Cinsiyete Göre)",
-      "terminologyNeutral": "Cinsiyet Tarafsız",
-      "avgCycleOverride": "Ortalama Döngü Uzunluğu (gün)",
-      "avgPeriodOverride": "Ortalama Dönem Uzunluğu (gün)",
-      "lutealLength": "Luteal Faz Uzunluğu (gün)",
-      "showFertileWindow": "Verimli Dönem Tahminlerini Göster",
-      "showFertileWindowHint": "Kontrol panellerinde/takvimlerde doğurgan günleri ve yumurtlama tahminlerini gösterin veya gizleyin.",
-      "conditions": "Sağlık Koşulları",
-      "learned": "Günlüklerden hesaplandı",
-      "successTitle": "Başarı",
-      "successDesc": "Döngü ayarları güncellendi.",
-      "errorTitle": "Hata",
-      "errorDesc": "Döngü ayarları kaydedilemedi. Lütfen tekrar deneyin."
-    },
     "preferences": {
       "title": "Tercihler",
       "description": "Uygulama ayarlarınızı ve görüntüleme tercihlerinizi özelleştirin",
@@ -792,10 +673,6 @@
     "customCategories": {
       "title": "Özel Kategoriler",
       "description": "Özel ölçüm kategorileri oluşturun ve yönetin"
-    },
-    "customNutrients": {
-      "title": "Özel Besinler",
-      "subtitle": "Özel besin tanımlarınızı yönetin"
     },
     "customMeals": {
       "title": "Özel Yemekler",
@@ -1360,49 +1237,6 @@
       "calcium": "kalsiyum"
     },
     "of": "arasında"
-  },
-  "foodDiary": {
-    "title": "Yemek Günlüğü",
-    "pickADate": "Bir tarih seçin",
-    "success": "Başarı",
-    "error": "Hata",
-    "genericError": "Beklenmeyen bir hata oluştu.",
-    "pastDateWarning": "Uyarı: Geçmiş bir tarihe ait yiyecek girişleri ekliyorsunuz.",
-    "futureDateWarning": "Uyarı: İleri bir tarih için yiyecek girişleri ekliyorsunuz.",
-    "entryCopied": "Yiyecek girişleri başarıyla kopyalandı",
-    "entryCopyError": "Yiyecek girişleri kopyalanamadı.",
-    "copiedFromYesterday": "Düne ait yiyecek girişleri başarıyla kopyalandı",
-    "copyFromYesterdayError": "Düne ait yiyecek girişleri kopyalanamadı.",
-    "mealAdded": "\"{{mealName}}\" yemeği günlüğe eklendi.",
-    "mealAddError": "Günlüğe yemek eklenemedi.",
-    "entryAdded": "Yiyecek girişi başarıyla eklendi",
-    "entryAddError": "Yiyecek girişi eklenirken hata oluştu:",
-    "entryRemoved": "Yiyecek girişi başarıyla kaldırıldı",
-    "entryRemoveError": "Yiyecek girişi kaldırılırken hata oluştu:",
-    "selectMealType": "Yemek türünü seçin",
-    "waterIntake": {
-      "title": "Su Girişi",
-      "updated": "Su alımı güncellendi",
-      "updateError": "Su alımı kaydedilemedi",
-      "perDrink": "{{volume}} {{unit}}",
-      "defaultPerDrink": "{{volume}} {{unit}} (varsayılan)",
-      "defaultContainer": "Konteyner",
-      "logTitle": "Bugünkü içecekler",
-      "logEmpty": "Henüz kayıtlı içecek yok",
-      "deleteEntry": "Bu içeceği sil",
-      "deleteConfirm": "Bu {{volume}} {{unit}} girişi kaldırılsın mı?",
-      "deletedSuccess": "İçecek kaldırıldı",
-      "deletedError": "İçecek kaldırılamadı",
-      "editTime": "Saati değiştirmek için tıklayın"
-    },
-    "copyFoodEntryDialog": {
-      "title": "Yiyecek Girişlerini Kopyala",
-      "description": "Yiyecek girişlerini kopyalamak için hedef tarihi ve yemek türünü seçin.",
-      "targetDate": "Hedef Tarih",
-      "mealType": "Yemek Türü",
-      "selectMealTypePlaceholder": "Yemek türünü seçin",
-      "copyButton": "Kopyala"
-    }
   },
   "mealCard": {
     "addFoodToMeal": "{{mealName}}'a Yiyecek Ekle",
@@ -2604,109 +2438,6 @@
   },
   "onboarding": {
     "completeSetup": "Kurulumu Tamamla"
-  },
-  "cycle": {
-    "hub": "Bisiklet ve Gebelik Merkezi",
-    "pregnancyHub": "Hamilelik Merkezi",
-    "hubSubtitle": "Vücudunuzu takip edin, anlayın ve eşleyin.",
-    "tabs": {
-      "today": "Bugün",
-      "calendar": "Takvim",
-      "insights": "Analizler",
-      "care": "Bakım"
-    },
-    "comingSoon": {
-      "calendarTitle": "Döngü Takvimi",
-      "calendarDesc": "Geçmiş döngülerinizin, akış hacminizin ve gelecek tahminlerinizin etkileşimli bir görünümü 2. Aşamada geliyor.",
-      "insightsTitle": "Döngü Analizleri",
-      "insightsDesc": "Bazal vücut ısısı, semptom ısı haritaları ve adet süresi geçmişine ilişkin ayrıntılı grafikler 2. Aşamada gelecek.",
-      "careTitle": "Bakım ve Hatırlatmalar",
-      "careDesc": "Doğum kontrolüne ilişkin hatırlatmalar, ürün değişiklikleri ve doktor raporunun PDF formatında dışa aktarımı 5. Aşamada geliyor.",
-      "placeholder": "Yakında"
-    },
-    "onboarding": {
-      "stepIndicator": "Adım {{step}}/4",
-      "step1Title": "İzleme Hedefinizi Seçin",
-      "step1Desc": "Takipçiniz için birincil modu seçin.",
-      "step2Title": "Döngü Tarihleri ve Süreleri",
-      "step2Desc": "Bize tipik döngü özelliklerinizden bahsedin.",
-      "step3Title": "Sağlık Profiliniz",
-      "step3Desc": "Tahminleri özelleştirmek için isteğe bağlı bilgiler (atlanabilir).",
-      "step4Title": "Yasal Uyarı ve Onay",
-      "step4Desc": "Bitirmeden önce okuyun ve onaylayın.",
-      "successTitle": "Döngü Takibine Hoş Geldiniz!",
-      "successDesc": "Döngü profiliniz başarıyla başlatıldı.",
-      "errorTitle": "Kurulum başarısız oldu",
-      "errorDesc": "Tercihleriniz kaydedilemedi. Lütfen tekrar deneyin.",
-      "lastPeriodStart": "Son adetiniz ne zaman başladı?",
-      "avgCycleLength": "Tipik döngü (günler)",
-      "avgPeriodLength": "Tipik dönem (gün)",
-      "bcMethod": "Doğum kontrol yöntemi",
-      "bcHint": "Hormonal doğum kontrolü doğurganlık pencerelerini bastıracak ve yalnızca kanama tahminlerini gösterecektir.",
-      "conditions": "Bilinen koşullar (İsteğe bağlı)",
-      "complete": "Kabul Et ve Tamamla"
-    },
-    "disclaimer": {
-      "title": "Önemli Sağlık Sorumluluk Reddi Beyanı",
-      "text1": "Bu döngü izleme özelliği yalnızca eğitim, fitness ve günlük tutma amaçlarına yöneliktir. Doğum kontrolü veya aile planlamasının birincil yöntemi olarak tasarlanmamıştır veya kullanılması amaçlanmamıştır.",
-      "text2": "Tahminler tahmindir ve bireysel tutarlılığa, sağlık koşullarına veya adet düzensizliğine göre değişiklik gösterir. Tıbbi endişeleriniz için daima bir sağlık uzmanına danışın."
-    },
-    "mode": {
-      "standard": "Standart Döngü Takibi",
-      "standardDesc": "Regl dönemlerini, semptomları takip edin ve gelecekteki adet döngüsünün aşamalarını tahmin edin.",
-      "ttc": "Hamile Kalmaya Çalışmak (TTC)",
-      "ttcDesc": "Doğurganlık dönemini, yumurtlamayı ve luteal faz göstergelerini takip edin.",
-      "pregnant": "Hamilelik Takibi",
-      "pregnantDesc": "Fetal gelişim aşamalarını, kasılma zamanlayıcılarını ve doğum öncesi bakımı takip edin."
-    },
-    "today": {
-      "cycleDay": "Bisiklet günü",
-      "late": "{{n}} gün gecikti",
-      "periodIn": "{{n}} gün içindeki süre",
-      "nextPeriod": "Sonraki dönem",
-      "ovulation": "Yumurtlama",
-      "cycleLength": "Döngü uzunluğu",
-      "lateBanner": "Adetiniz {{n}} gün gecikti. Başladığında bunu kaydedin veya ayarlardan döngü uzunluğunuzu ayarlayın."
-    },
-    "legend": {
-      "period": "Dönem",
-      "fertile": "Verimli",
-      "ovulation": "Yumurtlama"
-    },
-    "stats": {
-      "cycleAvg": "Döngü ortalaması",
-      "periodAvg": "Dönem ortalaması",
-      "lastBbt": "Son BBT"
-    },
-    "regularity": {
-      "regular": "Düzenli",
-      "somewhat": "Biraz düzenli",
-      "irregular": "Düzensiz"
-    },
-    "insight": {
-      "menstrual_rest": "Adet dönemindesiniz; dinlenme ve hafif hareketler yardımcı olabilir.",
-      "menstrual_iron": "Demir açısından zengin besinler regl döneminde size destek olabilir.",
-      "follicular_energy": "Enerji genellikle foliküler fazda yükselir; bu, daha zorlu egzersizler için iyi bir haftadır.",
-      "fertile_window": "Verimli pencerenizdesiniz.",
-      "ovulation_peak": "Yumurtlama artık buralarda; bu sizin doğurganlığın en yüksek olduğu gün.",
-      "luteal_dip": "Enerji ve uyku geç luteal fazda düşebilir. Kendinize nazik olun.",
-      "luteal_pms": "PMS belirtileri artık ortaya çıkabilir; nasıl hissettiğinizi takip edin.",
-      "generic_log": "Zaman içinde tahminlerinizi geliştirmek için bugün oturum açın."
-    },
-    "log": {
-      "title": "Bugünün günlüğü",
-      "saved": "Kaydedildi",
-      "flow": "Akış",
-      "products": "Dönem ürünleri",
-      "fewerProducts": "Daha azını göster",
-      "moreProducts": "+ daha fazla ürün",
-      "bbt": "Bazal vücut sıcaklığı",
-      "mucus": "Servikal mukus",
-      "moods": "Ruh hali",
-      "energy": "Enerji",
-      "notes": "Notlar",
-      "notesPlaceholder": "Dikkat edilmesi gereken başka bir şey…"
-    }
   },
   "foodCsvImport": {
     "title": "Besin Verisini İçe Aktar",

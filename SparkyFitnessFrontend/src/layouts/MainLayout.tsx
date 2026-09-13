@@ -6,22 +6,13 @@ import { debug, info } from '@/utils/logging';
 import {
   Home,
   Activity, // Used for Check-In
-  CalendarHeart,
   BarChart3,
   Settings as SettingsIcon,
-  Dumbbell, // Used for Exercises
-  Target, // Used for Goals
-  Pill, // Used for Medications
+  Dumbbell, // Used for Workouts
   Compass, // Used for Focus
-  BookOpen, // Used for Diary
   Shield,
   Plus,
   X,
-  Coffee, // Used for Breakfast
-  Sandwich, // Used for Lunch
-  Cookie, // Used for Snacks
-  UtensilsCrossed, // Used for Dinner
-  Salad, // Used for Food Log
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -39,8 +30,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useMealTypes } from '@/hooks/Diary/useMealTypes';
-import { useCycleSettings } from '@/hooks/useCycle';
 import { cn } from '@/lib/utils';
 import { getGridClassNormal } from '@/utils/layout';
 
@@ -70,46 +59,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
   debug(loggingLevel, 'MainLayout: Component rendered.');
 
   const [isAddCompOpen, setIsAddCompOpen] = useState(false);
-  const [isMealTypeSelectOpen, setIsMealTypeSelectOpen] = useState(false);
-
-  // Fetch meal types for quick log menu
-  const { data: mealTypes } = useMealTypes();
-
-  // Fetch cycle settings to determine tab visibility
-  const { data: cycleSettings } = useCycleSettings();
 
   const addCompItems: AddCompItem[] = useMemo(() => {
     const items: AddCompItem[] = [];
     if (!isActingOnBehalf) {
-      // Keep this order consistent with the desktop tab order in availableTabs:
-      // Check-In, Cycle, Medications, Goals. Exercises has its own direct
-      // mobile bottom-bar tab, so it isn't duplicated in this "+" sheet.
       items.push(
         {
           value: 'checkin',
           label: t('nav.checkin', 'Check-In'),
           icon: Activity,
         },
-        { value: 'diary', label: t('nav.diary'), icon: BookOpen }
-      );
-      if (cycleSettings?.enabled) {
-        items.push({
-          value: 'cycle',
-          label: cycleSettings.discreet_mode
-            ? t('nav.wellness', 'Wellness')
-            : cycleSettings.mode === 'pregnant'
-              ? t('nav.pregnancy', 'Pregnancy')
-              : t('nav.cycle', 'Cycle'),
-          icon: cycleSettings.discreet_mode ? Activity : CalendarHeart,
-        });
-      }
-      items.push(
-        {
-          value: 'medications',
-          label: t('nav.medications', 'Medications'),
-          icon: Pill,
-        },
-        { value: 'goals', label: t('nav.goals', 'Goals'), icon: Target },
         { value: 'focus', label: t('nav.focus', 'Focus'), icon: Compass }
       );
     } else {
@@ -120,68 +79,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
           icon: Activity,
         });
       }
-      if (hasWritePermission('diary')) {
-        items.push({
-          value: 'foodlog',
-          label: t('nav.foodLog', 'Food Log'),
-          icon: Salad,
-          fullWidth: true,
-        });
-      }
     }
     return items;
-  }, [isActingOnBehalf, hasWritePermission, cycleSettings, t]);
-
-  // Map meal type names to icons
-  const getMealTypeIcon = useCallback((name: string): LucideIcon => {
-    const lowerName = name.toLowerCase();
-    switch (lowerName) {
-      case 'breakfast':
-        return Coffee;
-      case 'lunch':
-        return Sandwich;
-      case 'dinner':
-        return UtensilsCrossed;
-      case 'snacks':
-        return Cookie;
-      default:
-        return UtensilsCrossed; // Default icon for custom meal types
-    }
-  }, []);
-
-  // Get display name for meal type
-  const getMealTypeLabel = useCallback(
-    (name: string): string => {
-      const lowerName = name.toLowerCase();
-      switch (lowerName) {
-        case 'breakfast':
-          return t('common.breakfast', 'Breakfast');
-        case 'lunch':
-          return t('common.lunch', 'Lunch');
-        case 'dinner':
-          return t('common.dinner', 'Dinner');
-        case 'snacks':
-          return t('common.snacks', 'Snacks');
-        default:
-          return name; // Custom meal types use their own name
-      }
-    },
-    [t]
-  );
-
-  // Generate meal type items from API
-  const mealTypeItems: AddCompItem[] = useMemo(() => {
-    if (!mealTypes) return [];
-
-    return mealTypes
-      .filter((mt) => mt.show_in_quick_log !== false)
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((mt) => ({
-        value: mt.name.toLowerCase(),
-        label: getMealTypeLabel(mt.name),
-        icon: getMealTypeIcon(mt.name),
-      }));
-  }, [mealTypes, getMealTypeLabel, getMealTypeIcon]);
+  }, [isActingOnBehalf, hasWritePermission, t]);
 
   const availableTabs = useMemo(() => {
     debug(loggingLevel, 'MainLayout: Calculating available tabs (desktop).', {
@@ -193,63 +93,45 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
     if (!isActingOnBehalf) {
       tabs.push(
         { value: '/', label: t('nav.home', 'Home'), icon: Home },
-        { value: '/diary', label: t('nav.diary'), icon: BookOpen },
-        { value: '/checkin', label: t('nav.checkin'), icon: Activity }
-      );
-      if (cycleSettings?.enabled) {
-        tabs.push({
-          value: '/cycle',
-          label: cycleSettings.discreet_mode
-            ? t('nav.wellness', 'Wellness')
-            : cycleSettings.mode === 'pregnant'
-              ? t('nav.pregnancy', 'Pregnancy')
-              : t('nav.cycle', 'Cycle'),
-          icon: cycleSettings.discreet_mode ? Activity : CalendarHeart,
-        });
-      }
-      tabs.push(
         {
-          value: '/medications',
-          label: t('nav.medications', 'Medications'),
-          icon: Pill,
-        },
-        {
-          value: '/exercises',
-          label: t('exercise.title', 'Exercises'),
+          value: '/workouts',
+          label: t('nav.workouts', 'Workouts'),
           icon: Dumbbell,
         },
-        { value: '/goals', label: t('nav.goals'), icon: Target },
         { value: '/focus', label: t('nav.focus', 'Focus'), icon: Compass },
-        { value: '/settings', label: t('nav.settings'), icon: SettingsIcon }
+        {
+          value: '/checkin',
+          label: t('nav.checkin', 'Check-In'),
+          icon: Activity,
+        },
+        {
+          value: '/settings',
+          label: t('nav.settings', 'Settings'),
+          icon: SettingsIcon,
+        }
       );
     } else {
-      if (hasWritePermission('diary')) {
-        tabs.push({ value: '/diary', label: t('nav.diary'), icon: BookOpen });
-      }
       if (hasWritePermission('checkin')) {
         tabs.push({
           value: '/checkin',
-          label: t('nav.checkin'),
+          label: t('nav.checkin', 'Check-In'),
           icon: Activity,
         });
       }
       if (hasPermission('reports')) {
         tabs.push({
           value: '/reports',
-          label: t('nav.reports'),
+          label: t('nav.reports', 'Reports'),
           icon: BarChart3,
-        });
-      }
-      if (hasWritePermission('can_manage_medications')) {
-        tabs.push({
-          value: '/medications',
-          label: t('nav.medications', 'Medications'),
-          icon: Pill,
         });
       }
     }
     if (user?.role === 'admin' && !isActingOnBehalf) {
-      tabs.push({ value: '/admin', label: t('nav.admin'), icon: Shield });
+      tabs.push({
+        value: '/admin',
+        label: t('nav.admin', 'Admin'),
+        icon: Shield,
+      });
     }
     return tabs;
   }, [
@@ -259,7 +141,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
     loggingLevel,
     user?.role,
     t,
-    cycleSettings,
   ]);
 
   const availableMobileTabs = useMemo(() => {
@@ -270,14 +151,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
       isAddCompOpen,
     });
     const mobileTabs = [];
-    // Cycle/Pregnancy and Medications live in the "+" Add menu on mobile
-    // (see addCompItems), not the bottom bar, to keep the bar uncluttered.
     if (!isActingOnBehalf) {
       mobileTabs.push(
         { value: '/', label: t('nav.home', 'Home'), icon: Home },
         {
-          value: '/exercises',
-          label: t('exercise.title', 'Exercises'),
+          value: '/workouts',
+          label: t('nav.workouts', 'Workouts'),
           icon: Dumbbell,
         },
         {
@@ -285,41 +164,34 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
           label: t('common.add', 'Add'),
           icon: isAddCompOpen ? X : Plus,
         },
-        { value: '/settings', label: t('nav.settings'), icon: SettingsIcon }
+        {
+          value: '/settings',
+          label: t('nav.settings', 'Settings'),
+          icon: SettingsIcon,
+        }
       );
     } else {
-      if (hasWritePermission('diary')) {
-        mobileTabs.push({
-          value: '/diary',
-          label: t('nav.diary'),
-          icon: BookOpen,
-        });
-      }
       if (hasWritePermission('checkin')) {
         mobileTabs.push({
           value: '/checkin',
-          label: t('nav.checkin'),
+          label: t('nav.checkin', 'Check-In'),
           icon: Activity,
         });
       }
       if (hasPermission('reports')) {
         mobileTabs.push({
           value: '/reports',
-          label: t('nav.reports'),
+          label: t('nav.reports', 'Reports'),
           icon: BarChart3,
-        });
-      }
-      // Delegates have no "+" Add menu on mobile, so medications stays in the bar.
-      if (hasWritePermission('can_manage_medications')) {
-        mobileTabs.push({
-          value: '/medications',
-          label: t('nav.medications', 'Medications'),
-          icon: Pill,
         });
       }
     }
     if (user?.role === 'admin' && !isActingOnBehalf) {
-      mobileTabs.push({ value: '/admin', label: t('nav.admin'), icon: Shield });
+      mobileTabs.push({
+        value: '/admin',
+        label: t('nav.admin', 'Admin'),
+        icon: Shield,
+      });
     }
     return mobileTabs;
   }, [
@@ -335,29 +207,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
   const handleNavigateFromAddComp = useCallback(
     (value: string) => {
       info(loggingLevel, `MainLayout: Navigating to ${value} from AddComp.`);
-      if (value === 'foodlog') {
-        setIsAddCompOpen(false);
-        setIsMealTypeSelectOpen(true);
-      } else {
-        navigate(value);
-        setIsAddCompOpen(false);
-      }
-    },
-    [loggingLevel, navigate]
-  );
-
-  const handleMealTypeSelect = useCallback(
-    (mealType: string) => {
-      info(
-        loggingLevel,
-        `MainLayout: Meal type ${mealType} selected, navigating to diary.`
-      );
-      debug(
-        loggingLevel,
-        `[MainLayout] Navigating to diary with meal type: ${mealType}`
-      );
-      setIsMealTypeSelectOpen(false);
-      navigate('/', { state: { openFoodSearchForMeal: mealType } });
+      navigate(value);
+      setIsAddCompOpen(false);
     },
     [loggingLevel, navigate]
   );
@@ -449,53 +300,42 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
                 <span className="hidden sm:inline">
                   {t('onboarding.completeSetup', 'Complete Setup')}
                 </span>
-                <span className="sm:hidden">
-                  {t('onboarding.setupShort', 'Setup')}
-                </span>
               </Button>
             )}
-            <GlobalNotificationIcon />
             <GlobalSyncButton />
             <ThemeToggle />
+            <GlobalNotificationIcon />
           </div>
         </div>
-        <nav
-          className={cn(
-            'relative hidden sm:grid w-full gap-1 mb-6 bg-slate-200/60 dark:bg-muted/50 p-1 rounded-lg border transition-colors overflow-hidden',
-            gridClass,
-            selectedDateRelation === 'today' && 'border-transparent',
-            selectedDateRelation === 'past' && 'border-date-past/40',
-            selectedDateRelation === 'future' && 'border-date-future/40'
-          )}
-        >
-          {selectedDateRelation !== 'today' && (
-            <div
-              className={cn(
-                'absolute inset-0 pointer-events-none z-10',
-                selectedDateRelation === 'past' && 'bg-date-past/10',
-                selectedDateRelation === 'future' && 'bg-date-future/10'
-              )}
-            />
-          )}
-          {availableTabs.map(({ value, label, icon: Icon }) => (
-            <Button
-              key={value}
-              variant="ghost"
-              className={`relative flex items-center gap-2 hover:bg-background/50 transition-all ${
-                location.pathname === value
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground'
-              }`}
-              onClick={() => navigate(value)}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </Button>
-          ))}
-        </nav>
+
+        {/* Desktop Tabs */}
+        <div className="hidden sm:block mb-8">
+          <div
+            className={`grid ${gridClass} gap-2 p-1 bg-muted rounded-lg`}
+            role="tablist"
+          >
+            {availableTabs.map(({ value, label, icon: Icon }) => (
+              <Button
+                key={value}
+                variant={location.pathname === value ? 'default' : 'ghost'}
+                size="sm"
+                className={cn(
+                  'flex items-center justify-center gap-2 transition-all',
+                  location.pathname === value &&
+                    'bg-background text-foreground shadow-sm'
+                )}
+                onClick={() => navigate(value)}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
 
         {/* Mobile Navigation */}
         <nav
+          aria-label={t('nav.ariaLabel', 'Main navigation')}
           className={cn(
             'apple-safe-area sm:hidden fixed bottom-0 left-0 right-0 z-50 w-full bg-background border-t transition-colors',
             selectedDateRelation === 'past' && 'border-date-past/80',
@@ -569,14 +409,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
         onClose={() => setIsAddCompOpen(false)}
         items={addCompItems}
         onNavigate={handleNavigateFromAddComp}
-      />
-
-      <AddComp
-        isVisible={isMealTypeSelectOpen}
-        onClose={() => setIsMealTypeSelectOpen(false)}
-        items={mealTypeItems}
-        onNavigate={handleMealTypeSelect}
-        title={t('foodDiary.selectMealType', 'Select Meal Type')}
       />
     </div>
   );

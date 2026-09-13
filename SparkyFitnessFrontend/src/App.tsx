@@ -47,21 +47,11 @@ const ResetPassword = lazyWithChunkRecovery(
   () => import('@/pages/Auth/ResetPassword')
 );
 const Index = lazyWithChunkRecovery(() => import('@/pages/Index'));
-const Diary = lazyWithChunkRecovery(() => import('@/pages/Diary/Diary'));
 const HomeChecklist = lazyWithChunkRecovery(
   () => import('@/pages/Home/HomeChecklist')
 );
 const CheckIn = lazyWithChunkRecovery(() => import('./pages/CheckIn/CheckIn'));
-const FoodDatabaseManager = lazyWithChunkRecovery(
-  () => import('./pages/Foods/Foods')
-);
 const Reports = lazyWithChunkRecovery(() => import('./pages/Reports/Reports'));
-const Medications = lazyWithChunkRecovery(
-  () => import('./pages/Medications/Medications')
-);
-const CyclePage = lazyWithChunkRecovery(
-  () => import('./pages/Cycle/CyclePage')
-);
 const FocusPage = lazyWithChunkRecovery(
   () => import('./pages/Focus/FocusPage')
 );
@@ -69,10 +59,7 @@ const ExerciseDatabaseManager = lazyWithChunkRecovery(
   () => import('./pages/Exercises/Exercises')
 );
 const WorkoutPlaybackPage = lazyWithChunkRecovery(
-  () => import('./pages/Diary/WorkoutPlaybackPage')
-);
-const GoalsSettings = lazyWithChunkRecovery(
-  () => import('./pages/Goals/Goals')
+  () => import('./pages/Exercises/WorkoutPlaybackPage')
 );
 const Settings = lazyWithChunkRecovery(
   () => import('./pages/Settings/SettingsPage')
@@ -326,11 +313,6 @@ const router = createBrowserRouter([
             ErrorBoundary: RouteErrorBoundary,
           },
           {
-            path: 'diary',
-            Component: Diary,
-            ErrorBoundary: RouteErrorBoundary,
-          },
-          {
             path: 'checkin',
             Component: CheckIn,
             ErrorBoundary: RouteErrorBoundary,
@@ -345,33 +327,17 @@ const router = createBrowserRouter([
             ErrorBoundary: RouteErrorBoundary,
           },
           {
-            path: 'foods',
-            Component: FoodDatabaseManager,
-            ErrorBoundary: RouteErrorBoundary,
-          },
-          {
-            path: 'exercises',
+            path: 'workouts',
             Component: ExerciseDatabaseManager,
             ErrorBoundary: RouteErrorBoundary,
           },
           {
+            path: 'exercises',
+            element: <Navigate to="/workouts" replace />,
+          },
+          {
             path: 'workout-playback',
             Component: WorkoutPlaybackPage,
-            ErrorBoundary: RouteErrorBoundary,
-          },
-          {
-            path: 'goals',
-            Component: GoalsSettings,
-            ErrorBoundary: RouteErrorBoundary,
-          },
-          {
-            path: 'medications',
-            Component: Medications,
-            ErrorBoundary: RouteErrorBoundary,
-          },
-          {
-            path: 'cycle',
-            Component: CyclePage,
             ErrorBoundary: RouteErrorBoundary,
           },
           {

@@ -618,28 +618,6 @@
       "enterNewEmailAddress": "الرجاء إدخال عنوان بريد إلكتروني جديد"
     }
   },
-  "nutrition": {
-    "calories": "السعرات",
-    "protein": "البروتين",
-    "carbohydrates": "الكربوهيدرات",
-    "carbs": "الكربوهيدرات",
-    "fat": "الدهون",
-    "saturatedFat": "الدهون المشبعة",
-    "polyunsaturatedFat": "الدهون المتعددة غير المشبعة",
-    "monounsaturatedFat": "الدهون الأحادية غير المشبعة",
-    "transFat": "الدهون المتحولة",
-    "cholesterol": "الكوليسترول",
-    "sodium": "الصوديوم",
-    "potassium": "البوتاسيوم",
-    "dietaryFiber": "الألياف الغذائية",
-    "fiber": "الألياف",
-    "sugars": "السكريات",
-    "vitaminA": "فيتامين أ",
-    "vitaminC": "فيتامين ج",
-    "calcium": "الكالسيوم",
-    "iron": "الحديد",
-    "netCarbs": "الكربوهيدرات الصافية"
-  },
   "muscleGroups": {
     "abs": "عضلات البطن",
     "back": "عضلات الظهر",
@@ -821,50 +799,6 @@
       "calcium": "كالسيوم"
     },
     "of": "من"
-  },
-  "foodDiary": {
-    "title": "يوميات الطعام",
-    "pickADate": "اختر تاريخًا",
-    "success": "تم",
-    "error": "صار خطأ",
-    "userNotFound": "ما قدرنا نحدد المستخدم النشط، لذلك ما نقدر نعدل هذا السجل.",
-    "genericError": "صار خطأ غير متوقع. حاول مرة ثانية.",
-    "pastDateWarning": "تنبيه: أنت تضيف أطعمة ليوم سابق.",
-    "futureDateWarning": "تنبيه: أنت تضيف أطعمة ليوم قادم.",
-    "entryCopied": "تم نسخ سجلات الطعام",
-    "entryCopyError": "تعذر نسخ سجلات الطعام.",
-    "copiedFromYesterday": "تم نسخ سجلات أمس",
-    "copyFromYesterdayError": "تعذر نسخ سجلات أمس.",
-    "mealAdded": "تمت إضافة وجبة «{{mealName}}» إلى يومياتك.",
-    "mealAddError": "تعذرت إضافة الوجبة إلى يومياتك.",
-    "entryAdded": "تمت إضافة الطعام",
-    "entryAddError": "تعذرت إضافة الطعام:",
-    "entryRemoved": "تم حذف سجل الطعام",
-    "entryRemoveError": "تعذر حذف سجل الطعام:",
-    "selectMealType": "اختر نوع الوجبة",
-    "waterIntake": {
-      "title": "شرب الماء",
-      "updated": "تم تحديث كمية الماء",
-      "updateError": "تعذر حفظ كمية الماء",
-      "perDrink": "{{volume}} {{unit}}",
-      "defaultPerDrink": "{{volume}} {{unit}} (الافتراضي)",
-      "defaultContainer": "العبوة",
-      "logTitle": "مشروبات اليوم",
-      "logEmpty": "ما سجلت أي مشروب للحين",
-      "deleteEntry": "حذف هذا المشروب",
-      "deleteConfirm": "تبي تحذف سجل {{volume}} {{unit}}؟",
-      "deletedSuccess": "تم حذف المشروب",
-      "deletedError": "تعذر حذف المشروب",
-      "editTime": "اضغط لتعديل الوقت"
-    },
-    "copyFoodEntryDialog": {
-      "title": "نسخ سجلات الطعام",
-      "description": "اختر التاريخ والوجبة اللي تبي تنسخ السجلات إليها.",
-      "targetDate": "التاريخ المطلوب",
-      "mealType": "نوع الوجبة",
-      "selectMealTypePlaceholder": "اختر نوع الوجبة",
-      "copyButton": "نسخ"
-    }
   },
   "mealCard": {
     "addFoodToMeal": "إضافة طعام إلى {{mealName}}",

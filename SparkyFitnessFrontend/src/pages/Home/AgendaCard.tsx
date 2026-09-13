@@ -104,7 +104,7 @@ function EventRow({
           variant="secondary"
           className="h-7 shrink-0 gap-1 rounded-full px-2.5 text-[11px]"
           onClick={() =>
-            navigate('/exercises', { state: { openStartWorkout: true } })
+            navigate('/workouts', { state: { openStartWorkout: true } })
           }
         >
           <Dumbbell className="h-3 w-3" />

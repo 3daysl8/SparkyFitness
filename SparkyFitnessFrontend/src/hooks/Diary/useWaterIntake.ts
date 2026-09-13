@@ -157,26 +157,17 @@ export const useUpdateWaterIntakeMutation = () => {
         data.removedFoodEntryIds.length > 0
       ) {
         toast({
-          title: t(
-            'foodDiary.waterIntake.linkedFoodRemovedTitle',
-            'Food Entry Removed'
-          ),
+          title: t('waterIntake.linkedFoodRemovedTitle', 'Food Entry Removed'),
           description: t(
-            'foodDiary.waterIntake.linkedFoodRemoved',
+            'waterIntake.linkedFoodRemoved',
             'Linked food entry was also removed from your food diary.'
           ),
         });
       }
     },
     meta: {
-      successMessage: t(
-        'foodDiary.waterIntake.updated',
-        'Water intake updated'
-      ),
-      errorMessage: t(
-        'foodDiary.waterIntake.updateError',
-        'Failed to save water intake'
-      ),
+      successMessage: t('waterIntake.updated', 'Water intake updated'),
+      errorMessage: t('waterIntake.updateError', 'Failed to save water intake'),
     },
   });
 };
@@ -204,14 +195,8 @@ export const useDeleteWaterIntakeLogMutation = () => {
       invalidate();
     },
     meta: {
-      successMessage: t(
-        'foodDiary.waterIntake.deletedSuccess',
-        'Drink removed'
-      ),
-      errorMessage: t(
-        'foodDiary.waterIntake.deletedError',
-        'Failed to remove drink'
-      ),
+      successMessage: t('waterIntake.deletedSuccess', 'Drink removed'),
+      errorMessage: t('waterIntake.deletedError', 'Failed to remove drink'),
     },
   });
 };

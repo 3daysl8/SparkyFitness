@@ -156,7 +156,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
         displayUnit
       ).toFixed(displayUnit === 'ml' ? 0 : 2);
 
-      return t('foodDiary.waterIntake.perDrink', {
+      return t('waterIntake.perDrink', {
         volume: displayVolume,
         unit: displayUnit,
       });
@@ -166,7 +166,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
       250,
       water_display_unit
     ).toFixed(water_display_unit === 'ml' ? 0 : 2);
-    return t('foodDiary.waterIntake.defaultPerDrink', {
+    return t('waterIntake.defaultPerDrink', {
       volume: displayVolume,
       unit: water_display_unit,
     });
@@ -243,7 +243,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center text-base dark:text-slate-300">
           <Droplet className="w-4 h-4 mr-2" />
-          {t('foodDiary.waterIntake.title', 'Water Intake')}
+          {t('waterIntake.title', 'Water Intake')}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-between p-3 dark:text-slate-300">
@@ -269,7 +269,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                 const decimals =
                   activeUnit === 'oz' ? 1 : activeUnit === 'liter' ? 2 : 0;
                 const val = convertMlToSelectedUnit(foodWaterMl, activeUnit);
-                return t('foodDiary.waterIntake.fromFood', {
+                return t('waterIntake.fromFood', {
                   volume: parseFloat(val.toFixed(decimals)),
                   unit: activeUnit,
                 });
@@ -332,7 +332,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
             title={
               manualWaterMl <= 0 && waterMl > 0
                 ? t(
-                    'foodDiary.waterIntake.noManualToRemove',
+                    'waterIntake.noManualToRemove',
                     'Only manually logged water can be removed here'
                   )
                 : undefined
@@ -372,14 +372,11 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
           <div className="flex items-center justify-center space-x-1 px-1">
             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest truncate max-w-[110px]">
               {currentContainer?.name ||
-                t('foodDiary.waterIntake.defaultContainer', 'Container')}
+                t('waterIntake.defaultContainer', 'Container')}
             </div>
             {currentContainer?.linked_food_id && (
               <span
-                title={t(
-                  'foodDiary.waterIntake.linkedDrink',
-                  'Linked to a food entry'
-                )}
+                title={t('waterIntake.linkedDrink', 'Linked to a food entry')}
                 className="inline-flex items-center"
               >
                 <Utensils className="w-2.5 h-2.5 text-blue-500 shrink-0" />
@@ -449,7 +446,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
               className="flex items-center justify-between w-full text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
             >
               <span>
-                {t('foodDiary.waterIntake.logTitle', "Today's drinks")} (
+                {t('waterIntake.logTitle', "Today's drinks")} (
                 {logEntries.length})
               </span>
               {showLog ? (
@@ -499,7 +496,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                           onClick={() => setEditingTimeId(entry.id)}
                           className="text-gray-400 dark:text-gray-500 tabular-nums shrink-0 hover:text-blue-500 dark:hover:text-blue-400 hover:underline cursor-pointer transition-colors"
                           title={t(
-                            'foodDiary.waterIntake.editTime',
+                            'waterIntake.editTime',
                             'Click to change time'
                           )}
                         >
@@ -508,15 +505,12 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                       )}
                       <span className="text-gray-600 dark:text-gray-300 truncate">
                         {entry.container_name ||
-                          t(
-                            'foodDiary.waterIntake.defaultContainer',
-                            'Container'
-                          )}
+                          t('waterIntake.defaultContainer', 'Container')}
                       </span>
                       {entry.food_entry_id && (
                         <span
                           title={t(
-                            'foodDiary.waterIntake.linkedDrink',
+                            'waterIntake.linkedDrink',
                             'Linked to a food entry'
                           )}
                           className="inline-flex items-center"
@@ -542,11 +536,11 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                         <span
                           className="font-medium text-muted-foreground"
                           title={t(
-                            'foodDiary.waterIntake.noWaterCreditHint',
+                            'waterIntake.noWaterCreditHint',
                             'This drink is set to count as no water'
                           )}
                         >
-                          {t('foodDiary.waterIntake.noWaterCredit', 'no water')}
+                          {t('waterIntake.noWaterCredit', 'no water')}
                         </span>
                       ) : (
                         <span className="font-medium text-blue-600 dark:text-blue-400">
@@ -577,7 +571,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                           onClick={() => deleteLogEntry(entry.id)}
                           disabled={deleting}
                           title={t(
-                            'foodDiary.waterIntake.deleteEntry',
+                            'waterIntake.deleteEntry',
                             'Delete this drink'
                           )}
                         >

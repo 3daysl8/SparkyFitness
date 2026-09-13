@@ -77,10 +77,6 @@
   "layout": {
     "welcome": "Velkommen {{activeUserName}}"
   },
-  "foods": {
-    "providerVerified": "Verifisert matvare",
-    "removeNutrient": "Fjern {{nutrient}}"
-  },
   "medications": {
     "tabs": {
       "log": "Logg",
@@ -104,18 +100,6 @@
     },
     "today": {
       "supplementsTitle": "Dagens kosttilskudd"
-    },
-    "glp1": {
-      "doseMg": "Dose (mg)",
-      "pkDayLabel": "Dag {{day}}",
-      "dateTime": "Dato og tid",
-      "pkAxisDates": "Datoer",
-      "pkAxisDays": "Dager",
-      "addStep": "Legg til steg",
-      "statusPlanned": "Planlagt",
-      "statusActive": "Aktiv (nåværende)",
-      "statusDone": "Utført",
-      "notes": "Notater"
     },
     "types": {
       "tablet": "tablett",
@@ -141,34 +125,6 @@
       "servingUnit_pill_other": "piller",
       "clearNutrients": "Fjern alle"
     }
-  },
-  "nutrition": {
-    "calories": "Kalorier",
-    "protein": "Protein",
-    "carbohydrates": "Karbohydrater",
-    "carbs": "Karbohydrater",
-    "fat": "Fett",
-    "saturatedFat": "Mettet Fett",
-    "polyunsaturatedFat": "Flerumettet Fett",
-    "monounsaturatedFat": "Enumettet Fett",
-    "transFat": "Transfett",
-    "cholesterol": "Kolesterol",
-    "sodium": "Salt",
-    "potassium": "Kalium",
-    "dietaryFiber": "Kostfiber",
-    "fiber": "Fiber",
-    "sugars": "Sukker",
-    "vitaminA": "Vitamin A",
-    "vitaminC": "Vitamin C",
-    "calcium": "Kalsium",
-    "iron": "Jern",
-    "autoCalculate": "Auto-kalkuler",
-    "autoCalculateTooltip": "Auto-kalkuler using {{algorithm}}",
-    "autoCalculateDisabledNoSex": "Velg kjønn i profilen din for å tilgjengeliggjøre auto-kalkulasjon",
-    "autoCalculateSelect": "Inkluder i masse-auto-kalkuler",
-    "autoCalculateSelectAll": "Velg Alle",
-    "autoCalculateSelectNone": "Velg Ingen",
-    "autoCalculateApplySelected": "Auto-kalkuler Valgte ({{count}})"
   },
   "calculationSettings": {
     "showNetCarbs": "Vis netto karbohydrater (karbohydrater minus fiber)",
@@ -257,15 +213,5 @@
   },
   "workout": {
     "weight": "vekt"
-  },
-  "food": {
-    "imagesLabel": "Bilder",
-    "imagePreviewAlt": "Matbilde {{number}}",
-    "newImagePreviewAlt": "Nytt bilde {{number}}",
-    "removeImage": "Fjern bilde",
-    "viewImages": "Se bilder",
-    "imageViewer": "Bildeframviser",
-    "previousImage": "Forrige bilde",
-    "nextImage": "Neste bilde"
   }
 }

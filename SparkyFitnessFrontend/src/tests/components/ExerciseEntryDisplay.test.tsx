@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ExerciseEntryDisplay from '@/pages/Diary/ExerciseEntryDisplay';
+import ExerciseEntryDisplay from '@/pages/Exercises/ExerciseEntryDisplay';
 import type { ExerciseEntry } from '@/types/exercises';
 
 jest.mock('react-i18next', () =>

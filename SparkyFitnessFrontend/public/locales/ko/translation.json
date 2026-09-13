@@ -815,38 +815,6 @@
     },
     "of": "/"
   },
-  "foodDiary": {
-    "title": "음식 일지",
-    "pickADate": "날짜 선택",
-    "success": "성공",
-    "error": "오류",
-    "genericError": "예기치 않은 오류가 발생했습니다.",
-    "entryCopied": "음식 기록이 복사되었습니다",
-    "entryCopyError": "음식 기록을 복사하지 못했습니다.",
-    "copiedFromYesterday": "어제의 음식 기록을 복사했습니다",
-    "copyFromYesterdayError": "어제의 음식 기록을 복사하지 못했습니다.",
-    "mealAdded": "식사 \"{{mealName}}\"이(가) 일지에 추가되었습니다.",
-    "mealAddError": "식사를 일지에 추가하지 못했습니다.",
-    "entryAdded": "음식 기록이 추가되었습니다",
-    "entryAddError": "음식 기록 추가 중 오류:",
-    "entryRemoved": "음식 기록이 삭제되었습니다",
-    "entryRemoveError": "음식 기록 삭제 중 오류:",
-    "waterIntake": {
-      "title": "물 섭취량",
-      "updated": "물 섭취량이 업데이트되었습니다",
-      "updateError": "물 섭취량을 저장하지 못했습니다",
-      "perDrink": "1회당 {{volume}} {{unit}}",
-      "defaultPerDrink": "1회당 {{volume}} {{unit}} (기본값)"
-    },
-    "copyFoodEntryDialog": {
-      "title": "음식 기록 복사",
-      "description": "복사할 대상 날짜와 식사 유형을 선택하세요.",
-      "targetDate": "대상 날짜",
-      "mealType": "식사 유형",
-      "selectMealTypePlaceholder": "식사 유형 선택",
-      "copyButton": "복사"
-    }
-  },
   "mealCard": {
     "addFoodToMeal": "{{mealName}}에 음식 추가",
     "searchFoodsForMeal": "{{mealName}}에 추가할 음식을 검색하세요.",
