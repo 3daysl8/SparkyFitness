@@ -800,7 +800,6 @@ const MedicationReports = ({
           <MedicationLogTable
             medications={medications}
             medicationEntries={medicationEntries}
-            injections={injections}
             symptomEntries={symptomEntries}
             startDate={startDate}
             endDate={endDate}
@@ -1484,7 +1483,7 @@ const MedicationReports = ({
                                 ? 'Done'
                                 : 'Planned'
                           }`,
-                          step.status
+                          step.status ?? ''
                         )}
                       </Badge>
                     </td>
