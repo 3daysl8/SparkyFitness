@@ -4,14 +4,58 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-Nothing is mid-flight or broken — the app is fully deployed and stable as of commit `566da73df`. Verify quickly before starting anything: `ssh -i ~/.ssh/id_ed25519_pi5 pi1@100.103.152.66 "docker compose -f /home/pi1/sparkyfitness/docker-compose.yml ps"` should show all four containers `Up`/`healthy`, and `https://sparkyfitness.tail854f4e.ts.net` should load.
+**A large restructure is IN PROGRESS, mid-flight, NOT deployed.** Full plan:
+`agent-docs/ouroboros-restructure-plan.md` (copied from the originating session's plan file —
+read it in full before continuing, this section is just a status summary against it). This
+supersedes everything else in this doc as the current priority — do not start on Hermes
+integration, Workout Logging Phase 3/4, or anything else below until this restructure is
+either finished or the user says to pause it.
 
-If the user hasn't given a specific task, here's what's actually open, roughly in priority order — everything below is described in full further down this doc, this is just the map:
+**What it is**: collapsing the app from 9+ nav tabs down to exactly 5 — Home, Workouts, Focus,
+Check-in, Settings — by hard-deleting (code + DB tables, not hiding) the food diary/nutrition-
+goals system, clinical GLP-1 medication tracking, and the cycle/pregnancy/TTC suite, while
+keeping a trimmed "Daily Protocols & Supplements" slice of medications. This is a deliberate
+reversal of this doc's own long-standing "hide, don't delete" precedent — confirmed explicitly
+by the user, not an agent assumption. See the plan doc's Context section for the full why.
 
-1. **Hermes morning-briefing integration** — the single biggest open piece (see "Not yet done", item 2). Now has one more source than the doc below originally listed: the new Calendar/Agenda domain's `GET /v2/calendar/agenda?start=...&end=...` gives Hermes "what's on the calendar today" for free (owner-only, needs the same generated API key as everything else) — worth folding in alongside the workout-plan/sleep/meds/focus sources already noted.
-2. **Workout Logging Phase 3 remainder**: muscle-group color tags + the Finish Workout summary modal — spec'd, scoped, just never started (see "Not yet done from this feature" below).
-3. **Phase 4** — "Repeat last session" prefill, not started.
-4. **Optional, low-priority test-suite cleanup** noticed while building Calendar, not fixed because it's unrelated: `translationKeysCoverage.test.ts` has been failing on ~12 pre-existing missing i18n keys since before this session (Focus + Phase 2/3 workout-logging work never added theirs), and `WorkoutPlaybackPage.test.tsx` fails in isolation with an i18next module-loading error unrelated to anything in this doc's recent sessions. Both are described with exact repro in the Calendar status section below.
+**Status as of commit `1e8d9f30d` (2026-09-13)**:
+- ✅ **Step 1 done & committed** (`3c329a9b8`) — Home's water-goal target decoupled from the
+  soon-to-be-dropped nutrition-goals table onto a plain `user_preferences.water_goal_ml` field.
+- ✅ **Step 2 done & committed** (`84fe867a0`) — DB migration dropping 36 tables (cycle/
+  pregnancy, clinical medications, food/nutrition/goals) + matching `db/rls_policies.sql`
+  edit, in the FK-safe order the plan specifies. **Not yet applied to any running database** —
+  this only runs when the server next starts against Postgres, i.e. at the Pi5 deploy in step 6.
+- ✅ **Step 3 done & committed** (`1e8d9f30d`) — backend routes/services/repositories/AI-tools
+  for the three deleted domains removed; `medicationRoutes.ts`/`medicationTools.ts` trimmed to
+  the surviving supplement surface; `reportService.ts`/`dailySummaryRangeService.ts` rewired to
+  drop food aggregation while keeping supplement/weight/sleep/workout metrics. **Backend fully
+  green**: typecheck, `eslint --max-warnings 0`, and the full test suite (2847 passed) all
+  clean on this commit.
+- ⬜ **Step 4 (frontend cleanup) — NOT STARTED. This is where to pick up next.** Because the
+  backend routes are already gone but the frontend hasn't been touched, **the frontend will
+  NOT typecheck cleanly right now** — it still calls `/diary`, `/goals`, and the removed
+  medication sub-routes. This is expected mid-restructure breakage, not a regression to
+  investigate or fix by restoring backend code. Go straight to the plan doc's Step 4 section.
+- ⬜ **Steps 5-7 not started** (new wiring; Pi5 deploy + live-verify; updating this doc's
+  architecture-decisions section to supersede the old hide-don't-delete entries).
+
+**Working tree is clean** as of this write-up — every change so far is committed to `main`,
+nothing is stashed or in-progress uncommitted. `git log --oneline -5` should show the three
+commits above on top of `0a73e167d`.
+
+**If picking this up in a different tool/session than the one that did steps 1-3**: that
+session was Claude Code, ran out of usage mid-step-4-kickoff, and left this handover instead
+of finishing. It validated each step manually (read every diff, ran an independent grep/test
+pass) rather than trusting agent self-reports — worth doing the same before trusting anything
+below at face value, per this doc's own repeated lesson that clean builds have hidden real
+bugs here before. The migration in step 2 has NOT been run against any real database yet, so
+there is still time to revise it if step 4/5 work surfaces something the schema got wrong.
+
+Once this restructure is fully done (through step 7), the pre-existing priority list is:
+Hermes morning-briefing integration, Workout Logging Phase 3 remainder (muscle-group tags +
+Finish summary modal), Phase 4 ("Repeat last session" prefill), and the two pre-existing
+test-suite gaps (`translationKeysCoverage.test.ts`'s ~12 missing keys,
+`WorkoutPlaybackPage.test.tsx`'s i18next module-loading error) as low-priority cleanup.
 
 Also worth knowing before touching anything: the **Known gotchas** section further down (Docker cache/env-reload traps, the PWA stale-cache trap, the disposable-test-account cleanup command) has bitten every session in this doc at least once — skim it first.
 
