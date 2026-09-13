@@ -619,11 +619,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/user-preferences', preferenceRoutes);
 // Legacy fallback for cached PWA clients querying nutrient display preferences
-app.get('/api/preferences/nutrient-display*', (_req, res) => {
+app.use('/api/preferences/nutrient-display', (_req, res) => {
   res.json([]);
-});
-app.put('/api/preferences/nutrient-display*', (_req, res) => {
-  res.json({ success: true });
 });
 app.use('/api/dashboard-layouts', dashboardLayoutRoutes);
 app.use('/api/measurements', measurementRoutes);
