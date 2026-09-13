@@ -343,7 +343,6 @@ const AssistantMessage: FC = () => {
             tools: {
               by_name: {
                 [ASK_USER_TOOL_NAME]: AskUserToolUI,
-                sparky_analyze_food_image: FoodPhotoEstimateToolUI,
               },
               Fallback: ToolFallback,
             },

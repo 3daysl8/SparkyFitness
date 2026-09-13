@@ -17,11 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import type {
-  Medication,
-  MedicationEntry,
-  InjectionEntry,
-} from '@/types/medications';
+import type { Medication, MedicationEntry } from '@/types/medications';
 
 interface SymptomEntry {
   id: string;
@@ -35,7 +31,6 @@ interface DayRow {
   date: string;
   taken: number;
   prn: number;
-  injections: number;
   skipped: number;
   times: string[];
   symptoms: Array<{ name: string; isSideEffect: boolean }>;
@@ -44,14 +39,7 @@ interface DayRow {
 interface MedicationLogTableProps {
   medications: Medication[];
   medicationEntries: MedicationEntry[];
-  /**
-   * GLP-1 injectable doses. The server keeps these out of `medicationEntries` for
-   * reports specifically to avoid double-counting (unlike the Log tab's merged
-   * feed), so they must be folded in here explicitly or injectable medications
-   * would show zero doses in this table.
-   */
-  injections: InjectionEntry[];
-  symptomEntries: SymptomEntry[];
+  symptomEntries?: SymptomEntry[];
   startDate: string;
   endDate: string;
 }
@@ -59,8 +47,7 @@ interface MedicationLogTableProps {
 export default function MedicationLogTable({
   medications,
   medicationEntries,
-  injections,
-  symptomEntries,
+  symptomEntries = [],
   startDate,
   endDate,
 }: MedicationLogTableProps) {
@@ -95,7 +82,6 @@ export default function MedicationLogTable({
           date: day,
           taken: 0,
           prn: 0,
-          injections: 0,
           skipped: 0,
           times: [],
           symptoms: [],
@@ -124,19 +110,6 @@ export default function MedicationLogTable({
             }
           });
 
-        // GLP-1 injectable doses live in a separate array (see prop doc), each
-        // one always counts as taken.
-        injections
-          .filter((inj) => inj.medication_id === med.id)
-          .forEach((inj) => {
-            const day = inj.entry_date.split('T')[0];
-            if (!day) return;
-            const row = getRow(rowsByDay, day);
-            row.injections++;
-            const time = formatTime(inj.injected_at);
-            if (time) row.times.push(time);
-          });
-
         // Attach same-day symptoms to every day this medication has a row for,
         // flagging side effects (symptom.medication_id === this medication).
         rowsByDay.forEach((row, day) => {
@@ -151,15 +124,12 @@ export default function MedicationLogTable({
           a.date < b.date ? 1 : a.date > b.date ? -1 : 0
         );
 
-        const totalDoses = rows.reduce(
-          (sum, r) => sum + r.taken + r.prn + r.injections,
-          0
-        );
+        const totalDoses = rows.reduce((sum, r) => sum + r.taken + r.prn, 0);
 
         return { medication: med, rows, totalDoses };
       })
       .filter((section) => section.rows.length > 0);
-  }, [medications, medicationEntries, injections, symptomEntries, formatTime]);
+  }, [medications, medicationEntries, symptomEntries, formatTime]);
 
   if (sections.length === 0) {
     return (
@@ -230,16 +200,10 @@ export default function MedicationLogTable({
                         {row.date}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {row.taken + row.prn + row.injections}
+                        {row.taken + row.prn}
                         {row.prn > 0 && (
                           <span className="text-xs text-muted-foreground ml-1">
                             ({row.prn} PRN)
-                          </span>
-                        )}
-                        {row.injections > 0 && (
-                          <span className="text-xs text-muted-foreground ml-1">
-                            ({row.injections}{' '}
-                            {t('medications.reports.injectionAbbrev', 'inj')})
                           </span>
                         )}
                       </TableCell>

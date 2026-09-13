@@ -58,12 +58,7 @@ import Papa from 'papaparse';
 
 import MedicationLogTable from './MedicationLogTable';
 
-import type {
-  Medication,
-  MedicationEntry,
-  InjectionEntry,
-  TitrationStep,
-} from '@/types/medications';
+import type { Medication, MedicationEntry } from '@/types/medications';
 
 interface SymptomEntry {
   id: string;
@@ -94,28 +89,43 @@ interface AlignedDailyDataPoint {
 interface MedicationReportsProps {
   startDate: string;
   endDate: string;
-  nutritionData: Array<{
+  nutritionData?: Array<{
     date: string;
     water?: number | null;
     protein?: number | null;
   }>;
-  tabularData: unknown[];
-  exerciseEntries: unknown[];
-  measurementData: Array<{
+  tabularData?: unknown[];
+  exerciseEntries?: unknown[];
+  measurementData?: Array<{
     entry_date: string;
     weight: number | string | null;
   }>;
-  customCategories: CustomCategoriesResponse[];
-  customMeasurementsData: CustomMeasurementsResponse[];
-  sleepAnalyticsData: Array<{
+  customCategories?: CustomCategoriesResponse[];
+  customMeasurementsData?: CustomMeasurementsResponse[];
+  sleepAnalyticsData?: Array<{
     date: string;
     total_sleep_duration_hours?: number | null;
   }>;
   medications: Medication[];
   medicationEntries: MedicationEntry[];
-  symptomEntries: SymptomEntry[];
-  injections: InjectionEntry[];
-  titrationSteps: TitrationStep[];
+  symptomEntries?: SymptomEntry[];
+  injections?: Array<{
+    id: string;
+    injected_at: string;
+    dose_mg?: number | string | null;
+    medication_id?: string | null;
+    site?: string | null;
+    notes?: string | null;
+  }>;
+  titrationSteps?: Array<{
+    id: string;
+    dose_mg?: number | string | null;
+    dose_unit?: string | null;
+    start_date?: string | null;
+    planned_weeks?: number | string | null;
+    status?: string | null;
+    note?: string | null;
+  }>;
 }
 
 const DEFAULT_VISIBLE_ITEMS = [
@@ -133,16 +143,16 @@ const DEFAULT_VISIBLE_ITEMS = [
 const MedicationReports = ({
   startDate,
   endDate,
-  nutritionData,
-  measurementData,
+  nutritionData = [],
+  measurementData = [],
   customCategories = [],
   customMeasurementsData = [],
-  sleepAnalyticsData,
-  medications,
-  medicationEntries,
-  symptomEntries,
-  injections,
-  titrationSteps,
+  sleepAnalyticsData = [],
+  medications = [],
+  medicationEntries = [],
+  symptomEntries = [],
+  injections = [],
+  titrationSteps = [],
 }: MedicationReportsProps) => {
   const { t } = useTranslation();
   const {
@@ -1389,9 +1399,6 @@ const MedicationReports = ({
                 <th className="py-1">
                   {t('medications.print.frequency', 'Frequency')}
                 </th>
-                <th className="py-1">
-                  {t('medications.print.prescriber', 'Prescriber')}
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -1424,7 +1431,6 @@ const MedicationReports = ({
                           .join(', ')
                       : t('medications.schedule.prn', 'As needed (PRN)')}
                   </td>
-                  <td className="py-1">{m.prescriber || 'N/A'}</td>
                 </tr>
               ))}
             </tbody>

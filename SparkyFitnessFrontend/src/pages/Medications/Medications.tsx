@@ -6,7 +6,6 @@ import {
   Package,
   Trash2,
   Activity,
-  Star,
   Clock,
   Pencil,
   Info,
@@ -385,15 +384,6 @@ export default function Medications() {
                               </span>
                             </>
                           )}
-                          {med.prescriber && (
-                            <>
-                              <span>·</span>
-                              <span className="truncate">
-                                {t('medications.cabinet.doctorPrefix', 'Dr.')}{' '}
-                                {med.prescriber}
-                              </span>
-                            </>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -486,95 +476,6 @@ export default function Medications() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm">
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {selected.prescriber && (
-                          <div className="rounded-lg bg-muted/40 p-2 border">
-                            <p className="text-[10px] font-semibold text-muted-foreground">
-                              {t(
-                                'medications.cabinet.prescriberDetail',
-                                'Prescriber'
-                              )}
-                            </p>
-                            <p className="font-medium mt-0.5 truncate">
-                              {selected.prescriber}
-                            </p>
-                          </div>
-                        )}
-                        {selected.pharmacy && (
-                          <div className="rounded-lg bg-muted/40 p-2 border">
-                            <p className="text-[10px] font-semibold text-muted-foreground">
-                              {t(
-                                'medications.cabinet.pharmacyDetail',
-                                'Pharmacy'
-                              )}
-                            </p>
-                            <p className="font-medium mt-0.5 truncate">
-                              {selected.pharmacy}
-                            </p>
-                          </div>
-                        )}
-                        {selected.rx_number && (
-                          <div className="rounded-lg bg-muted/40 p-2 border col-span-2">
-                            <p className="text-[10px] font-semibold text-muted-foreground">
-                              {t(
-                                'medications.cabinet.rxNumberDetail',
-                                'Rx Number'
-                              )}
-                            </p>
-                            <p className="font-medium mt-0.5 truncate">
-                              {selected.rx_number}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {selected.photo_path && (
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground">
-                            {t(
-                              'medications.cabinet.packagingPhoto',
-                              'Pill/Packaging Photo'
-                            )}
-                          </p>
-                          <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
-                            <img
-                              src={selected.photo_path}
-                              alt={selected.display_name || selected.name}
-                              className="object-cover w-full h-full"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {selected.effectiveness_rating != null && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold text-muted-foreground">
-                            {t(
-                              'medications.cabinet.effectivenessDetail',
-                              'Effectiveness'
-                            )}
-                          </p>
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`h-4 w-4 ${
-                                  i < (selected.effectiveness_rating ?? 0)
-                                    ? 'fill-amber-400 text-amber-400'
-                                    : 'text-muted/40'
-                                }`}
-                              />
-                            ))}
-                            <span className="text-xs font-medium text-muted-foreground ml-1">
-                              ({selected.effectiveness_rating}/5)
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
                       {selected.reason_text && (
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground">

@@ -26,7 +26,6 @@ describe('entryMatchesDue', () => {
     med_name_snapshot: 'Metformin',
     dose_amount_snapshot: 500,
     dose_unit_snapshot: 'mg',
-    entry_type: 'entry',
     ...overrides,
   });
 
@@ -42,15 +41,6 @@ describe('entryMatchesDue', () => {
     const entry = createBaseEntry({
       schedule_id: null,
       scheduled_for: null,
-    });
-
-    expect(entryMatchesDue(entry, due)).toBe(true);
-  });
-
-  test('matches injection entries for the same medication', () => {
-    const entry = createBaseEntry({
-      schedule_id: null,
-      entry_type: 'injection',
     });
 
     expect(entryMatchesDue(entry, due)).toBe(true);

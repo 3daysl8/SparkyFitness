@@ -187,12 +187,7 @@ import {
   CustomCategoriesResponse,
   CustomMeasurementsResponse,
 } from '@workspace/shared';
-import {
-  Medication,
-  MedicationEntry,
-  InjectionEntry,
-  TitrationStep,
-} from './medications';
+import { Medication, MedicationEntry } from './medications';
 
 export interface SymptomEntry {
   id: string;
@@ -230,6 +225,4 @@ export interface ReportResponse {
   medications?: Medication[];
   medicationEntries?: MedicationEntry[];
   symptomEntries?: SymptomEntry[];
-  injections?: InjectionEntry[];
-  titrationSteps?: TitrationStep[];
 }

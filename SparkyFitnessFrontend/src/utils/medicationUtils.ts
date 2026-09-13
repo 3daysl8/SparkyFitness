@@ -15,7 +15,6 @@ export const entryMatchesDue = (
 
   return (
     e.schedule_id === due.schedule.id ||
-    (e.entry_type === 'injection' && e.medication_id === due.medication.id) ||
     (e.medication_id === due.medication.id && !e.schedule_id)
   );
 };

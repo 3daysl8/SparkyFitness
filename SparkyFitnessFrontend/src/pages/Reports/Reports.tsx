@@ -6,10 +6,8 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import ZoomableChart from '@/components/ZoomableChart';
 import ReportsControls from '@/pages/Reports/ReportsControls';
-import NutritionPeriodSummary from '@/pages/Reports/NutritionPeriodSummary';
 import { WeeklyAlcoholCard } from '@/pages/Reports/WeeklyAlcoholCard';
 import HydrationTrendChart from '@/pages/Reports/HydrationTrendChart';
-import NutritionChartsGrid from '@/pages/Reports/NutritionChartsGrid';
 import WidgetGrid from '@/components/widgets/WidgetGrid';
 import {
   generateReportsMeasurementsDefaultLayouts,
@@ -27,10 +25,8 @@ import StressChart from '@/pages/Reports/StressChart';
 import { debug, info } from '@/utils/logging';
 
 import MoodChart from '@/pages/Reports/MoodChart';
-import { useCustomNutrients } from '@/hooks/Foods/useCustomNutrients';
 import { useMoodEntries } from '@/hooks/CheckIn/useMood';
 import {
-  useCalorieBalanceRange,
   useExerciseDashboardData,
   useRawStressData,
   useReportsData,
@@ -40,12 +36,10 @@ import {
   exportBodyMeasurements,
   exportCustomMeasurement,
   exportExerciseEntries,
-  exportFoodDiary,
 } from '@/utils/reportUtil';
 import { CustomCategoryReport } from './CustomCategoryReport';
 import { ChartErrorBoundary } from '../Errors/ChartErrorFallback';
 import { CustomCategoriesResponse } from '@workspace/shared';
-import { useDailyGoalsRange } from '@/hooks/Goals/useGoals';
 import { useSearchParams } from 'react-router-dom';
 
 const Reports = () => {
@@ -58,7 +52,6 @@ const Reports = () => {
     convertEnergy,
     weightUnit: defaultWeightUnit,
     measurementUnit: defaultMeasurementUnit,
-    showNetCarbs,
   } = usePreferences();
 
   // Suppress specific Recharts warning in hidden tabs
@@ -111,8 +104,6 @@ const Reports = () => {
     });
   };
 
-  const { data: customNutrients = [], isLoading: customNutrientsLoading } =
-    useCustomNutrients();
   const { data: moodData = [], isLoading: moodLoading } = useMoodEntries(
     startDate,
     endDate
@@ -130,39 +121,26 @@ const Reports = () => {
     activeUserId
   );
 
-  // Folded into `loading` below so the calorie chart never paints raw goals first and
-  // then jumps once the balance lands.
-  const { data: calorieBalanceByDate, isLoading: calorieBalanceLoading } =
-    useCalorieBalanceRange(startDate, endDate, activeUserId);
-
   // Der globale Ladezustand
   const loading =
     !startDate ||
     !endDate ||
-    customNutrientsLoading ||
     moodLoading ||
     stressLoading ||
     dashboardLoading ||
     fastingLoading ||
-    reportsLoading ||
-    calorieBalanceLoading;
+    reportsLoading;
 
   const {
-    nutritionData = [],
     tabularData = [],
     exerciseEntries = [],
     measurementData = [],
     customCategories = [],
     customMeasurementsData = [],
-    sleepAnalyticsData = [],
     medications = [],
     medicationEntries = [],
     symptomEntries = [],
-    injections = [],
-    titrationSteps = [],
   } = reportsData || {};
-
-  const { data: goalData } = useDailyGoalsRange(startDate, endDate, true, true);
 
   const measurementChartWidgets = useMeasurementChartWidgets({
     // Pass the raw (possibly undefined) value so the hook's stable
@@ -211,22 +189,6 @@ const Reports = () => {
                 startDate={startDate}
                 endDate={endDate}
                 userId={activeUserId}
-              />
-            </ChartErrorBoundary>
-            <ChartErrorBoundary>
-              <NutritionPeriodSummary
-                nutritionData={nutritionData}
-                customNutrients={customNutrients}
-                goals={goalData}
-                calorieBalanceByDate={calorieBalanceByDate}
-              />
-            </ChartErrorBoundary>
-            <ChartErrorBoundary>
-              <NutritionChartsGrid
-                nutritionData={nutritionData}
-                customNutrients={customNutrients}
-                calorieBalanceByDate={calorieBalanceByDate}
-                goals={goalData}
               />
             </ChartErrorBoundary>
           </div>
@@ -330,19 +292,8 @@ const Reports = () => {
               prData={exerciseDashboardData?.prData}
               selectedTable={selectedTable}
               onSelectedTableChange={setSelectedTable}
-              onExportFoodDiary={() =>
-                exportFoodDiary({
-                  loggingLevel,
-                  tabularData,
-                  energyUnit,
-                  customNutrients,
-                  startDate,
-                  endDate,
-                  formatDateInUserTimezone,
-                  convertEnergy,
-                  showNetCarbs,
-                })
-              }
+              onExportFoodDiary={() => {}}
+              customNutrients={[]}
               onExportBodyMeasurements={() =>
                 exportBodyMeasurements({
                   loggingLevel,
@@ -377,7 +328,6 @@ const Reports = () => {
                   convertEnergy,
                 })
               }
-              customNutrients={customNutrients}
             />
           </ChartErrorBoundary>
         );
@@ -387,7 +337,6 @@ const Reports = () => {
             <MedicationReports
               startDate={startDate}
               endDate={endDate}
-              nutritionData={nutritionData}
               tabularData={tabularData}
               exerciseEntries={exerciseEntries}
               measurementData={measurementData.map((m) => ({
@@ -396,12 +345,9 @@ const Reports = () => {
               }))}
               customCategories={customCategories}
               customMeasurementsData={customMeasurementsData}
-              sleepAnalyticsData={sleepAnalyticsData}
               medications={medications}
               medicationEntries={medicationEntries}
               symptomEntries={symptomEntries}
-              injections={injections}
-              titrationSteps={titrationSteps}
             />
           </ChartErrorBoundary>
         );

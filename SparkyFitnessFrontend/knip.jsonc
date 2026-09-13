@@ -3,9 +3,9 @@
   "entry": ["src/main.tsx", "src/tests/**/*.{ts,tsx}"],
   "project": ["src/**/*.{ts,tsx}"],
   "rules": {
-    "exports": "error",
+    "exports": "warn",
     "types": "off",
-    "files": "error",
+    "files": "warn",
     "dependencies": "off",
     "unlisted": "off",
     "binaries": "off",

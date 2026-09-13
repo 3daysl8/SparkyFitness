@@ -106,6 +106,8 @@ const WaterContainerManager: React.FC = () => {
       await createWaterContainer({
         name: name.trim(),
         volume: volumeInMl,
+        unit: 'ml',
+        is_primary: false,
         servings_per_container:
           servingsPerContainer !== '' ? Number(servingsPerContainer) : 1,
         hydration_factor: hydrationFactor,
@@ -363,7 +365,8 @@ const WaterContainerManager: React.FC = () => {
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {container.volume} ml
-                        {container.hydration_factor !== 1.0 &&
+                        {container.hydration_factor != null &&
+                          container.hydration_factor !== 1.0 &&
                           ` • ${Math.round(container.hydration_factor * 100)}% hydration`}
                       </p>
                     </div>
@@ -566,10 +569,10 @@ const WaterContainerManager: React.FC = () => {
                 className="flex items-center justify-between p-2.5 rounded-lg border bg-card text-xs"
               >
                 <div>
-                  <p className="font-semibold">{item.name}</p>
+                  <p className="font-semibold">{item.defaultName}</p>
                   <p className="text-muted-foreground">
-                    {item.volume} ml • {Math.round(item.hydration_factor * 100)}
-                    % hydration
+                    {item.volumeMl} ml •{' '}
+                    {Math.round(item.hydrationFactor * 100)}% hydration
                   </p>
                 </div>
                 <Button

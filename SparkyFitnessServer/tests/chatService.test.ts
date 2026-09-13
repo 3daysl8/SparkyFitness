@@ -347,6 +347,23 @@ describe('chatService', () => {
         : Object.keys(raw);
     };
 
+    const toolCallStep = (
+      toolName: string,
+      args: Record<string, unknown> = {}
+    ) => ({
+      finishReason: { unified: 'tool-calls' as const, raw: undefined },
+      usage,
+      content: [
+        {
+          type: 'tool-call' as const,
+          toolCallId: 'tc-1',
+          toolName,
+          input: JSON.stringify(args),
+        },
+      ],
+      warnings: [],
+    });
+
     const textStep = (text: string) => ({
       finishReason: { unified: 'stop' as const, raw: undefined },
       usage,

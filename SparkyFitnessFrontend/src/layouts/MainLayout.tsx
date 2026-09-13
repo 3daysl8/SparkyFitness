@@ -40,11 +40,7 @@ interface AddCompItem {
   fullWidth?: boolean;
 }
 
-interface MainLayoutProps {
-  onStartOnboarding?: () => void;
-}
-
-const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
+const MainLayout: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -289,19 +285,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onStartOnboarding }) => {
                 activeUserName,
               })}
             </span>
-            {onStartOnboarding && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onStartOnboarding}
-                className="flex items-center gap-2"
-                title={t('onboarding.completeSetup', 'Complete your setup')}
-              >
-                <span className="hidden sm:inline">
-                  {t('onboarding.completeSetup', 'Complete Setup')}
-                </span>
-              </Button>
-            )}
             <GlobalSyncButton />
             <ThemeToggle />
             <GlobalNotificationIcon />

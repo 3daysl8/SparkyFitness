@@ -13,7 +13,7 @@ import { Dumbbell, Play } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import EditExerciseEntryDialog from './EditExerciseEntryDialog';
-import ExercisePlaybackModal from '@/pages/Diary/ExercisePlaybackModal';
+import ExercisePlaybackModal from './ExercisePlaybackModal';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug, info, error } from '@/utils/logging';
 import type {
@@ -27,7 +27,7 @@ import ExerciseEntryDisplay from './ExerciseEntryDisplay';
 import ExercisePresetEntryDisplay from './ExercisePresetEntryDisplay';
 import EditExerciseDatabaseDialog from './EditExerciseDatabaseDialog';
 import AddExerciseDialog from '@/pages/Exercises/AddExerciseDialog';
-import LogExerciseEntryDialog from '@/pages/Diary/LogExerciseEntryDialog';
+import LogExerciseEntryDialog from './LogExerciseEntryDialog';
 import {
   useDeleteExerciseEntryMutation,
   useDeleteExercisePresetEntryMutation,
