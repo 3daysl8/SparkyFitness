@@ -1,11 +1,14 @@
 import type { WorkoutPreset } from '@/types/workout';
+import type { ExerciseSessionResponse } from '@workspace/shared';
 import {
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
   completeCurrentWorkoutSet,
   createWorkoutPlaybackDraftFromPreset,
+  createWorkoutPlaybackDraftFromSession,
   createWorkoutPlaybackRouteState,
+  createWorkoutPlaybackRouteStateFromSession,
   getCurrentWorkoutSetPointer,
   getWorkoutPlaybackStats,
   getWorkoutPlaybackRestRemainingSeconds,
@@ -41,7 +44,102 @@ const createPresetFixture = (): WorkoutPreset =>
     ],
   }) as unknown as WorkoutPreset;
 
+const createPresetSessionFixture = (): ExerciseSessionResponse =>
+  ({
+    type: 'preset',
+    id: 'session-1',
+    entry_date: '2026-05-01',
+    workout_preset_id: 42,
+    name: 'Push Day A',
+    description: 'Chest + Shoulders',
+    exercises: [
+      {
+        id: 'entry-1',
+        exercise_id: 'exercise-1',
+        exercise_snapshot: { name: 'Bench Press' },
+        sets: [
+          {
+            id: 1,
+            set_number: 1,
+            set_type: 'Working Set',
+            reps: 8,
+            weight: 82.5,
+            rest_time: 90,
+            is_pr: true,
+          },
+          {
+            id: 2,
+            set_number: 2,
+            set_type: 'Working Set',
+            reps: 8,
+            weight: 82.5,
+            rest_time: 90,
+            is_pr: false,
+          },
+        ],
+      },
+    ],
+  }) as unknown as ExerciseSessionResponse;
+
+const createIndividualSessionFixture = (): ExerciseSessionResponse =>
+  ({
+    type: 'individual',
+    id: 'entry-9',
+    exercise_id: 'exercise-9',
+    entry_date: '2026-05-02',
+    name: 'Evening Run',
+    exercise_snapshot: { name: 'Running' },
+    sets: [],
+  }) as unknown as ExerciseSessionResponse;
+
 describe('workoutPlayback utils', () => {
+  it('creates a local draft from a past preset session ("Repeat Workout")', () => {
+    const draft = createWorkoutPlaybackDraftFromSession(
+      createPresetSessionFixture(),
+      '2026-05-10'
+    );
+
+    expect(draft.name).toBe('Push Day A');
+    expect(draft.entry_date).toBe('2026-05-10');
+    expect(draft.preset_id).toBe('42');
+    expect(draft.exercises).toHaveLength(1);
+    expect(draft.exercises[0]?.exercise_name).toBe('Bench Press');
+    expect(draft.exercises[0]?.sets).toHaveLength(2);
+    expect(draft.exercises[0]?.sets[0]?.weight).toBe(82.5);
+    // Every set starts uncompleted again, even ones that were PRs last time.
+    expect(
+      draft.exercises
+        .flatMap((exercise) => exercise.sets)
+        .every((set) => !set.completed)
+    ).toBe(true);
+  });
+
+  it('falls back to a single blank set when repeating a session with no logged sets', () => {
+    const draft = createWorkoutPlaybackDraftFromSession(
+      createIndividualSessionFixture(),
+      '2026-05-10'
+    );
+
+    expect(draft.name).toBe('Evening Run');
+    expect(draft.preset_id).toBe('blank');
+    expect(draft.exercises).toHaveLength(1);
+    expect(draft.exercises[0]?.exercise_name).toBe('Running');
+    expect(draft.exercises[0]?.sets).toHaveLength(1);
+    expect(draft.exercises[0]?.sets[0]?.completed).toBe(false);
+  });
+
+  it('builds a route state from a session that carries the draft and return path', () => {
+    const routeState = createWorkoutPlaybackRouteStateFromSession(
+      createPresetSessionFixture(),
+      '2026-05-10',
+      '/workouts?tab=history'
+    );
+
+    expect(routeState.returnTo).toBe('/workouts?tab=history');
+    expect(routeState.draft?.entry_date).toBe('2026-05-10');
+    expect(routeState.draft?.name).toBe('Push Day A');
+  });
+
   it('creates a local draft from a workout preset', () => {
     const draft = createWorkoutPlaybackDraftFromPreset(
       createPresetFixture(),

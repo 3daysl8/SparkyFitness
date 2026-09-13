@@ -45,7 +45,9 @@ export const useExercises = (
   page: number,
   itemsPerPage: number,
   userId?: string,
-  sortOrder: string = 'name:asc'
+  sortOrder: string = 'name:asc',
+  equipmentFilter: string[] = [],
+  muscleGroupFilter: string[] = []
 ) => {
   const { t } = useTranslation();
   return useQuery({
@@ -55,7 +57,9 @@ export const useExercises = (
       ownershipFilter,
       page,
       itemsPerPage,
-      sortOrder
+      sortOrder,
+      equipmentFilter,
+      muscleGroupFilter
     ),
     queryFn: () =>
       loadExercises(
@@ -64,7 +68,9 @@ export const useExercises = (
         ownershipFilter,
         page,
         itemsPerPage,
-        sortOrder
+        sortOrder,
+        equipmentFilter,
+        muscleGroupFilter
       ),
     placeholderData: keepPreviousData,
     enabled: !!userId,

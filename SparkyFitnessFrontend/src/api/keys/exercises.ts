@@ -9,11 +9,22 @@ export const exerciseKeys = {
     ownershipFilter: ExerciseOwnershipFilter,
     page: number,
     limit: number,
-    sortOrder: string = 'name:asc'
+    sortOrder: string = 'name:asc',
+    equipmentFilter: string[] = [],
+    muscleGroupFilter: string[] = []
   ) =>
     [
       ...exerciseKeys.lists(),
-      { searchTerm, categoryFilter, ownershipFilter, page, limit, sortOrder },
+      {
+        searchTerm,
+        categoryFilter,
+        ownershipFilter,
+        page,
+        limit,
+        sortOrder,
+        equipmentFilter,
+        muscleGroupFilter,
+      },
     ] as const,
   details: () => [...exerciseKeys.all, 'detail'] as const,
   detail: (id: string) => [...exerciseKeys.details(), id] as const,
@@ -101,6 +112,14 @@ export const exerciseEntryKeys = {
       'history',
       exerciseId,
       ...(limit ? [{ limit }] : []),
+    ] as const,
+  /** One page of the workout logbook (History tab) — every past session,
+   * not scoped to a single exercise. Distinct from `history` above. */
+  historyPage: (page: number, pageSize: number, userId?: string) =>
+    [
+      ...exerciseEntryKeys.all,
+      'historyPage',
+      { page, pageSize, userId },
     ] as const,
   stats: (
     exerciseId: string,

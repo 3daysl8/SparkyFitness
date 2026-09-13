@@ -43,6 +43,9 @@ import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackFloatingRestTimer from './WorkoutPlaybackFloatingRestTimer';
 import WorkoutPlaybackStickyBar from './WorkoutPlaybackStickyBar';
 import WorkoutPlaybackSummary from './WorkoutPlaybackSummary';
+import WorkoutFinishSummaryModal, {
+  type WorkoutFinishSummary,
+} from './WorkoutFinishSummaryModal';
 
 const MIN_REST_SECONDS = 15;
 const MAX_REST_SECONDS = 900;
@@ -154,6 +157,11 @@ const WorkoutPlaybackPage = () => {
   const [restEditorCustomValue, setRestEditorCustomValue] = useState('');
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const [isAddExerciseDialogOpen, setIsAddExerciseDialogOpen] = useState(false);
+  const [finishSummary, setFinishSummary] =
+    useState<WorkoutFinishSummary | null>(null);
+  // Captured at finish time so the "Done" handler can clear/navigate after
+  // the draft itself has already been set to null (state below).
+  const finishedEntryDateRef = useRef<string | null>(null);
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
@@ -592,10 +600,20 @@ const WorkoutPlaybackPage = () => {
         );
       }
 
-      clearWorkoutPlaybackDraftFromStorage(draft.entry_date);
-      setDraft(null);
+      const prCount = draft.exercises
+        .flatMap((exercise) => exercise.sets)
+        .filter((set) => set.is_pr).length;
+
       setSaveError(null);
-      navigate(returnPath, { replace: true });
+      finishedEntryDateRef.current = draft.entry_date;
+      setFinishSummary({
+        name: draft.name,
+        prCount,
+        totalVolume,
+        elapsedSeconds,
+        setsCompleted: stats?.completedSets ?? 0,
+        totalSets: stats?.totalSets ?? 0,
+      });
     } catch {
       setSaveError(
         t(
@@ -607,13 +625,24 @@ const WorkoutPlaybackPage = () => {
   }, [
     createPresetSession,
     draft,
-    navigate,
-    returnPath,
+    elapsedSeconds,
+    stats,
     t,
     timezone,
     todaySnapshot,
+    totalVolume,
     upsertHabitCheckin,
   ]);
+
+  const handleCloseFinishSummary = useCallback(() => {
+    if (finishedEntryDateRef.current) {
+      clearWorkoutPlaybackDraftFromStorage(finishedEntryDateRef.current);
+      finishedEntryDateRef.current = null;
+    }
+    setDraft(null);
+    setFinishSummary(null);
+    navigate(returnPath, { replace: true });
+  }, [navigate, returnPath]);
 
   if (!draft) {
     return (
@@ -716,6 +745,11 @@ const WorkoutPlaybackPage = () => {
         onOpenChange={setIsAddExerciseDialogOpen}
         onExerciseAdded={handleExerciseAdded}
         mode="preset"
+      />
+
+      <WorkoutFinishSummaryModal
+        summary={finishSummary}
+        onDone={handleCloseFinishSummary}
       />
     </div>
   );

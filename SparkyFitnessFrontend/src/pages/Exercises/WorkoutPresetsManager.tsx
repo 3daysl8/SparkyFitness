@@ -10,31 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Plus,
-  Edit,
-  Trash2,
-  CalendarPlus,
-  Layers,
-  Dumbbell,
-  CheckSquare,
-  Play,
-  X,
-  MoreHorizontal,
-  CopyPlus,
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
+import { Plus, CheckSquare, Play, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkoutPreset } from '@/types/workout';
 import WorkoutPresetForm from './WorkoutPresetForm';
+import WorkoutPresetCard from './WorkoutPresetCard';
 import {
   useCreateWorkoutPresetMutation,
   useDeleteWorkoutPresetMutation,
@@ -47,17 +28,27 @@ import {
   createWorkoutPlaybackRouteState,
   createBlankWorkoutPlaybackDraft,
 } from '@/utils/workoutPlayback';
-import { formatWeight } from '@/utils/numberFormatting';
 import WorkoutPresetSelector from './WorkoutPresetSelector';
 
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import BulkActionToolbar from '@/components/BulkActionToolbar';
 import BulkDeleteDialog from '@/components/BulkDeleteDialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { DataTable } from '@/components/ui/DataTable';
-import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
+import { DataTablePagination } from '@/components/ui/DataTablePagination';
+import {
+  ColumnDef,
+  RowSelectionState,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Badge } from '@/components/ui/badge';
+
+// The grid below renders WorkoutPresetCard directly rather than table rows,
+// but still runs through useReactTable so pagination/selection reuse the
+// same proven bookkeeping (and DataTablePagination component) as every other
+// paginated list in this app. No columns are needed since nothing renders a
+// cell through columnDef here.
+const NO_COLUMNS: ColumnDef<WorkoutPreset, unknown>[] = [];
 
 // Matches workout_presets.name VARCHAR(255) in the database.
 const MAX_PRESET_NAME_LENGTH = 255;
@@ -274,162 +265,38 @@ const WorkoutPresetsManager = () => {
     });
   }, [location.pathname, location.search, navigate]);
 
-  const columns = React.useMemo<ColumnDef<WorkoutPreset>[]>(
-    () => [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <Checkbox
-            checked={table.getIsAllPageRowsSelected()}
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-            aria-label="Select all"
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-            disabled={row.original.user_id !== user?.id}
-          />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-      },
-      {
-        accessorKey: 'name',
-        header: t('workoutPresetsManager.name', 'Name'),
-        cell: ({ row }) => {
-          const preset = row.original;
-          return (
-            <div className="flex flex-col">
-              <span className="font-semibold">{preset.name}</span>
-              {preset.description && (
-                <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                  {preset.description}
-                </span>
-              )}
-            </div>
-          );
-        },
-      },
-      {
-        id: 'exercises',
-        header: t('workoutPresetsManager.exercises', 'Exercises'),
-        cell: ({ row }) => {
-          const count = row.original.exercises?.length || 0;
-          return (
-            <Badge variant="secondary" className="font-normal">
-              {count} {count === 1 ? 'exercise' : 'exercises'}
-            </Badge>
-          );
-        },
-      },
-      {
-        id: 'stats',
-        header: t('workoutPresetsManager.stats', 'Stats'),
-        cell: ({ row }) => {
-          const preset = row.original;
-          const totalSets =
-            preset.exercises?.reduce(
-              (sum, ex) => sum + (ex.sets?.length || 0),
-              0
-            ) ?? 0;
-          const totalWeight =
-            preset.exercises?.reduce((sum, ex) => {
-              const vol =
-                ex.sets?.reduce(
-                  (s, set) => s + (set.weight || 0) * (set.reps || 0),
-                  0
-                ) ?? 0;
-              return sum + vol;
-            }, 0) ?? 0;
-          return (
-            <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-1">
-                <Layers className="w-3 h-3 text-blue-500" />
-                <span>{totalSets} sets</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Dumbbell className="w-3 h-3 text-indigo-500" />
-                <span>{formatWeight(totalWeight, weightUnit)}</span>
-              </div>
-            </div>
-          );
-        },
-        meta: { hideOnMobile: true, colSpan: 2 },
-      },
-      {
-        id: 'actions',
-        header: t('common.actions', 'Actions'),
-        cell: ({ row }) => {
-          const preset = row.original;
-          const isOwned = preset.user_id === user?.id;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  {t('common.actions', 'Actions')}
-                </DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => handleStartWorkoutPlayback(preset)}
-                >
-                  <Play className="mr-2 h-4 w-4" />
-                  {t('workoutPresetsManager.startWorkout', 'Start Workout')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleLogPresetToDiary(preset)}
-                >
-                  <CalendarPlus className="mr-2 h-4 w-4" />
-                  {t('workoutPresetsManager.logToDiary', 'Log to Diary')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDuplicatePreset(preset)}>
-                  <CopyPlus className="mr-2 h-4 w-4" />
-                  {t('workoutPresetsManager.duplicate', 'Duplicate')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={!isOwned}
-                  onClick={() => {
-                    setSelectedPreset(preset);
-                    setIsEditDialogOpen(true);
-                  }}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  {t('common.edit', 'Edit')}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={!isOwned}
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => handleDeletePreset(preset.id.toString())}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {t('common.delete', 'Delete')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
-      },
-    ],
-    [
-      t,
-      user?.id,
-      weightUnit,
-      handleLogPresetToDiary,
-      handleDuplicatePreset,
-      handleDeletePreset,
-      handleStartWorkoutPlayback,
-    ]
-  );
+  // Pagination/selection bookkeeping only — the grid below renders
+  // WorkoutPresetCard directly from table.getRowModel().rows rather than
+  // through columnDef cells, reusing this proven state machine (and
+  // DataTablePagination) instead of hand-rolling a parallel one.
+  const table = useReactTable({
+    data: presets,
+    columns: NO_COLUMNS,
+    getRowId: (row) => row.id.toString(),
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onRowSelectionChange: (updater) => {
+      const next =
+        typeof updater === 'function' ? updater(rowSelection) : updater;
+      setRowSelection(next);
+    },
+    onPaginationChange: (updater) => {
+      const current = { pageIndex: currentPage - 1, pageSize: itemsPerPage };
+      const next = typeof updater === 'function' ? updater(current) : updater;
+      if (next.pageSize !== itemsPerPage) {
+        setItemsPerPage(next.pageSize);
+        setCurrentPage(1);
+      } else {
+        setCurrentPage(next.pageIndex + 1);
+      }
+    },
+    manualPagination: true,
+    pageCount: totalPages,
+    state: {
+      rowSelection,
+      pagination: { pageIndex: currentPage - 1, pageSize: itemsPerPage },
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -507,37 +374,37 @@ const WorkoutPresetsManager = () => {
               )}
             </p>
           ) : (
-            <DataTable
-              titleColumnId="name"
-              getRowId={(row) => row.id.toString()}
-              onRowDoubleClick={(preset) => {
-                if (preset.user_id === user?.id) {
-                  setSelectedPreset(preset);
-                  setIsEditDialogOpen(true);
-                }
-              }}
-              rowSelection={rowSelection}
-              onRowSelectionChange={setRowSelection}
-              columns={
-                isEditMode ? columns : columns.filter((c) => c.id !== 'select')
-              }
-              data={presets}
-              isLoading={isLoading || isFetching}
-              manualPagination
-              pageCount={totalPages}
-              pagination={{
-                pageIndex: currentPage - 1,
-                pageSize: itemsPerPage,
-              }}
-              onPaginationChange={(pageIndex, pageSize) => {
-                if (pageSize !== itemsPerPage) {
-                  setItemsPerPage(pageSize);
-                  setCurrentPage(1);
-                } else {
-                  setCurrentPage(pageIndex + 1);
-                }
-              }}
-            />
+            <div className="space-y-4">
+              <div
+                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${
+                  isLoading || isFetching ? 'opacity-70 grayscale-[0.3]' : ''
+                }`}
+              >
+                {table.getRowModel().rows.map((row) => {
+                  const preset = row.original;
+                  return (
+                    <WorkoutPresetCard
+                      key={row.id}
+                      preset={preset}
+                      isOwned={preset.user_id === user?.id}
+                      isEditMode={isEditMode}
+                      isSelected={row.getIsSelected()}
+                      weightUnit={weightUnit}
+                      onToggleSelect={() => row.toggleSelected()}
+                      onStart={() => handleStartWorkoutPlayback(preset)}
+                      onLogToDiary={() => handleLogPresetToDiary(preset)}
+                      onDuplicate={() => handleDuplicatePreset(preset)}
+                      onEdit={() => {
+                        setSelectedPreset(preset);
+                        setIsEditDialogOpen(true);
+                      }}
+                      onDelete={() => handleDeletePreset(preset.id.toString())}
+                    />
+                  );
+                })}
+              </div>
+              <DataTablePagination table={table} />
+            </div>
           )}
         </CardContent>
       </Card>

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   getWorkoutPresets,
+  getWorkoutPresetById,
   createWorkoutPreset,
   updateWorkoutPreset,
   deleteWorkoutPreset,
@@ -37,6 +38,17 @@ export const useWorkoutPresets = (
         'Failed to load workout presets.'
       ),
     },
+  });
+};
+
+/** A single preset by id, fully hydrated with its exercises/sets — used to
+ * launch playback from a day's plan assignment, which only carries the
+ * preset's id/name, not its full structure. */
+export const useWorkoutPreset = (id: string | number | undefined) => {
+  return useQuery({
+    queryKey: presetKeys.detail(String(id)),
+    queryFn: () => getWorkoutPresetById(id!),
+    enabled: id !== undefined && id !== null,
   });
 };
 

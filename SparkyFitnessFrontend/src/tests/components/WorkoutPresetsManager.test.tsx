@@ -137,11 +137,11 @@ describe('WorkoutPresetsManager duplicate preset', () => {
   it('creates a private copy with the original exercises/sets and a "(Copy)" name, regardless of the source visibility', async () => {
     render(<WorkoutPresetsManager />);
 
-    // DataTable renders both a desktop table and a mobile card list at once
-    // (toggled with CSS media queries jsdom doesn't apply), so each row's
-    // menu trigger appears twice; only one needs to be exercised here.
+    // Each preset renders as one WorkoutPresetCard with its own actions
+    // menu trigger (sr-only label "Actions", not "Open menu" — the card grid
+    // replaced the old per-row DataTable dropdown).
     // Radix's dropdown trigger opens on pointerDown, not click.
-    const trigger = screen.getAllByRole('button', { name: /open menu/i })[0]!;
+    const trigger = screen.getAllByRole('button', { name: /actions/i })[0]!;
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerId: 1 });
     fireEvent.click(trigger);
     fireEvent.click((await screen.findAllByText('Duplicate'))[0]!);
@@ -166,7 +166,7 @@ describe('WorkoutPresetsManager duplicate preset', () => {
     try {
       render(<WorkoutPresetsManager />);
 
-      const trigger = screen.getAllByRole('button', { name: /open menu/i })[0]!;
+      const trigger = screen.getAllByRole('button', { name: /actions/i })[0]!;
       fireEvent.pointerDown(trigger, {
         button: 0,
         ctrlKey: false,

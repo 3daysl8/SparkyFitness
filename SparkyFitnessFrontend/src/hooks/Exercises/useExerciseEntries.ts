@@ -3,6 +3,7 @@ import {
   useQueries,
   useMutation,
   useQueryClient,
+  keepPreviousData,
 } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -15,7 +16,9 @@ import {
   deleteExercisePresetEntry,
   fetchExerciseDetails,
   getExerciseHistory,
+  getExerciseEntryHistoryPage,
   getExerciseStats,
+  getExerciseProgressData,
 } from '@/api/Exercises/exerciseEntryService';
 import { exerciseEntryKeys, exerciseKeys } from '@/api/keys/exercises';
 import i18n from '@/i18n';
@@ -43,6 +46,41 @@ export const useExerciseHistory = (exerciseId: string, limit: number = 5) => {
     queryKey: exerciseEntryKeys.history(exerciseId, limit),
     queryFn: () => getExerciseHistory(exerciseId, limit),
     enabled: !!exerciseId,
+  });
+};
+
+/** Raw per-entry progress data for one exercise over a date range — used by
+ * the Exercise Library detail modal to chart volume history. */
+export const useExerciseProgress = (
+  exerciseId: string | undefined,
+  startDate: string,
+  endDate: string,
+  enabled: boolean = true
+) => {
+  return useQuery({
+    queryKey: exerciseEntryKeys.progress(
+      exerciseId ?? '',
+      startDate,
+      endDate,
+      'daily'
+    ),
+    queryFn: () => getExerciseProgressData(exerciseId!, startDate, endDate),
+    enabled: enabled && !!exerciseId,
+  });
+};
+
+/** One page of the workout logbook (History tab): every past session,
+ * newest first, server-paginated — mirrors useWorkoutPresets' manual
+ * pagination shape (page/pageSize state owned by the caller). */
+export const useExerciseEntryHistoryPage = (
+  page: number,
+  pageSize: number,
+  userId?: string
+) => {
+  return useQuery({
+    queryKey: exerciseEntryKeys.historyPage(page, pageSize, userId),
+    queryFn: () => getExerciseEntryHistoryPage(page, pageSize, userId),
+    placeholderData: keepPreviousData,
   });
 };
 

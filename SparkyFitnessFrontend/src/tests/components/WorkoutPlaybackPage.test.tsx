@@ -76,6 +76,77 @@ describe('WorkoutPlaybackPage', () => {
     mockLocationState = { returnTo: '/?date=2026-04-27' };
   });
 
+  describe('finishing a workout', () => {
+    it('shows the finish-summary modal with PR count after saving, then Done clears the draft and navigates away', async () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        presetFixture,
+        '2026-04-27'
+      );
+      draft.exercises.forEach((exercise) => {
+        exercise.sets.forEach((set) => {
+          set.completed = true;
+        });
+      });
+      if (draft.exercises[0]?.sets[0]) {
+        draft.exercises[0].sets[0].is_pr = true;
+      }
+      mockLocationState = { returnTo: '/?date=2026-04-27', draft };
+      mockCreatePresetSession.mockResolvedValue(undefined);
+
+      render(<WorkoutPlaybackPage />);
+      // Mounting fires an unrelated one-time route-state-scrub navigate call
+      // (see the scrubbedRouteStateRef effect) — not part of the finish flow.
+      const navigateCallsBeforeFinish = mockNavigate.mock.calls.length;
+
+      const finishButtons = screen.getAllByRole('button', {
+        name: /finish workout/i,
+      });
+      fireEvent.click(finishButtons[0]!);
+
+      await waitFor(() =>
+        expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
+      );
+      expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
+      expect(screen.getByText('1 Personal Record!')).toBeInTheDocument();
+      // The draft/navigation are deferred until "Done" is pressed, not fired
+      // immediately on save — the whole point of the recap step.
+      expect(mockNavigate.mock.calls.length).toBe(navigateCallsBeforeFinish);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+      expect(mockNavigate).toHaveBeenLastCalledWith('/?date=2026-04-27', {
+        replace: true,
+      });
+      expect(
+        window.localStorage.getItem('sparky.workoutPlaybackDraft.v1:2026-04-27')
+      ).toBeNull();
+    });
+
+    it('does not show a personal-record callout when no set was a PR', async () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        presetFixture,
+        '2026-04-27'
+      );
+      draft.exercises.forEach((exercise) => {
+        exercise.sets.forEach((set) => {
+          set.completed = true;
+        });
+      });
+      mockLocationState = { returnTo: '/?date=2026-04-27', draft };
+      mockCreatePresetSession.mockResolvedValue(undefined);
+
+      render(<WorkoutPlaybackPage />);
+
+      const finishButtons = screen.getAllByRole('button', {
+        name: /finish workout/i,
+      });
+      fireEvent.click(finishButtons[0]!);
+
+      expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
+      expect(screen.queryByText(/Personal Record/i)).not.toBeInTheDocument();
+    });
+  });
+
   it('shows elapsed timer and collapses completed exercises', () => {
     const draft = createWorkoutPlaybackDraftFromPreset(
       presetFixture,

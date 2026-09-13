@@ -885,6 +885,36 @@
       "valuePlaceholder": "e.g., 'Sunny', 'Energetic'",
       "addCustomFieldButton": "Add Custom Field"
     },
+    "workoutsPage": {
+      "tabs": {
+        "routines": "Routines & Programs",
+        "history": "History",
+        "library": "Exercise Library"
+      }
+    },
+    "activeProgramWidget": {
+      "rest": "Rest"
+    },
+    "workoutFinishSummary": {
+      "title": "Workout Complete!",
+      "prCount": "{{count}} Personal Records!",
+      "duration": "Duration",
+      "sets": "Sets",
+      "volume": "Volume"
+    },
+    "exerciseDetailModal": {
+      "primaryMuscles": "Primary: ",
+      "secondaryMuscles": "Secondary: ",
+      "estimated1RM": "Est. 1RM",
+      "bestSet": "Best Set",
+      "volumeHistory": "Volume History (last 90 days)"
+    },
+    "workoutsHistory": {
+      "untitledWorkout": "Workout",
+      "exercise": "Exercise",
+      "repeatWorkout": "Repeat Workout",
+      "emptyState": "No workouts logged yet — finish a session and it'll show up here."
+    },
     "databaseManager": {
       "errorLoadingExercises": "Error loading exercises:",
       "failedToLoadExercises": "Failed to load exercises",
@@ -1156,6 +1186,7 @@
     "logSuccess": "Workout preset \"{{presetName}}\" logged to diary.",
     "logError": "Failed to log workout preset \"{{presetName}}\" to diary.",
     "exercises": "Exercises",
+    "exerciseCount": "{{count}} exercises",
     "logToDiary": "Log to Diary",
     "duplicate": "Duplicate",
     "duplicateNameSuffix": "{{name}} (Copy)",
@@ -1167,6 +1198,8 @@
   },
   "workoutPlansManager": {
     "addPlanButton": "Add Plan",
+    "managePlansButton": "Manage Programs",
+    "managePlansTitle": "Manage Programs",
     "noPlansFound": "No workout plans found. Create one to get started!",
     "editPlanTooltip": "Edit Workout Plan",
     "deletePlanTooltip": "Delete Workout Plan",
@@ -2524,6 +2557,7 @@
     "add": "Add",
     "saving": "Saving...",
     "cancel": "Cancel",
+    "done": "Done",
     "saveChanges": "Save Changes",
     "active": "Active",
     "pickADate": "Pick a Date",

@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import {
   Plus,
   Edit,
@@ -11,6 +16,7 @@ import {
   CheckSquare,
   X,
   MoreHorizontal,
+  ListChecks,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,23 +39,19 @@ import {
   useWorkoutPlanTemplates,
 } from '@/hooks/Exercises/useWorkoutPlans';
 
-import { useBulkSelection } from '@/hooks/useBulkSelection';
-import BulkActionToolbar from '@/components/BulkActionToolbar';
-import BulkDeleteDialog from '@/components/BulkDeleteDialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { DataTable } from '@/components/ui/DataTable';
-import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Badge } from '@/components/ui/badge';
-
+// Programs are lower-cardinality than routines (typically a handful, one
+// active at a time), so unlike WorkoutPresetsManager's card grid this stays
+// a compact "Manage Programs" dialog rather than a permanent full-width
+// section — the Active Program Widget (a later phase) carries the primary
+// visual weight for programs on this tab.
 const WorkoutPlansManager = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { loggingLevel } = usePreferences();
-  const isMobile = useIsMobile();
 
   const [isAddPlanDialogOpen, setIsAddPlanDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<WorkoutPlanTemplate | null>(
     null
   );
@@ -61,47 +63,6 @@ const WorkoutPlansManager = () => {
     useUpdateWorkoutPlanTemplateMutation();
   const { mutateAsync: deleteWorkoutPlanTemplate } =
     useDeleteWorkoutPlanTemplateMutation();
-
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-
-  const selectedIdsFromTable = React.useMemo(() => {
-    const selected = new Set<string>();
-    Object.keys(rowSelection).forEach((index) => {
-      const plan = plans?.[parseInt(index)];
-      if (plan) selected.add(plan.id);
-    });
-    return selected;
-  }, [rowSelection, plans]);
-
-  const {
-    selectedIds,
-    selectAll,
-    clearSelection,
-    selectedCount,
-    isEditMode,
-    toggleEditMode,
-  } = useBulkSelection(selectedIdsFromTable);
-
-  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-
-  const editablePlanIds = (plans || []).map((p) => p.id);
-
-  const allSelected =
-    editablePlanIds.length > 0 && selectedCount === editablePlanIds.length;
-
-  const handleBulkDeleteConfirm = async () => {
-    try {
-      await Promise.all(
-        Array.from(selectedIds).map((id) => deleteWorkoutPlanTemplate(id))
-      );
-    } catch (err) {
-      // Error handling is handled by mutation
-    } finally {
-      clearSelection();
-      setRowSelection({});
-      setShowBulkDeleteDialog(false);
-    }
-  };
 
   const handleCreatePlan = async (
     newPlanData: Omit<
@@ -171,204 +132,33 @@ const WorkoutPlansManager = () => {
     [user?.id, plans, t, updateWorkoutPlanTemplate, loggingLevel]
   );
 
-  const columns = React.useMemo<ColumnDef<WorkoutPlanTemplate>[]>(
-    () => [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <Checkbox
-            checked={table.getIsAllPageRowsSelected()}
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-            aria-label="Select all"
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-          />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-      },
-      {
-        accessorKey: 'plan_name',
-        header: t('workoutPlansManager.planName', 'Plan Name'),
-        cell: ({ row }) => {
-          const plan = row.original;
-          return (
-            <div className="flex flex-col">
-              <span className="font-semibold">{plan.plan_name}</span>
-              {plan.description && (
-                <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                  {plan.description}
-                </span>
-              )}
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: 'is_active',
-        header: t('workoutPlansManager.status', 'Status'),
-        cell: ({ row }) => {
-          const plan = row.original;
-          return (
-            <Badge
-              variant={plan.is_active ? 'default' : 'secondary'}
-              className="font-normal text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTogglePlanActive(plan.id, !plan.is_active);
-              }}
-            >
-              {plan.is_active
-                ? t('workoutPlansManager.activeStatus')
-                : t('workoutPlansManager.inactiveStatus')}
-            </Badge>
-          );
-        },
-      },
-      {
-        id: 'dates',
-        header: t('workoutPlansManager.duration', 'Duration'),
-        cell: ({ row }) => {
-          const plan = row.original;
-          return (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CalendarDays className="h-3 w-3" />
-              <span>{new Date(plan.start_date!).toLocaleDateString()}</span>
-              <span>-</span>
-              <span>
-                {plan.end_date
-                  ? new Date(plan.end_date).toLocaleDateString()
-                  : t('workoutPlansManager.ongoingStatus', 'Ongoing')}
-              </span>
-            </div>
-          );
-        },
-        meta: { colSpan: 2 },
-      },
-      {
-        id: 'actions',
-        header: t('common.actions', 'Actions'),
-        cell: ({ row }) => {
-          const plan = row.original;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  {t('common.actions', 'Actions')}
-                </DropdownMenuLabel>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setSelectedPlan(plan);
-                    setIsEditDialogOpen(true);
-                  }}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  {t('common.edit', 'Edit')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    handleTogglePlanActive(plan.id, !plan.is_active)
-                  }
-                >
-                  {plan.is_active ? (
-                    <>
-                      <X className="mr-2 h-4 w-4" />
-                      {t('workoutPlansManager.deactivate', 'Deactivate')}
-                    </>
-                  ) : (
-                    <>
-                      <CheckSquare className="mr-2 h-4 w-4" />
-                      {t('workoutPlansManager.activate', 'Activate')}
-                    </>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => handleDeletePlan(plan.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {t('common.delete', 'Delete')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        },
-      },
-    ],
-    [t, handleTogglePlanActive, handleDeletePlan]
-  );
-
-  if (!plans) return null;
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
-            {t(
-              'exercise.databaseManager.workoutPlansCardTitle',
-              'Workout Plans'
-            )}
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size={isMobile ? 'icon' : 'default'}
-              onClick={toggleEditMode}
-              className={`shrink-0 ${
-                isEditMode
-                  ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
-                  : ''
-              }`}
-              title={
-                isEditMode
-                  ? t('common.cancel', 'Cancel')
-                  : t('common.select', 'Select')
-              }
-            >
-              {isEditMode ? (
-                isMobile ? (
-                  <X className="w-5 h-5" />
-                ) : (
-                  t('common.cancel', 'Cancel')
-                )
-              ) : isMobile ? (
-                <CheckSquare className="w-5 h-5" />
-              ) : (
-                t('common.select', 'Select')
-              )}
-            </Button>
-            <Button
-              onClick={() => setIsAddPlanDialogOpen(true)}
-              size={isMobile ? 'icon' : 'default'}
-              className="shrink-0"
-              title={t('workoutPlansManager.addPlanButton', 'Add Plan')}
-            >
-              <Plus className={isMobile ? 'h-5 w-5' : 'h-4 w-4 mr-2'} />
-              {!isMobile && (
-                <span>
-                  {t('workoutPlansManager.addPlanButton', 'Add Plan')}
-                </span>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {plans.length === 0 ? (
+    <div className="flex gap-2">
+      <Button
+        variant="outline"
+        onClick={() => setIsAddPlanDialogOpen(true)}
+        className="shrink-0 gap-2"
+      >
+        <Plus className="h-4 w-4" />
+        {t('workoutPlansManager.addPlanButton', 'Add Plan')}
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => setIsManageDialogOpen(true)}
+        className="shrink-0 gap-2"
+      >
+        <ListChecks className="h-4 w-4" />
+        {t('workoutPlansManager.managePlansButton', 'Manage Programs')}
+      </Button>
+
+      <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {t('workoutPlansManager.managePlansTitle', 'Manage Programs')}
+            </DialogTitle>
+          </DialogHeader>
+          {!plans || plans.length === 0 ? (
             <p className="text-center text-gray-400 py-10 italic">
               {t(
                 'workoutPlansManager.noPlansFound',
@@ -376,54 +166,97 @@ const WorkoutPlansManager = () => {
               )}
             </p>
           ) : (
-            <DataTable
-              titleColumnId="plan_name"
-              onRowDoubleClick={(plan) => {
-                setSelectedPlan(plan);
-                setIsEditDialogOpen(true);
-              }}
-              rowSelection={rowSelection}
-              onRowSelectionChange={setRowSelection}
-              columns={
-                isEditMode ? columns : columns.filter((c) => c.id !== 'select')
-              }
-              data={plans}
-            />
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="flex items-center justify-between gap-2 rounded-md border p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm truncate">
+                        {plan.plan_name}
+                      </span>
+                      <Badge
+                        variant={plan.is_active ? 'default' : 'secondary'}
+                        className="font-normal text-[10px] cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                        onClick={() =>
+                          handleTogglePlanActive(plan.id, !plan.is_active)
+                        }
+                      >
+                        {plan.is_active
+                          ? t('workoutPlansManager.activeStatus')
+                          : t('workoutPlansManager.inactiveStatus')}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                      <CalendarDays className="h-3 w-3 shrink-0" />
+                      <span>
+                        {new Date(plan.start_date!).toLocaleDateString()}
+                      </span>
+                      <span>-</span>
+                      <span>
+                        {plan.end_date
+                          ? new Date(plan.end_date).toLocaleDateString()
+                          : t('workoutPlansManager.ongoingStatus', 'Ongoing')}
+                      </span>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0 shrink-0">
+                        <span className="sr-only">
+                          {t('common.actions', 'Actions')}
+                        </span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>
+                        {t('common.actions', 'Actions')}
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedPlan(plan);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        {t('common.edit', 'Edit')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleTogglePlanActive(plan.id, !plan.is_active)
+                        }
+                      >
+                        {plan.is_active ? (
+                          <>
+                            <X className="mr-2 h-4 w-4" />
+                            {t('workoutPlansManager.deactivate', 'Deactivate')}
+                          </>
+                        ) : (
+                          <>
+                            <CheckSquare className="mr-2 h-4 w-4" />
+                            {t('workoutPlansManager.activate', 'Activate')}
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => handleDeletePlan(plan.id)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t('common.delete', 'Delete')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </div>
           )}
-        </CardContent>
-      </Card>
-
-      <BulkActionToolbar
-        selectedCount={selectedCount}
-        totalCount={editablePlanIds.length}
-        allSelected={allSelected}
-        onClear={() => {
-          clearSelection();
-          setRowSelection({});
-        }}
-        onDelete={() => setShowBulkDeleteDialog(true)}
-        onSelectAll={(checked) => {
-          if (checked) {
-            selectAll(editablePlanIds);
-            const newSelection: RowSelectionState = {};
-            plans.forEach((_, index) => {
-              newSelection[index] = true;
-            });
-            setRowSelection(newSelection);
-          } else {
-            clearSelection();
-            setRowSelection({});
-          }
-        }}
-      />
-
-      <BulkDeleteDialog
-        isOpen={showBulkDeleteDialog}
-        onOpenChange={setShowBulkDeleteDialog}
-        selectedCount={selectedCount}
-        entityName={t('workoutPlansManager.plans', 'plans')}
-        onConfirm={handleBulkDeleteConfirm}
-      />
+        </DialogContent>
+      </Dialog>
 
       <AddWorkoutPlanDialog
         key={`add-${isAddPlanDialogOpen ? 'open' : 'closed'}`}

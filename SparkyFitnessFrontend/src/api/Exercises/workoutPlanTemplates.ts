@@ -39,3 +39,18 @@ export const deleteWorkoutPlanTemplate = async (
     method: 'DELETE',
   });
 };
+
+/**
+ * Resolves the user's active workout plan (with all its day-of-week
+ * assignments) for a given date. When no plan is active, the server returns
+ * an empty body, which `apiCall` normalizes to `{}` — not `null` — so that
+ * shape is checked for here rather than left for callers to rediscover.
+ */
+export const getActiveWorkoutPlanTemplate = async (
+  date: string
+): Promise<WorkoutPlanTemplate | null> => {
+  const response = await apiCall(`/workout-plan-templates/active/${date}`, {
+    method: 'GET',
+  });
+  return response && response.id ? response : null;
+};

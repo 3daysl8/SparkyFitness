@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { ExerciseModality } from '@workspace/shared';
 import type { WorkoutPresetSet } from '@/types/workout';
+import { DEFAULT_REST_SECONDS } from '@/utils/workoutPlayback';
 export const EXERCISE_CATEGORIES = [
   {
     value: 'general',
@@ -165,8 +166,15 @@ export const defaultSetForModality = (
         reps: null,
         weight: null,
         duration: null,
+        rest_time: DEFAULT_REST_SECONDS,
       }
-    : { set_number: 1, set_type: 'Working Set', reps: 10, weight: null };
+    : {
+        set_number: 1,
+        set_type: 'Working Set',
+        reps: 10,
+        weight: null,
+        rest_time: DEFAULT_REST_SECONDS,
+      };
 
 export const DAYS_OF_WEEK = [
   { id: 0, name: 'Sunday' },

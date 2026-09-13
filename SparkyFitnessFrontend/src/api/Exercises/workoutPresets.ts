@@ -11,6 +11,14 @@ export const getWorkoutPresets = async (
   });
 };
 
+export const getWorkoutPresetById = async (
+  id: string | number
+): Promise<WorkoutPreset> => {
+  return apiCall(`/workout-presets/${id}`, {
+    method: 'GET',
+  });
+};
+
 export const createWorkoutPreset = async (
   presetData: Omit<WorkoutPreset, 'id' | 'created_at' | 'updated_at'>
 ): Promise<WorkoutPreset> => {

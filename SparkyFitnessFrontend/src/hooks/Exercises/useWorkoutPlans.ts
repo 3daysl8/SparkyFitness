@@ -5,6 +5,7 @@ import {
   createWorkoutPlanTemplate,
   updateWorkoutPlanTemplate,
   deleteWorkoutPlanTemplate,
+  getActiveWorkoutPlanTemplate,
 } from '@/api/Exercises/workoutPlanTemplates';
 import type { WorkoutPlanTemplate } from '@/types/workout';
 
@@ -13,6 +14,7 @@ export const workoutPlanKeys = {
   lists: () => [...workoutPlanKeys.all, 'list'] as const,
   details: () => [...workoutPlanKeys.all, 'detail'] as const,
   detail: (id: string) => [...workoutPlanKeys.details(), id] as const,
+  active: (date: string) => [...workoutPlanKeys.all, 'active', date] as const,
 };
 
 // --- Queries ---
@@ -32,6 +34,18 @@ export const useWorkoutPlanTemplates = (userId?: string) => {
         'Failed to load workout plans.'
       ),
     },
+  });
+};
+
+/** The active program (with all its day-of-week assignments) for a given
+ * date, or null when no program is active. Shared by the Active Program
+ * Widget and the Home dashboard's "Today's Planned Workout" card so both
+ * read the exact same query/cache entry. */
+export const useActiveWorkoutPlan = (date: string, userId?: string) => {
+  return useQuery({
+    queryKey: workoutPlanKeys.active(date),
+    queryFn: () => getActiveWorkoutPlanTemplate(date),
+    enabled: !!date && !!userId,
   });
 };
 

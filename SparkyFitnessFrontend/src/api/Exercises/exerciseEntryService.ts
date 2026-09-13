@@ -17,6 +17,8 @@ import {
   presetSessionResponseSchema,
   exerciseStatsResponseSchema,
   ExerciseStatsResponse,
+  ExerciseHistoryResponse,
+  exerciseHistoryResponseSchema,
 } from '@workspace/shared';
 import z from 'zod';
 import { parseJsonArray } from './exerciseService';
@@ -221,6 +223,31 @@ export const getExerciseHistory = async (
     }
   );
   return response;
+};
+
+/**
+ * Fetches a page of the workout logbook: every past session (preset-grouped
+ * or standalone), newest first. This is the History tab's data source —
+ * distinct from getExerciseHistory above, which is a per-exercise ghost-value
+ * lookup, not a session feed.
+ */
+export const getExerciseEntryHistoryPage = async (
+  page: number,
+  pageSize: number,
+  userId?: string
+): Promise<ExerciseHistoryResponse> => {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+  });
+  if (userId) {
+    params.append('userId', userId);
+  }
+  const response = await apiCall(
+    `/v2/exercise-entries/history?${params.toString()}`,
+    { method: 'GET' }
+  );
+  return exerciseHistoryResponseSchema.parse(response);
 };
 
 export const getExerciseStats = async (

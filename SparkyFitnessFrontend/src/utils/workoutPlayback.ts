@@ -4,6 +4,8 @@ import {
   setsDurationMinutes,
   type CreatePresetSessionRequest,
   type ExerciseModality,
+  type ExerciseSessionResponse,
+  type ExerciseEntryResponse,
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
@@ -370,6 +372,112 @@ export function createWorkoutPlaybackRouteState(
   return {
     returnTo,
     draft: createWorkoutPlaybackDraftFromPreset(preset, entryDate),
+  };
+}
+
+/** "Repeat Workout" from a past logbook session: same draft shape as
+ * createWorkoutPlaybackDraftFromPreset, but sourced from what was actually
+ * performed last time (an ExerciseSessionResponse) rather than a preset's
+ * stored targets. A preset-type session carries its own `exercises` array;
+ * an individual-type session IS a single exercise entry, so it becomes a
+ * one-exercise draft. Every set starts uncompleted again, same as starting
+ * from a preset. */
+export function createWorkoutPlaybackDraftFromSession(
+  session: ExerciseSessionResponse,
+  entryDate: string
+): WorkoutPlaybackDraft {
+  const createdAt = nowIso();
+  const sourceExercises: ExerciseEntryResponse[] =
+    session.type === 'preset' ? session.exercises : [session];
+
+  const exercises: WorkoutPlaybackExerciseDraft[] = sourceExercises.map(
+    (exercise, exerciseIndex) => ({
+      exercise_id: exercise.exercise_id,
+      exercise_name:
+        exercise.exercise_snapshot?.name || `Exercise ${exerciseIndex + 1}`,
+      image_url:
+        exercise.exercise_snapshot?.images?.[0] ??
+        exercise.image_url ??
+        undefined,
+      modality: resolveExerciseModality(
+        exercise.exercise_snapshot?.modality,
+        exercise.exercise_snapshot?.category ?? exercise.category ?? undefined
+      ),
+      notes: null,
+      started_at: null,
+      ended_at: null,
+      sets:
+        exercise.sets.length > 0
+          ? exercise.sets.map((set, setIndex) => ({
+              set_number: set.set_number ?? setIndex + 1,
+              set_type: set.set_type ?? 'Working Set',
+              reps: set.reps ?? null,
+              weight: set.weight ?? null,
+              duration: set.duration ?? null,
+              distance: set.distance ?? null,
+              rest_time: set.rest_time ?? DEFAULT_REST_SECONDS,
+              notes: null,
+              rpe: set.rpe ?? null,
+              completed: false,
+              completed_at: null,
+            }))
+          : [
+              {
+                set_number: 1,
+                set_type: 'Working Set',
+                reps: null,
+                weight: null,
+                duration: null,
+                distance: null,
+                rest_time: DEFAULT_REST_SECONDS,
+                notes: null,
+                rpe: null,
+                completed: false,
+                completed_at: null,
+              },
+            ],
+    })
+  );
+
+  const draft: WorkoutPlaybackDraft = {
+    version: 1,
+    preset_id:
+      session.type === 'preset' && session.workout_preset_id
+        ? String(session.workout_preset_id)
+        : 'blank',
+    name: session.type === 'preset' ? session.name : session.name || 'Workout',
+    description: session.type === 'preset' ? session.description : null,
+    entry_date: entryDate,
+    notes: null,
+    source: 'sparky',
+    active_exercise_index: 0,
+    active_set_index: 0,
+    rest_timer: DEFAULT_REST_TIMER,
+    exercises,
+    started_at: createdAt,
+    updated_at: createdAt,
+  };
+
+  const pointer = fallbackPointer(draft);
+  draft.active_exercise_index = pointer.exerciseIndex;
+  draft.active_set_index = pointer.setIndex;
+  draft.exercises = draft.exercises.map((exercise, index) =>
+    index === pointer.exerciseIndex
+      ? { ...exercise, started_at: createdAt, ended_at: null }
+      : exercise
+  );
+
+  return draft;
+}
+
+export function createWorkoutPlaybackRouteStateFromSession(
+  session: ExerciseSessionResponse,
+  entryDate: string,
+  returnTo?: string
+): WorkoutPlaybackRouteState {
+  return {
+    returnTo,
+    draft: createWorkoutPlaybackDraftFromSession(session, entryDate),
   };
 }
 

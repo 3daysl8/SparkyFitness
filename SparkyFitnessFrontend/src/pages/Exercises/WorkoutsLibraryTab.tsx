@@ -37,16 +37,26 @@ import {
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useAuth } from '@/hooks/useAuth';
 import type { ExerciseOwnershipFilter } from '@/types/exercises';
-import WorkoutPresetsManager from './WorkoutPresetsManager';
-import WorkoutPlansManager from '@/pages/Exercises/WorkoutPlansManager';
 import {
   useExercises,
   useUpdateExerciseShareStatusMutation,
 } from '@/hooks/Exercises/useExercises';
 import { useEditExerciseForm } from '@/hooks/Exercises/useEditExerciseForm';
 import EditExerciseDialog from './EditExerciseDialog';
+import ExerciseDetailModal from './ExerciseDetailModal';
 import { useDeleteExercise } from '@/hooks/Exercises/useDeleteExercise';
 import { useExerciseFilters } from '@/hooks/Exercises/useExerciseFilter';
+import {
+  useFreeExerciseDBEquipment,
+  useFreeExerciseDBMuscleGroups,
+} from '@/hooks/Exercises/useFreeExerciseDB';
+import BodyMapFilter from './BodyMapFilter';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 import {
   EXERCISE_CATEGORIES,
   EXERCISE_CATEGORY_META,
@@ -107,7 +117,7 @@ const ExerciseRowThumbnail = ({
   );
 };
 
-const ExerciseDatabaseManager = () => {
+const WorkoutsLibraryTab = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { energyUnit, convertEnergy } = usePreferences();
@@ -144,6 +154,32 @@ const ExerciseDatabaseManager = () => {
 
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sortOrder, setSortOrder] = useState<string>('name:asc');
+  const [equipmentFilter, setEquipmentFilter] = useState<string[]>([]);
+  const [muscleGroupFilter, setMuscleGroupFilter] = useState<string[]>([]);
+  const [isBodyMapOpen, setIsBodyMapOpen] = useState(false);
+  const [detailExercise, setDetailExercise] =
+    useState<ExerciseInterface | null>(null);
+
+  const { data: availableEquipment = [] } = useFreeExerciseDBEquipment();
+  const { data: availableMuscleGroups = [] } = useFreeExerciseDBMuscleGroups();
+
+  const toggleEquipment = (equipment: string) => {
+    setEquipmentFilter((prev) =>
+      prev.includes(equipment)
+        ? prev.filter((e) => e !== equipment)
+        : [...prev, equipment]
+    );
+    setCurrentPage(1);
+  };
+
+  const toggleMuscle = (muscle: string) => {
+    setMuscleGroupFilter((prev) =>
+      prev.includes(muscle)
+        ? prev.filter((m) => m !== muscle)
+        : [...prev, muscle]
+    );
+    setCurrentPage(1);
+  };
 
   const { data } = useExercises(
     searchTerm,
@@ -152,7 +188,9 @@ const ExerciseDatabaseManager = () => {
     currentPage,
     itemsPerPage,
     user?.id,
-    sortOrder
+    sortOrder,
+    equipmentFilter,
+    muscleGroupFilter
   );
 
   const selectedIdsFromTable = useMemo(() => {
@@ -242,11 +280,17 @@ const ExerciseDatabaseManager = () => {
         cell: ({ row }) => {
           const exercise = row.original;
           return (
-            <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDetailExercise(exercise)}
+              className="flex items-center gap-3 text-left"
+            >
               <ExerciseRowThumbnail exercise={exercise} />
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-sm">{exercise.name}</span>
+                  <span className="font-semibold text-sm hover:underline">
+                    {exercise.name}
+                  </span>
                   {exercise.tags
                     ?.filter(
                       (tag) =>
@@ -266,7 +310,7 @@ const ExerciseDatabaseManager = () => {
                     ))}
                 </div>
               </div>
-            </div>
+            </button>
           );
         },
       },
@@ -404,6 +448,7 @@ const ExerciseDatabaseManager = () => {
       editForm,
       handleDeleteRequest,
       updateExerciseShareStatus,
+      setDetailExercise,
     ]
   );
 
@@ -414,7 +459,6 @@ const ExerciseDatabaseManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* Exercises Section */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle>
@@ -565,6 +609,57 @@ const ExerciseDatabaseManager = () => {
                 </Button>
               </div>
             </div>
+
+            {availableEquipment.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {availableEquipment.map((eq) => (
+                  <button
+                    key={eq}
+                    type="button"
+                    onClick={() => toggleEquipment(eq)}
+                    className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors capitalize
+                      ${
+                        equipmentFilter.includes(eq)
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600'
+                      }`}
+                  >
+                    {eq}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <Collapsible open={isBodyMapOpen} onOpenChange={setIsBodyMapOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-600 dark:text-gray-400"
+                >
+                  <span className="flex items-center gap-1.5">
+                    {t(
+                      'exercise.exerciseSearch.filterByMuscle',
+                      'Filter by muscle'
+                    )}
+                    {muscleGroupFilter.length > 0 && (
+                      <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold">
+                        {muscleGroupFilter.length}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${isBodyMapOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <BodyMapFilter
+                  selectedMuscles={muscleGroupFilter}
+                  onMuscleToggle={toggleMuscle}
+                  availableMuscleGroups={availableMuscleGroups}
+                />
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           <div className="space-y-4">
@@ -647,12 +742,6 @@ const ExerciseDatabaseManager = () => {
         onConfirm={handleBulkDeleteConfirm}
       />
 
-      {/* Workout Presets Section */}
-      <WorkoutPresetsManager />
-
-      {/* Workout Plans Section */}
-      <WorkoutPlansManager />
-
       <AddExerciseDialog
         open={isAddExerciseDialogOpen}
         onOpenChange={setIsAddExerciseDialogOpen}
@@ -676,6 +765,14 @@ const ExerciseDatabaseManager = () => {
 
       <EditExerciseDialog form={editForm} />
 
+      <ExerciseDetailModal
+        exercise={detailExercise}
+        open={!!detailExercise}
+        onOpenChange={(open) => {
+          if (!open) setDetailExercise(null);
+        }}
+      />
+
       {showSyncConfirmation && (
         <ConfirmationDialog
           open={showSyncConfirmation}
@@ -692,4 +789,4 @@ const ExerciseDatabaseManager = () => {
   );
 };
 
-export default ExerciseDatabaseManager;
+export default WorkoutsLibraryTab;

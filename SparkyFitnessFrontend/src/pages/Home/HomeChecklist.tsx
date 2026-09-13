@@ -62,6 +62,8 @@ import {
   useTodayFocusSnapshot,
 } from '@/hooks/useFocus';
 import { useExerciseEntries } from '@/hooks/Exercises/useExerciseEntries';
+import { useActiveWorkoutPlan } from '@/hooks/Exercises/useWorkoutPlans';
+import { useWorkoutPreset } from '@/hooks/Exercises/useWorkoutPresets';
 import {
   useWaterIntakeQuery,
   useWaterGoalQuery,
@@ -80,6 +82,8 @@ import type { ExerciseSessionResponse } from '@workspace/shared';
 import {
   loadWorkoutPlaybackDraftFromStorage,
   getWorkoutPlaybackStats,
+  createWorkoutPlaybackRouteState,
+  createBlankWorkoutPlaybackDraft,
   type WorkoutPlaybackDraft,
 } from '@/utils/workoutPlayback';
 import { formatWeight } from '@/utils/numberFormatting';
@@ -281,12 +285,31 @@ function summarizeWorkoutSessions(sessions: ExerciseSessionResponse[]) {
 function WorkoutCard({ selectedDate }: { selectedDate: string }) {
   const navigate = useNavigate();
   const { activeUserId } = useActiveUser();
-  const { weightUnit } = usePreferences();
+  const { weightUnit, timezone } = usePreferences();
   const { data: exerciseEntries = [] } = useExerciseEntries(
     selectedDate,
     activeUserId ?? undefined
   );
   const activeDraft = useActiveWorkoutDraft(selectedDate);
+  const todayIso = useMemo(() => todayInZone(timezone), [timezone]);
+  const isToday = selectedDate === todayIso;
+  const { data: activePlan } = useActiveWorkoutPlan(
+    selectedDate,
+    isToday ? (activeUserId ?? undefined) : undefined
+  );
+  const todaysAssignments = isToday
+    ? (activePlan?.assignments ?? []).filter(
+        (a) => a.day_of_week === dayOfWeek(selectedDate)
+      )
+    : [];
+  const scheduledAssignment = todaysAssignments.find(
+    (a) => a.workout_preset_id
+  );
+  // Called unconditionally (rules-of-hooks) even though its result is only
+  // used by the "scheduled today" branch below, which may not be reached.
+  const { data: scheduledPreset } = useWorkoutPreset(
+    scheduledAssignment?.workout_preset_id
+  );
 
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
@@ -362,6 +385,64 @@ function WorkoutCard({ selectedDate }: { selectedDate: string }) {
             {summary.durationMinutes === 1 ? '' : 's'} •{' '}
             {formatWeight(summary.volumeKg, weightUnit)}
           </p>
+        </div>
+      </button>
+    );
+  }
+
+  if (todaysAssignments.length > 0) {
+    const routineName =
+      scheduledAssignment?.workout_preset_name ||
+      todaysAssignments[0]?.exercise_name ||
+      'Workout';
+    const exerciseCount = scheduledPreset?.exercises?.length;
+
+    const handleStartScheduled = () => {
+      if (scheduledAssignment && scheduledPreset) {
+        const routeState = createWorkoutPlaybackRouteState(
+          scheduledPreset,
+          selectedDate,
+          '/'
+        );
+        navigate(`/workout-playback?date=${selectedDate}`, {
+          state: routeState,
+        });
+        return;
+      }
+      navigate(`/workout-playback?date=${selectedDate}`, {
+        state: {
+          returnTo: '/',
+          draft: createBlankWorkoutPlaybackDraft(selectedDate),
+        },
+      });
+    };
+
+    return (
+      <button
+        onClick={handleStartScheduled}
+        className={cn(
+          cardClassName,
+          'border-metric-workout/30 bg-metric-workout/10'
+        )}
+      >
+        <CircularProgress
+          value={0}
+          size={52}
+          strokeWidth={4}
+          className="text-metric-workout"
+        >
+          <Dumbbell className="h-5 w-5 text-metric-workout" />
+        </CircularProgress>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">Workout</p>
+          <p className="max-w-[110px] truncate text-sm font-semibold text-metric-workout">
+            {routineName}
+          </p>
+          {exerciseCount !== undefined && (
+            <p className="text-[10px] text-muted-foreground">
+              {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
+            </p>
+          )}
         </div>
       </button>
     );
