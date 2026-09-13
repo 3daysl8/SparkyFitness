@@ -2,6 +2,24 @@ import { getClient } from '../db/poolManager.js';
 import { log } from '../config/logging.js';
 // @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
 import format from 'pg-format';
+
+// Only one plan per user may be active at a time (the Active Program Widget
+// assumes exactly one). Must run inside the caller's own open transaction
+// (before COMMIT) so activation-and-deactivation is atomic.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function deactivateOtherWorkoutPlanTemplates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userId: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  excludeTemplateId: any
+) {
+  await client.query(
+    'UPDATE workout_plan_templates SET is_active = false, updated_at = now() WHERE user_id = $1 AND id != $2 AND is_active = true',
+    [userId, excludeTemplateId]
+  );
+}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function createWorkoutPlanTemplate(planData: any) {
   const client = await getClient(planData.user_id); // User-specific operation
@@ -23,6 +41,13 @@ async function createWorkoutPlanTemplate(planData: any) {
       templateValues
     );
     const newTemplate = templateResult.rows[0];
+    if (newTemplate.is_active) {
+      await deactivateOtherWorkoutPlanTemplates(
+        client,
+        planData.user_id,
+        newTemplate.id
+      );
+    }
     if (planData.assignments && planData.assignments.length > 0) {
       for (const a of planData.assignments) {
         const assignmentResult = await client.query(
@@ -210,6 +235,9 @@ async function updateWorkoutPlanTemplate(
         userId,
       ]
     );
+    if (updateData.is_active) {
+      await deactivateOtherWorkoutPlanTemplates(client, userId, templateId);
+    }
     // Instead of deleting and recreating, we will update the assignments
     if (updateData.assignments) {
       // First, get the existing assignments
