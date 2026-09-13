@@ -340,9 +340,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<boolean>(false);
   const [autoScaleOnlineImports, setAutoScaleOnlineImportsState] =
     useState<boolean>(true);
-  const [nutrientDisplayPreferences, setNutrientDisplayPreferences] = useState<
-    NutrientPreference[]
-  >([]);
+  const [nutrientDisplayPreferences] = useState<NutrientPreference[]>([]);
   const [waterDisplayUnit, setWaterDisplayUnitState] = useState<
     'ml' | 'oz' | 'liter'
   >('ml');
@@ -855,14 +853,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
   ]);
 
   const loadNutrientDisplayPreferences = useCallback(async () => {
-    if (!user) return;
-    try {
-      const data = await queryClient.fetchQuery(preferencesOptions.nutrients());
-      setNutrientDisplayPreferences(data);
-    } catch (err: unknown) {
-      console.error('Error fetching nutrient display preferences:', err);
-    }
-  }, [user, queryClient]);
+    // No-op (nutrient display preferences removed)
+  }, []);
 
   // --- Persistence and Updates ---
 
@@ -1294,7 +1286,6 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!loading) {
       if (user) {
         loadPreferences();
-        loadNutrientDisplayPreferences();
       } else {
         const savedWeightUnit = localStorage.getItem(
           'weightUnit'
@@ -1346,7 +1337,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
         if (savedChartScaleMode) setChartScaleModeState(savedChartScaleMode);
       }
     }
-  }, [user, loading, loadPreferences, loadNutrientDisplayPreferences]);
+  }, [user, loading, loadPreferences]);
 
   // --- Context Value Memoization ---
 

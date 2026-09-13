@@ -24,11 +24,6 @@ export const preferencesOptions = {
       },
       staleTime: Infinity,
     }),
-  nutrients: () =>
-    queryOptions({
-      queryKey: preferencesKeys.nutrients(),
-      queryFn: () => apiCall('/preferences/nutrient-display'),
-    }),
 };
 
 export const useUpdatePreferencesMutation = () => {
