@@ -85,10 +85,6 @@ import {
 import { CATEGORY_SUMMARIES } from '../ai/tools/metaTools.js';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
-import {
-  createFoodPhotoEstimateSink,
-  FOOD_PHOTO_ESTIMATE_PART_TYPE,
-} from '../ai/tools/foodPhotoEstimateSink.js';
 import path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -566,12 +562,7 @@ async function prepareChatContext(
   let activeToolNames: string[] | undefined;
   let prepareStep: ReturnType<typeof buildEscalationPrepareStep> | undefined;
 
-  // Catches the structured estimate if this turn analyses a food photo, so the
-  // numbers can be persisted and logged verbatim instead of the model retyping
-  // them one food at a time. Per-turn: two users' turns share this process.
-  const foodPhotoEstimateSink = createFoodPhotoEstimateSink();
   const toolBuildContext: ToolBuildContext = {
-    foodPhotoEstimateSink,
     latestImageDataUrl,
     serviceConfigId,
   };
@@ -655,10 +646,6 @@ async function prepareChatContext(
     activeToolNames,
     prepareStep,
     toolProfile,
-    // Returned so onFinish can persist whatever the vision tool captured this
-    // turn. The tools close over it, but they are built here and the message
-    // is saved in processChatMessageStream.
-    foodPhotoEstimateSink,
   };
 }
 
@@ -716,7 +703,6 @@ export function getSystemPrompt(
           'goals',
           'reports',
           'coaching',
-          'vision',
           'profile',
         ]);
 
@@ -742,16 +728,9 @@ export function getSystemPrompt(
     }
   }
 
-  if (categories.has('vision') && suffix === 'full') {
-    const visionPath = path.join(
-      __dirname,
-      '../prompts',
-      `chatbot-${suffix}-vision.md`
-    );
-    if (existsSync(visionPath)) {
-      content += '\n\n' + readFileSync(visionPath, 'utf-8').trim();
-    }
-  }
+  // Vision (food-photo/label scanning) prompt content was removed along with
+  // the food domain it served — the 'vision' category composes to zero tools
+  // now (see ai/tools/index.ts), so there is nothing left to prompt for here.
 
   // List any domains this turn's tool selection left dormant. In auto mode the
   // model can pull them in itself via sparky_enable_tools; in manual mode they
@@ -1288,9 +1267,12 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
       /\b(run|ran|running|walk|walked|walking|jog|jogged|jogging|lift|lifted|lifting|workout|workouts|exercise|exercises|reps|sets|cardio|strength|gym|heart rate|bpm|treadmill|squats?|bench press|swim|swam|swimming|bike|biking|cycling|cycled|yoga|hike[ds]?|hiking|steps|push-?ups?|pull-?ups?|training|trained|worked out|personal\s+record\w*|best\s+effort\w*|matched\s+course\w*|pace\s+record\w*|workout\s+plan\w*|workout\s+template\w*|training\s+plan\w*|training\s+program\w*)\b/i,
   },
   {
+    // Food/nutrition tracking was hard-deleted from this fork; 'food' now
+    // composes only water-container tools, so this rule is scoped to
+    // hydration terms rather than the old full nutrition vocabulary.
     category: 'food',
     keywords:
-      /\b(eat|ate|eating|food|foods|meal|meals|water|drink|drank|drinking|ml|oz|cup|cups|breakfast|lunch|dinner|snack|snacks|calories?|kcal|macro|macros|protein|carbs|fat|banana|apple|chicken|nutrition|nutrients?|coffee|tea|juice|smoothie|recipe|favou?rite\w*|meal\s*plan\w*|meal\s*template\w*|custom\s+nutrient\w*|micronutrient\w*|water\s+container\w*|water\s+bottle\w*|allerg\w*|intoleran\w*|anaphyla\w*|barcode|bar\s?code|UPC|EAN)\b/i,
+      /\b(water|drink|drank|drinking|ml|oz|cup|cups|water\s+container\w*|water\s+bottle\w*)\b/i,
   },
   {
     category: 'checkin',
@@ -1311,10 +1293,6 @@ const KEYWORD_RULES: { category: ChatToolCategorySlug; keywords: RegExp }[] = [
     category: 'coaching',
     keywords:
       /\b(advice|advise|tips?|motivat\w*|recommend\w*|suggest\w*|coach(?:ing)?|plan)\b/i,
-  },
-  {
-    category: 'vision',
-    keywords: /\b(photo|picture|image|label|scan|barcode)\b/i,
   },
   {
     category: 'profile',
@@ -1395,17 +1373,15 @@ async function classifyUserIntent(
 
   const text = extractMessageText(lastUserMessage);
 
-  // 1. Deterministic + keyword signals (instant, 0ms). An attached image
-  // on the current turn or recent turns in the active conversation always implies
-  // vision (+ food), ensuring follow-up logging turns have vision tools like
-  // sparky_log_food_photo loaded.
+  // 1. Deterministic + keyword signals (instant, 0ms). An attached image on
+  // the current turn or recent turns in the active conversation implies
+  // checkin (progress photos are the only remaining image-driven tools).
   const matchedCategories = new Set<ChatToolCategorySlug>(
     classifyByKeywords(text)
   );
   const hasRecentImage = messages.slice(-4).some((m) => hasImageParts(m));
   if (hasRecentImage || hasImageParts(lastUserMessage)) {
-    matchedCategories.add('vision');
-    matchedCategories.add('food');
+    matchedCategories.add('checkin');
   }
 
   // If we matched multiple clear keywords (e.g. food + exercise), return them immediately.
@@ -1429,14 +1405,13 @@ async function classifyUserIntent(
 
 Available domains:
 - exercise: tracking workouts, logging sets/reps, running, cardio, strength, steps, exercise stats, and workout plan templates.
-- food: logging meals, lookup foods/nutrition, tracking water intake, favorites, meal plans, custom nutrients, water containers, allergens, and barcode lookup.
+- food: tracking water intake and water containers.
 - checkin: logging daily check-ins, weight, height, body fat, other body measurements, progress photos, and sleep-science analytics.
-- goals: viewing or changing goals/targets.
+- goals: Focus goals/pillars and check-ins.
 - reports: viewing progress charts, summaries, TDEE, reports, or the daily dashboard.
 - coaching: general coaching advice, guidance, tips, or motivation.
-- vision: analyzing food photos or scanning nutrition labels.
 - profile: changing settings, preferences, timezone, habits, profile details, connected integrations, or synced-data.
-- medications: tracking medications and GLP-1.
+- medications: tracking medications and supplements.
 
 Your response must contain ONLY the matched domain names as a comma-separated list (e.g., "exercise, food" or "checkin" or "none"). Do not include any other text.`;
 
@@ -1724,14 +1699,7 @@ async function processChatMessage(
 
     // Determine the general action type based on executed tools
     let actionType = 'advice';
-    if (executedToolsList.some((t) => t.name === 'sparky_manage_food')) {
-      const logFoodCall = executedToolsList.find(
-        (t) => t.name === 'sparky_manage_food' && t.args?.action === 'log_food'
-      );
-      actionType = logFoodCall ? 'food_added' : 'advice';
-    } else if (
-      executedToolsList.some((t) => t.name === 'sparky_manage_exercise')
-    ) {
+    if (executedToolsList.some((t) => t.name === 'sparky_manage_exercise')) {
       actionType = 'exercise_added';
     } else if (
       executedToolsList.some((t) => t.name === 'sparky_manage_checkin')
@@ -1743,16 +1711,7 @@ async function processChatMessage(
       actionType = 'habit_logged';
     }
 
-    if (executedToolsList.some((t) => t.name === 'sparky_manage_food')) {
-      const foodCall = executedToolsList.find(
-        (t) => t.name === 'sparky_manage_food'
-      );
-      if (foodCall && foodCall.args?.action === 'food_options') {
-        actionType = 'food_options';
-      }
-    } else if (
-      executedToolsList.some((t) => t.name === 'sparky_manage_exercise')
-    ) {
+    if (executedToolsList.some((t) => t.name === 'sparky_manage_exercise')) {
       const exerciseCall = executedToolsList.find(
         (t) => t.name === 'sparky_manage_exercise'
       );
@@ -1772,84 +1731,6 @@ async function processChatMessage(
     throw error;
   }
 }
-const FOOD_OPTIONS_PROMPT = `You are Sparky, an AI nutrition and wellness coach. Your task is to generate minimum 3 realistic food options in JSON format when requested. Respond ONLY with a JSON array of FoodOption objects, including detailed nutritional information for EVERY field (calories, protein, carbs, fat, saturated_fat, polyunsaturated_fat, monounsaturated_fat, trans_fat, cholesterol, sodium, potassium, dietary_fiber, sugars, vitamin_a, vitamin_c, calcium, iron). **CRITICAL: You MUST estimate and populate every single micro-nutritional field. Do NOT default to 0 or leave blank any nutritional field if a realistic scientific estimation can be made based on the food type. Use your biochemical and culinary knowledge to calculate typical distributions.** Do NOT include any other text.
-**CRITICAL: When a unit is specified in the request (e.g., 'GENERATE_FOOD_OPTIONS:apple in piece'), ensure the \`serving_unit\` in the generated \`FoodOption\` objects matches the requested unit exactly, if it's a common and logical unit for that food. If not, provide a common and realistic serving unit.**`;
-
-const FOOD_OPTIONS_TEMPERATURE = 0.7;
-
-// 'no_ai_configured' is the only category this service mints itself; every
-// dispatch failure passes its category through unchanged for the route's
-// HTTP-status map.
-export type FoodOptionsErrorCategory =
-  DispatchErrorCategory | 'no_ai_configured';
-
-export type FoodOptionsResult =
-  | { success: true; content: string }
-  | { success: false; category: FoodOptionsErrorCategory; error: string };
-
-async function processFoodOptionsRequest(
-  foodName: string,
-  unit: string,
-  authenticatedUserId: string,
-  serviceConfigId: string,
-  actorIsAdmin = false
-): Promise<FoodOptionsResult> {
-  if (!serviceConfigId) {
-    return {
-      success: false,
-      category: 'no_ai_configured',
-      error: 'AI service configuration ID is missing.',
-    };
-  }
-  const aiService = await chatRepository.getAiServiceSettingForBackend(
-    serviceConfigId,
-    authenticatedUserId
-  );
-  if (!aiService) {
-    return {
-      success: false,
-      category: 'no_ai_configured',
-      error: 'AI service setting not found for the provided ID.',
-    };
-  }
-  const source = aiService.source || 'unknown';
-  log(
-    'info',
-    `Processing food options request for user ${authenticatedUserId} using AI service from ${source} (ID: ${serviceConfigId})`
-  );
-
-  // Dispatch reads everything from the decrypted backend detail. The helper
-  // enforces the supported-provider, api-key, and custom-url checks and
-  // reports each as a category the route maps to an HTTP status.
-  const provider: ProviderConfig = {
-    service_type: aiService.service_type,
-    api_key: aiService.api_key ?? undefined,
-    model_name: aiService.model_name ?? undefined,
-    custom_url: aiService.custom_url ?? undefined,
-  };
-
-  const prompt = `${FOOD_OPTIONS_PROMPT}\n\nGENERATE_FOOD_OPTIONS:${foodName} in ${unit}`;
-
-  const result = await dispatchAiRequest({
-    provider,
-    networkPolicy: deriveAiNetworkPolicy(aiService, actorIsAdmin),
-    prompt,
-    parseJson: true,
-    temperature: FOOD_OPTIONS_TEMPERATURE,
-  });
-
-  if (!result.ok) {
-    log(
-      result.category === 'refused' || result.category === 'no_content'
-        ? 'warn'
-        : 'error',
-      `Food options: ${provider.service_type} failed for user ${authenticatedUserId} (${result.category}): ${result.detail}`
-    );
-    return { success: false, category: result.category, error: result.detail };
-  }
-  return { success: true, content: result.text };
-}
-
 // Minimal completion used only to confirm a provider config actually works.
 const TEST_CONNECTION_PROMPT = 'Reply with the single word: OK.';
 // A short timeout so an unreachable custom URL fails in ~15s rather than hanging
@@ -2101,7 +1982,6 @@ async function processChatMessageStream(
       activeToolNames,
       prepareStep,
       toolProfile,
-      foodPhotoEstimateSink,
     } = await prepareChatContext(
       authenticatedUserId,
       aiService.service_type,
@@ -2225,12 +2105,6 @@ async function processChatMessageStream(
             log('error', 'Failed to save user chat history:', err)
           );
 
-        // A photo estimate analysed this turn is persisted with the message.
-        // Asking the user how to save it always ends the turn, so their answer
-        // arrives in a fresh one — and chat history strips images, so without
-        // this the numbers would be gone and the photo unrepeatable.
-        const capturedEstimate = foodPhotoEstimateSink.get();
-
         // A turn that ends on a quick-reply call carries the question in the
         // tool call, so it must be persisted too — otherwise the chips (and the
         // question they answer) vanish on reload, and the reloaded transcript
@@ -2239,7 +2113,7 @@ async function processChatMessageStream(
           (call) => call.toolName === ASK_USER_TOOL_NAME
         );
 
-        if (!text.trim() && !askCall && !capturedEstimate) {
+        if (!text.trim() && !askCall) {
           log(
             'warn',
             `Skipping empty assistant chat history for user ${userId} (finishReason: ${finishReason})`
@@ -2249,12 +2123,6 @@ async function processChatMessageStream(
 
         const assistantParts: Record<string, unknown>[] = [];
         if (text.trim()) assistantParts.push({ type: 'text', text });
-        if (capturedEstimate) {
-          assistantParts.push({
-            type: FOOD_PHOTO_ESTIMATE_PART_TYPE,
-            data: capturedEstimate,
-          });
-        }
         if (askCall) {
           assistantParts.push({
             type: ASK_USER_PART_TYPE,
@@ -2317,7 +2185,6 @@ export { deleteSparkyChatHistoryEntry };
 export { clearAllSparkyChatHistory };
 export { saveSparkyChatHistory };
 export { processChatMessage };
-export { processFoodOptionsRequest };
 export { testAiServiceConnection };
 export { processChatMessageStream };
 export default {
@@ -2333,7 +2200,6 @@ export default {
   clearAllSparkyChatHistory,
   saveSparkyChatHistory,
   processChatMessage,
-  processFoodOptionsRequest,
   testAiServiceConnection,
   processChatMessageStream,
 };

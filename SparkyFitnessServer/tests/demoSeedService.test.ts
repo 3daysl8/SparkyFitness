@@ -171,7 +171,7 @@ describe('Demo Mode Infrastructure', () => {
         expect.any(Array)
       );
       expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO food_entries'),
+        expect.stringContaining('INSERT INTO user_water_containers'),
         expect.any(Array)
       );
       expect(mockClient.release).toHaveBeenCalled();
@@ -254,7 +254,7 @@ describe('Demo Mode Infrastructure', () => {
 
       await resetDemoUserData();
       expect(mockClient.query).toHaveBeenCalledWith(
-        'DELETE FROM food_entries WHERE user_id = $1',
+        'DELETE FROM water_intake_entries WHERE user_id = $1',
         ['mock-demo-id']
       );
       expect(mockClient.query).toHaveBeenCalledWith(

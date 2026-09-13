@@ -26,31 +26,16 @@ import {
   scheduleDemoMidnightReset,
 } from './services/demoSeedService.js';
 import { fromNodeHeaders } from 'better-auth/node';
-import foodRoutes from './routes/foodRoutes.js';
-import favoritesRoutes from './routes/favoritesRoutes.js';
-// @ts-expect-error TS1192
-import v2FoodRoutes from './routes/v2/foodRoutes.js';
 // @ts-expect-error TS1192
 import v2ExerciseEntryRoutes from './routes/v2/exerciseEntryRoutes.js';
 // @ts-expect-error TS1192
 import v2ExerciseRoutes from './routes/v2/exerciseRoutes.js';
-import mealRoutes from './routes/mealRoutes.js';
-import foodEntryRoutes from './routes/foodEntryRoutes.js';
-import foodEntryMealRoutes from './routes/foodEntryMealRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import preferenceRoutes from './routes/preferenceRoutes.js';
 import dashboardLayoutRoutes from './routes/dashboardLayoutRoutes.js';
-import nutrientDisplayPreferenceRoutes from './routes/nutrientDisplayPreferenceRoutes.js';
-import nutrientGoalPreferenceRoutes from './routes/nutrientGoalPreferenceRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import measurementRoutes from './routes/measurementRoutes.js';
 import checkInPhotoRoutes from './routes/checkInPhotoRoutes.js';
-import goalRoutes from './routes/goalRoutes.js';
-import goalPresetRoutes from './routes/goalPresetRoutes.js';
-// @ts-expect-error TS1192
-import goalPresetRoutesV2 from './routes/v2/goalPresetRoutes.js';
-import weeklyGoalPlanRoutes from './routes/weeklyGoalPlanRoutes.js';
-import mealPlanTemplateRoutes from './routes/mealPlanTemplateRoutes.js';
 import exerciseRoutes from './routes/exerciseRoutes.js';
 import exerciseEntryRoutes from './routes/exerciseEntryRoutes.js';
 import exercisePresetEntryRoutes from './routes/exercisePresetEntryRoutes.js';
@@ -73,23 +58,17 @@ import stravaRoutes from './routes/stravaRoutes.js';
 import hevyRoutes from './routes/hevyRoutes.js';
 import moodRoutes from './routes/moodRoutes.js';
 import fastingRoutes from './routes/fastingRoutes.js';
-import adaptiveTdeeRoutes from './routes/adaptiveTdeeRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import globalSettingsRoutes from './routes/globalSettingsRoutes.js';
 import versionRoutes from './routes/versionRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
 import onboardingRoutes from './routes/onboardingRoutes.js';
-import customNutrientRoutes from './routes/customNutrientRoutes.js';
 import aiUnitConversionRoutes from './routes/aiUnitConversionRoutes.js';
-import allergenPreferenceRoutes from './routes/allergenPreferenceRoutes.js';
 import { applyMigrations } from './utils/dbMigrations.js';
 import { applyRlsPolicies } from './utils/applyRlsPolicies.js';
 import waterContainerRoutes from './routes/waterContainerRoutes.js';
 import waterIntakeRoutesV2 from './routes/v2/waterIntakeRoutes.js';
 import medicationRoutesV2 from './routes/v2/medicationRoutes.js';
-import symptomRoutesV2 from './routes/v2/symptomRoutes.js';
-import cycleRoutesV2 from './routes/v2/cycleRoutes.js';
-import pregnancyRoutesV2 from './routes/v2/pregnancyRoutes.js';
 import focusRoutesV2 from './routes/v2/focusRoutes.js';
 import calendarRoutesV2 from './routes/v2/calendarRoutes.js';
 import reportRoutesV2 from './routes/v2/reportRoutes.js';
@@ -99,7 +78,6 @@ import errorHandler from './middleware/errorHandler.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import cron from 'node-cron';
 import { scheduleBackupsOnStartup } from './services/backupScheduler.js';
-import { scheduleOpenFoodFactsAutoSyncOnStartup } from './services/openFoodFactsAutoSyncScheduler.js';
 import externalProviderRepository from './models/externalProviderRepository.js';
 import garminService from './services/garminService.js';
 import { getGarminSyncPhaseErrors } from './services/garminSyncResult.js';
@@ -109,10 +87,8 @@ import googleHealthService from './services/googleHealthService.js';
 import polarService from './services/polarService.js';
 import stravaService from './services/stravaService.js';
 import hevyService from './integrations/hevy/hevyService.js';
-// @ts-expect-error TS1192
 import dailySummaryRoutes from './routes/dailySummaryRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
-import mealTypeRoutes from './routes/mealTypeRoutes.js';
 // @ts-expect-error TS7016
 import swaggerUi from 'swagger-ui-express';
 import redoc from 'redoc-express';
@@ -636,29 +612,15 @@ app.get('/api/ping', (_req, res) =>
 // Mounting all API routes
 app.use('/api/chat', chatRoutes);
 app.use('/api/ai', aiUnitConversionRoutes);
-app.use('/api/foods', foodRoutes);
-app.use('/api/favorites', favoritesRoutes);
-app.use('/api/v2/foods', v2FoodRoutes);
 app.use('/api/v2/exercise-entries', v2ExerciseEntryRoutes);
 app.use('/api/v2/exercises', v2ExerciseRoutes);
-app.use('/api/food-entries', foodEntryRoutes);
-app.use('/api/food-entry-meals', foodEntryMealRoutes);
-app.use('/api/meals', mealRoutes);
 app.use('/api/daily-summary', dailySummaryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/user-preferences', preferenceRoutes);
 app.use('/api/dashboard-layouts', dashboardLayoutRoutes);
-app.use('/api/preferences/nutrient-display', nutrientDisplayPreferenceRoutes);
-app.use('/api/nutrient-goal-preferences', nutrientGoalPreferenceRoutes);
 app.use('/api/measurements', measurementRoutes);
 app.use('/api/measurements/check-in-photos', checkInPhotoRoutes);
-app.use('/api/goals', goalRoutes);
-app.use('/api/user-goals', goalRoutes);
-app.use('/api/goal-presets', goalPresetRoutes);
-app.use('/api/v2/goal-presets', goalPresetRoutesV2);
-app.use('/api/weekly-goal-plans', weeklyGoalPlanRoutes);
-app.use('/api/meal-plan-templates', mealPlanTemplateRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/exercise-entries', exerciseEntryRoutes);
 app.use('/api/exercise-preset-entries', exercisePresetEntryRoutes);
@@ -696,9 +658,6 @@ app.use('/api/admin/auth', (req, res, next) => adminAuthRoutes(req, res, next));
 app.use('/api/water-containers', waterContainerRoutes);
 app.use('/api/v2/measurements', waterIntakeRoutesV2);
 app.use('/api/v2/medications', medicationRoutesV2);
-app.use('/api/v2/symptoms', symptomRoutesV2);
-app.use('/api/v2/cycle', cycleRoutesV2);
-app.use('/api/v2/pregnancy', pregnancyRoutesV2);
 app.use('/api/v2/focus', focusRoutesV2);
 app.use('/api/v2/calendar', calendarRoutesV2);
 app.use('/api/v2/reports', reportRoutesV2);
@@ -706,10 +665,6 @@ app.use('/api/v2/nutrition', nutritionKineticsRoutesV2);
 app.use('/api/workout-presets', workoutPresetRoutes);
 app.use('/api/workout-plan-templates', workoutPlanTemplateRoutes);
 app.use('/api/review', reviewRoutes);
-app.use('/api/custom-nutrients', customNutrientRoutes);
-app.use('/api/allergen-preferences', allergenPreferenceRoutes);
-app.use('/api/adaptive-tdee', adaptiveTdeeRoutes);
-app.use('/api/meal-types', mealTypeRoutes);
 // Swagger
 app.use(
   '/api/api-docs/swagger',
@@ -1000,7 +955,6 @@ applyMigrations()
       );
     }
     scheduleBackupsOnStartup();
-    await scheduleOpenFoodFactsAutoSyncOnStartup();
     scheduleSessionCleanup();
     scheduleWithingsSyncs();
     scheduleGarminSyncs();

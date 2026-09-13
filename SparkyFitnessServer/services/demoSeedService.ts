@@ -14,8 +14,6 @@ import {
   isDemoMode,
 } from '../middleware/demoGuardMiddleware.js';
 
-import { createDefaultNutrientPreferencesForUser } from './nutrientDisplayPreferenceService.js';
-
 import crypto from 'crypto';
 
 /**
@@ -155,34 +153,6 @@ async function removeDemoUploadedFiles(
       ? path.resolve(process.env.SPARKY_FITNESS_CUSTOM_UPLOADS_DIRECTORY)
       : path.resolve(process.cwd(), 'uploads');
 
-    // Clean food entries image folders for demo user
-    const foodEntryRes = await client.query(
-      'SELECT id FROM food_entries WHERE user_id = $1',
-      [userId]
-    );
-    for (const row of foodEntryRes.rows) {
-      const entryDir = path.join(baseUploadsDir, 'food_entries', row.id);
-      if (fs.existsSync(entryDir)) {
-        await fs.promises
-          .rm(entryDir, { recursive: true, force: true })
-          .catch(() => {});
-      }
-    }
-
-    // Clean custom foods image folders for demo user
-    const foodsRes = await client.query(
-      'SELECT id FROM foods WHERE user_id = $1',
-      [userId]
-    );
-    for (const row of foodsRes.rows) {
-      const foodDir = path.join(baseUploadsDir, 'foods', row.id);
-      if (fs.existsSync(foodDir)) {
-        await fs.promises
-          .rm(foodDir, { recursive: true, force: true })
-          .catch(() => {});
-      }
-    }
-
     // Clean check-in photos for demo user
     const checkInDir = path.join(baseUploadsDir, 'check-in', userId);
     if (fs.existsSync(checkInDir)) {
@@ -239,15 +209,6 @@ async function cleanDemoUserData(
     [userId]
   );
 
-  await client.query('DELETE FROM cycle_daily_entries WHERE user_id = $1', [
-    userId,
-  ]);
-  await client.query('DELETE FROM cycles WHERE user_id = $1', [userId]);
-  await client.query('DELETE FROM cycle_settings WHERE user_id = $1', [userId]);
-  await client.query(
-    'DELETE FROM user_cycle_display_preferences WHERE user_id = $1',
-    [userId]
-  );
   await client.query('DELETE FROM medication_entries WHERE user_id = $1', [
     userId,
   ]);
@@ -293,68 +254,10 @@ async function cleanDemoUserData(
   await client.query('DELETE FROM user_water_containers WHERE user_id = $1', [
     userId,
   ]);
-  await client.query('DELETE FROM food_entries WHERE user_id = $1', [userId]);
-  await client.query('DELETE FROM food_entry_meals WHERE user_id = $1', [
-    userId,
-  ]);
-  await client.query(
-    'DELETE FROM food_variants WHERE food_id IN (SELECT id FROM foods WHERE user_id = $1)',
-    [userId]
-  );
-  await client.query('DELETE FROM foods WHERE user_id = $1', [userId]);
-  await client.query('DELETE FROM user_goals WHERE user_id = $1', [userId]);
   await client.query('DELETE FROM check_in_measurements WHERE user_id = $1', [
     userId,
   ]);
   await client.query('DELETE FROM fasting_logs WHERE user_id = $1', [userId]);
-}
-
-/**
- * Creates a custom food record and its matching default food variant.
- */
-async function createCustomFoodWithVariant(
-  client: PoolClient,
-  userId: string,
-  data: {
-    name: string;
-    servingSize: number;
-    servingUnit: string;
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    dietaryFiber: number;
-    sugars: number;
-  }
-): Promise<string> {
-  const foodRes = await client.query(
-    `INSERT INTO foods (id, user_id, name, is_custom, created_at, updated_at)
-     VALUES (gen_random_uuid(), $1, $2, true, NOW(), NOW())
-     RETURNING id`,
-    [userId, data.name]
-  );
-  const foodId = foodRes.rows[0].id;
-
-  await client.query(
-    `INSERT INTO food_variants (
-       id, food_id, serving_size, serving_unit, calories, protein, carbs, fat,
-       dietary_fiber, sugars, is_default, source, created_at, updated_at
-     )
-     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, true, 'manual', NOW(), NOW())`,
-    [
-      foodId,
-      data.servingSize,
-      data.servingUnit,
-      data.calories,
-      data.protein,
-      data.carbs,
-      data.fat,
-      data.dietaryFiber,
-      data.sugars,
-    ]
-  );
-
-  return foodId;
 }
 
 let activeSeedPromise: Promise<string> | null = null;
@@ -452,10 +355,7 @@ export async function seedDemoUser(): Promise<string> {
         [userId]
       );
 
-      // 4. Initialize default nutrient display preferences
-      await createDefaultNutrientPreferencesForUser(userId);
-
-      // 5. Populate or refresh demo fitness records
+      // 4. Populate or refresh demo fitness records
       await populateDemoDataForUser(userId, client);
 
       await client.query('COMMIT');
@@ -485,37 +385,7 @@ async function populateDemoDataForUser(
   const today = todayInZone('UTC');
   const yesterday = addDays(today, -1);
 
-  // Fetch standard meal types (Breakfast, Lunch, Dinner, Snack)
-  const mealTypesRes = await client.query(
-    'SELECT id, name FROM meal_types WHERE user_id IS NULL OR user_id = $1 ORDER BY sort_order ASC',
-    [userId]
-  );
-  const mealTypes = new Map<string, string>();
-  for (const row of mealTypesRes.rows) {
-    mealTypes.set(row.name.toLowerCase(), row.id);
-  }
-
-  const breakfastId =
-    mealTypes.get('breakfast') || mealTypesRes.rows[0]?.id || uuidv4();
-  const lunchId =
-    mealTypes.get('lunch') || mealTypesRes.rows[1]?.id || breakfastId;
-  const dinnerId =
-    mealTypes.get('dinner') || mealTypesRes.rows[2]?.id || lunchId;
-  const snackId =
-    mealTypes.get('snack') || mealTypesRes.rows[3]?.id || dinnerId;
-
-  // 1. User Goals Setup
-  await client.query(
-    `INSERT INTO user_goals (
-       id, user_id, goal_date, calories, protein, carbs, fat, water_goal_ml,
-       target_exercise_calories_burned, target_exercise_duration_minutes, created_at, updated_at
-     )
-     VALUES (gen_random_uuid(), $1, $2, 2200, 150, 220, 65, 2500, 400, 45, NOW(), NOW())
-     ON CONFLICT DO NOTHING`,
-    [userId, today]
-  );
-
-  // 2. Water Containers Setup
+  // 1. Water Containers Setup
   const bottleRes = await client.query(
     `INSERT INTO user_water_containers (user_id, name, volume, unit, is_primary, servings_per_container, created_at, updated_at)
      VALUES ($1, 'Hydro Flask', 750, 'ml', true, 1, NOW(), NOW())
@@ -532,113 +402,7 @@ async function populateDemoDataForUser(
   );
   const glassId = glassRes.rows[0].id;
 
-  // 3. Custom Foods & Food Variants
-  const foodOatmealId = await createCustomFoodWithVariant(client, userId, {
-    name: 'Oatmeal with Blueberries & Almond Butter',
-    servingSize: 80,
-    servingUnit: 'g',
-    calories: 420,
-    protein: 14,
-    carbs: 58,
-    fat: 16,
-    dietaryFiber: 7,
-    sugars: 12,
-  });
-
-  const foodChickenId = await createCustomFoodWithVariant(client, userId, {
-    name: 'Grilled Chicken Breast with Jasmine Rice & Broccoli',
-    servingSize: 350,
-    servingUnit: 'g',
-    calories: 650,
-    protein: 52,
-    carbs: 68,
-    fat: 14,
-    dietaryFiber: 5,
-    sugars: 2,
-  });
-
-  const foodEspressoId = await createCustomFoodWithVariant(client, userId, {
-    name: 'Double Espresso & Fresh Apple',
-    servingSize: 180,
-    servingUnit: 'g',
-    calories: 100,
-    protein: 1,
-    carbs: 25,
-    fat: 0.2,
-    dietaryFiber: 4,
-    sugars: 19,
-  });
-
-  const foodAvocadoId = await createCustomFoodWithVariant(client, userId, {
-    name: 'Avocado Toast with 2 Poached Eggs',
-    servingSize: 220,
-    servingUnit: 'g',
-    calories: 510,
-    protein: 22,
-    carbs: 45,
-    fat: 28,
-    dietaryFiber: 8,
-    sugars: 3,
-  });
-
-  const foodSalmonId = await createCustomFoodWithVariant(client, userId, {
-    name: 'Fresh Salmon Poke Bowl',
-    servingSize: 400,
-    servingUnit: 'g',
-    calories: 720,
-    protein: 44,
-    carbs: 75,
-    fat: 26,
-    dietaryFiber: 6,
-    sugars: 8,
-  });
-
-  const foodSteakId = await createCustomFoodWithVariant(client, userId, {
-    name: 'Lean Flank Steak with Roasted Sweet Potatoes',
-    servingSize: 380,
-    servingUnit: 'g',
-    calories: 680,
-    protein: 48,
-    carbs: 55,
-    fat: 22,
-    dietaryFiber: 6,
-    sugars: 6,
-  });
-
-  const foodYogurtId = await createCustomFoodWithVariant(client, userId, {
-    name: 'Greek Yogurt with Raw Honey',
-    servingSize: 170,
-    servingUnit: 'g',
-    calories: 220,
-    protein: 18,
-    carbs: 24,
-    fat: 4,
-    dietaryFiber: 0,
-    sugars: 20,
-  });
-
-  // 4. Today's Nutrition & Water
-  await client.query(
-    `INSERT INTO food_entries (
-       id, user_id, food_id, meal_type_id, food_name, calories, protein, carbs, fat,
-       dietary_fiber, sugars, caffeine_mg, quantity, serving_size, serving_unit, entry_date, entry_time, images, created_at
-     )
-     VALUES
-     (gen_random_uuid(), $1, $2, $3, 'Oatmeal with Blueberries & Almond Butter', 420, 14, 58, 16, 7, 12, 0, 80, 80, 'g', $6, '08:15', '{}', NOW()),
-     (gen_random_uuid(), $1, $4, $5, 'Grilled Chicken Breast with Jasmine Rice & Broccoli', 650, 52, 68, 14, 5, 2, 0, 350, 350, 'g', $6, '12:45', '{}', NOW()),
-     (gen_random_uuid(), $1, $7, $8, 'Double Espresso & Fresh Apple', 100, 1, 25, 0.2, 4, 19, 126, 180, 180, 'g', $6, '15:30', '{}', NOW())`,
-    [
-      userId,
-      foodOatmealId,
-      breakfastId,
-      foodChickenId,
-      lunchId,
-      today,
-      foodEspressoId,
-      snackId,
-    ]
-  );
-
+  // 2. Today's Water
   // Today's Water log entries (3 drinks = 1750 ml)
   await client.query(
     `INSERT INTO water_intake_entries (
@@ -665,31 +429,7 @@ async function populateDemoDataForUser(
     [userId, today]
   );
 
-  // 5. Yesterday's Nutrition, Water & Workouts
-  await client.query(
-    `INSERT INTO food_entries (
-       id, user_id, food_id, meal_type_id, food_name, calories, protein, carbs, fat,
-       dietary_fiber, sugars, caffeine_mg, quantity, serving_size, serving_unit, entry_date, entry_time, images, created_at
-     )
-     VALUES
-     (gen_random_uuid(), $1, $2, $3, 'Avocado Toast with 2 Poached Eggs', 510, 22, 45, 28, 8, 3, 0, 220, 220, 'g', $10, '08:30', '{}', NOW()),
-     (gen_random_uuid(), $1, $4, $5, 'Fresh Salmon Poke Bowl', 720, 44, 75, 26, 6, 8, 0, 400, 400, 'g', $10, '13:00', '{}', NOW()),
-     (gen_random_uuid(), $1, $6, $7, 'Lean Flank Steak with Roasted Sweet Potatoes', 680, 48, 55, 22, 6, 6, 0, 380, 380, 'g', $10, '19:15', '{}', NOW()),
-     (gen_random_uuid(), $1, $8, $9, 'Greek Yogurt with Raw Honey', 220, 18, 24, 4, 0, 20, 0, 170, 170, 'g', $10, '21:00', '{}', NOW())`,
-    [
-      userId,
-      foodAvocadoId,
-      breakfastId,
-      foodSalmonId,
-      lunchId,
-      foodSteakId,
-      dinnerId,
-      foodYogurtId,
-      snackId,
-      yesterday,
-    ]
-  );
-
+  // 3. Yesterday's Water
   // Yesterday's Water log entries (4 drinks = 2600 ml)
   await client.query(
     `INSERT INTO water_intake_entries (
@@ -1254,32 +994,32 @@ async function populateDemoDataForUser(
     );
   }
 
-  // 10. Medications & GLP-1 Tracking (Semaglutide GLP-1, Omega-3, Vitamin D3)
-  const medGlp1Res = await client.query(
+  // 8. Medications & Supplements (a prescription example, Omega-3, Vitamin D3)
+  const medRxRes = await client.query(
     `INSERT INTO medications (
        id, user_id, name, display_name, type_id, route_id, strength_value, strength_unit,
-       dose_amount, dose_unit, reason_text, is_active, is_glp1, is_supplement, nutrients,
+       dose_amount, dose_unit, reason_text, is_active, is_supplement, nutrients,
        color, icon, created_at, updated_at
      )
      VALUES (
        gen_random_uuid(), $1, 'Semaglutide (Wegovy / Ozempic)', 'Semaglutide 0.5mg', 'injection', 'subcutaneous',
-       0.5, 'mg', 0.5, 'mg', 'GLP-1 Metabolic Weight Management', true, true, false, '{}'::jsonb,
+       0.5, 'mg', 0.5, 'mg', 'Metabolic Weight Management', true, false, '{}'::jsonb,
        '#10b981', 'Syringe', NOW(), NOW()
      )
      RETURNING id`,
     [userId]
   );
-  const medGlp1Id = medGlp1Res.rows[0].id;
+  const medRxId = medRxRes.rows[0].id;
 
   const medOmegaRes = await client.query(
     `INSERT INTO medications (
        id, user_id, name, display_name, type_id, route_id, strength_value, strength_unit,
-       dose_amount, dose_unit, reason_text, is_active, is_glp1, is_supplement, nutrients,
+       dose_amount, dose_unit, reason_text, is_active, is_supplement, nutrients,
        color, icon, created_at, updated_at
      )
      VALUES (
        gen_random_uuid(), $1, 'Omega-3 Triple Strength Fish Oil', 'Omega-3 Fish Oil', 'capsule', 'oral',
-       1000, 'mg', 1, 'capsule', 'Cardiovascular & Joint Recovery', true, false, true,
+       1000, 'mg', 1, 'capsule', 'Cardiovascular & Joint Recovery', true, true,
        '{"fat": 1.0, "omega3": 1000}'::jsonb, '#3b82f6', 'Pill', NOW(), NOW()
      )
      RETURNING id`,
@@ -1290,12 +1030,12 @@ async function populateDemoDataForUser(
   const medVitDRes = await client.query(
     `INSERT INTO medications (
        id, user_id, name, display_name, type_id, route_id, strength_value, strength_unit,
-       dose_amount, dose_unit, reason_text, is_active, is_glp1, is_supplement, nutrients,
+       dose_amount, dose_unit, reason_text, is_active, is_supplement, nutrients,
        color, icon, created_at, updated_at
      )
      VALUES (
        gen_random_uuid(), $1, 'Vitamin D3 + K2', 'Vitamin D3 2000 IU', 'capsule', 'oral',
-       2000, 'IU', 1, 'capsule', 'Immune & Bone Density Support', true, false, true,
+       2000, 'IU', 1, 'capsule', 'Immune & Bone Density Support', true, true,
        '{"vitaminD": 50}'::jsonb, '#f59e0b', 'Sun', NOW(), NOW()
      )
      RETURNING id`,
@@ -1304,15 +1044,15 @@ async function populateDemoDataForUser(
   const medVitDId = medVitDRes.rows[0].id;
 
   // Medication Schedules
-  const schedGlp1Res = await client.query(
+  const schedRxRes = await client.query(
     `INSERT INTO medication_schedules (
        id, medication_id, user_id, schedule_type_id, time_of_day, dose_amount, active, created_at, updated_at
      )
      VALUES (gen_random_uuid(), $1, $2, 'weekly', '08:00', 0.5, true, NOW(), NOW())
      RETURNING id`,
-    [medGlp1Id, userId]
+    [medRxId, userId]
   );
-  const schedGlp1Id = schedGlp1Res.rows[0].id;
+  const schedRxId = schedRxRes.rows[0].id;
 
   const schedOmegaRes = await client.query(
     `INSERT INTO medication_schedules (
@@ -1334,7 +1074,7 @@ async function populateDemoDataForUser(
   );
   const schedVitDId = schedVitDRes.rows[0].id;
 
-  // Medication Dose Logs (Today, Yesterday, 3 days ago for weekly GLP-1)
+  // Medication Dose Logs (Today, Yesterday, 3 days ago for the weekly prescription)
   const threeDaysAgo = addDays(today, -3);
   await client.query(
     `INSERT INTO medication_entries (
@@ -1343,14 +1083,14 @@ async function populateDemoDataForUser(
        nutrients_snapshot, created_at, updated_at
      )
      VALUES
-     (gen_random_uuid(), $1, $2, $3, 'taken', $4, $4, $5, 'Semaglutide 0.5mg', 0.5, 'mg', 'Weekly GLP-1 injection taken on abdomen site.', 'manual', NULL, NOW(), NOW()),
+     (gen_random_uuid(), $1, $2, $3, 'taken', $4, $4, $5, 'Semaglutide 0.5mg', 0.5, 'mg', 'Weekly dose taken.', 'manual', NULL, NOW(), NOW()),
      (gen_random_uuid(), $6, $7, $3, 'taken', $8, $8, $9, 'Omega-3 Fish Oil', 1, 'capsule', 'Taken with breakfast', 'manual', '{"fat": 1.0, "omega3": 1000}'::jsonb, NOW(), NOW()),
      (gen_random_uuid(), $10, $11, $3, 'taken', $8, $8, $9, 'Vitamin D3 2000 IU', 1, 'capsule', 'Taken with breakfast', 'manual', '{"vitaminD": 50}'::jsonb, NOW(), NOW()),
      (gen_random_uuid(), $6, $7, $3, 'taken', $12, $12, $13, 'Omega-3 Fish Oil', 1, 'capsule', 'Taken with breakfast', 'manual', '{"fat": 1.0, "omega3": 1000}'::jsonb, NOW(), NOW()),
      (gen_random_uuid(), $10, $11, $3, 'taken', $12, $12, $13, 'Vitamin D3 2000 IU', 1, 'capsule', 'Taken with breakfast', 'manual', '{"vitaminD": 50}'::jsonb, NOW(), NOW())`,
     [
-      medGlp1Id,
-      schedGlp1Id,
+      medRxId,
+      schedRxId,
       userId,
       new Date(`${threeDaysAgo}T08:00:00Z`),
       threeDaysAgo,
@@ -1364,134 +1104,6 @@ async function populateDemoDataForUser(
       today,
     ]
   );
-
-  // 11. Cycle Tracking & Period Hub
-  await client.query(
-    `INSERT INTO cycle_settings (
-       id, user_id, enabled, mode, avg_cycle_length_override, avg_period_length_override,
-       luteal_phase_length, birth_control_method, conditions, show_fertile_window,
-       preferred_products, dismissed_prompts, terminology, discreet_mode, onboarded_at, created_at, updated_at
-     )
-     VALUES (
-       gen_random_uuid(), $1, true, 'standard', 28, 5, 14, 'none', '{}', true,
-       '{pad,tampon}', '{}', 'default', false, NOW(), NOW(), NOW()
-     )
-     ON CONFLICT (user_id) DO UPDATE
-     SET enabled = true,
-         mode = 'standard',
-         avg_cycle_length_override = 28,
-         avg_period_length_override = 5,
-         show_fertile_window = true,
-         onboarded_at = COALESCE(cycle_settings.onboarded_at, NOW()),
-         updated_at = NOW()`,
-    [userId]
-  );
-
-  // Seed 2 cycles: Prior cycle (28 days long, 5 days period) + Current cycle (started 7 days ago)
-  const priorCycleStart = addDays(today, -35);
-  const priorCycleEnd = addDays(today, -8);
-  const currentCycleStart = addDays(today, -7);
-
-  await client.query(
-    `INSERT INTO cycles (
-       id, user_id, start_date, end_date, period_length, cycle_length, is_excluded, source, created_at, updated_at
-     )
-     VALUES
-     (gen_random_uuid(), $1, $2, $3, 5, 28, false, 'manual', NOW(), NOW()),
-     (gen_random_uuid(), $1, $4, NULL, 5, NULL, false, 'derived', NOW(), NOW())
-     ON CONFLICT (user_id, start_date) DO NOTHING`,
-    [userId, priorCycleStart, priorCycleEnd, currentCycleStart]
-  );
-
-  // Daily cycle symptoms and flow logs for the current cycle
-  const cycleLogs = [
-    {
-      dayOffset: -7,
-      flow: 'medium',
-      mucus: null,
-      energy: 3,
-      libido: 2,
-      prod: { pad: 2, tampon: 2 },
-    },
-    {
-      dayOffset: -6,
-      flow: 'heavy',
-      mucus: null,
-      energy: 3,
-      libido: 2,
-      prod: { tampon: 4 },
-    },
-    {
-      dayOffset: -5,
-      flow: 'medium',
-      mucus: null,
-      energy: 4,
-      libido: 3,
-      prod: { tampon: 3 },
-    },
-    {
-      dayOffset: -4,
-      flow: 'light',
-      mucus: 'creamy',
-      energy: 4,
-      libido: 3,
-      prod: { pad: 2 },
-    },
-    {
-      dayOffset: -3,
-      flow: 'spotting',
-      mucus: 'sticky',
-      energy: 4,
-      libido: 4,
-      prod: { pad: 1 },
-    },
-    {
-      dayOffset: -1,
-      flow: 'none',
-      mucus: 'watery',
-      energy: 5,
-      libido: 4,
-      prod: {},
-    },
-    {
-      dayOffset: 0,
-      flow: 'none',
-      mucus: 'egg_white',
-      energy: 5,
-      libido: 5,
-      prod: {},
-    },
-  ];
-
-  for (const c of cycleLogs) {
-    const logDate = addDays(today, c.dayOffset);
-    await client.query(
-      `INSERT INTO cycle_daily_entries (
-         id, user_id, entry_date, flow_level, product_usage, cervical_mucus,
-         energy, libido, notes, custom_fields, created_at, updated_at
-       )
-       VALUES (
-         gen_random_uuid(), $1, $2, $3, $4::jsonb, $5, $6, $7,
-         'Tracked via SparkyFitness Cycle Hub', '{}'::jsonb, NOW(), NOW()
-       )
-       ON CONFLICT (user_id, entry_date) DO UPDATE
-       SET flow_level = EXCLUDED.flow_level,
-           product_usage = EXCLUDED.product_usage,
-           cervical_mucus = EXCLUDED.cervical_mucus,
-           energy = EXCLUDED.energy,
-           libido = EXCLUDED.libido,
-           updated_at = NOW()`,
-      [
-        userId,
-        logDate,
-        c.flow,
-        JSON.stringify(c.prod),
-        c.mucus,
-        c.energy,
-        c.libido,
-      ]
-    );
-  }
 }
 
 /**

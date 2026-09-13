@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { zodSchema } from 'ai';
 import type { z } from 'zod';
-import { manageFoodInput, manageFoodSchema } from '../ai/tools/schemas/food.js';
 import {
   manageExerciseInput,
   manageExerciseSchema,
@@ -10,10 +9,6 @@ import {
   manageCheckinInput,
   manageCheckinSchema,
 } from '../ai/tools/schemas/checkin.js';
-import {
-  manageGoalsInput,
-  manageGoalsSchema,
-} from '../ai/tools/schemas/goals.js';
 import {
   manageProfileInput,
   manageProfileSchema,
@@ -35,7 +30,6 @@ import {
   GetHealthSummarySchema,
   AnalyzeTrendsSchema,
   Get30DayTrendsSchema,
-  DetectPatternsSchema,
   GenerateCoachingPlanSchema,
 } from '../ai/tools/schemas/coach.js';
 import {
@@ -43,10 +37,6 @@ import {
   GetLoggingStreakSchema,
   GetContextualNudgeSchema,
 } from '../ai/tools/schemas/engagement.js';
-import {
-  AnalyzeFoodImageSchema,
-  ScanLabelSchema,
-} from '../ai/tools/schemas/vision.js';
 
 interface JsonSchemaObject {
   type?: string;
@@ -65,82 +55,6 @@ describe('published (flat) chatbot tool schemas', () => {
     properties: string[];
     actions?: string[];
   }> = [
-    {
-      name: 'manageFoodInput',
-      schema: manageFoodInput,
-      properties: [
-        'action',
-        'food_name',
-        'food_id',
-        'variant_id',
-        'external_id',
-        'update_existing_entries',
-        'serving_size',
-        'serving_unit',
-        'brand',
-        'quantity',
-        'unit',
-        'meal_type',
-        'meal_type_id',
-        'entry_date',
-        'entry_time',
-        'is_quick_food',
-        'meal_id',
-        'meal_name',
-        'search_type',
-        'limit',
-        'offset',
-        'calories',
-        'protein',
-        'carbs',
-        'fat',
-        'saturated_fat',
-        'polyunsaturated_fat',
-        'monounsaturated_fat',
-        'trans_fat',
-        'cholesterol',
-        'sodium',
-        'potassium',
-        'fiber',
-        'sugar',
-        'vitamin_a',
-        'vitamin_c',
-        'calcium',
-        'iron',
-        'gi',
-        'entry_id',
-        'entry_type',
-        'description',
-        'notes',
-        'target_date',
-        'source_date',
-        'amount_ml',
-        'start_date',
-        'end_date',
-        'provider_type',
-      ],
-      actions: [
-        'search_food',
-        'lookup_food_nutrition',
-        'list_meal_types',
-        'log_food',
-        'log_external_food',
-        'create_food',
-        'search_meal',
-        'log_meal',
-        'list_diary',
-        'delete_entry',
-        'delete_food',
-        'update_entry',
-        'set_food_notes',
-        'update_food_variant',
-        'copy_from_yesterday',
-        'save_as_meal_template',
-        'log_water',
-        'get_nutritional_summary',
-        'get_water_history',
-      ],
-    },
     {
       name: 'manageExerciseInput',
       schema: manageExerciseInput,
@@ -240,36 +154,6 @@ describe('published (flat) chatbot tool schemas', () => {
       ],
     },
     {
-      name: 'manageGoalsInput',
-      schema: manageGoalsInput,
-      properties: [
-        'action',
-        'target_date',
-        'start_date',
-        'calories',
-        'protein',
-        'carbs',
-        'fat',
-        'water_goal_ml',
-        'weight',
-        'saturated_fat',
-        'polyunsaturated_fat',
-        'monounsaturated_fat',
-        'trans_fat',
-        'cholesterol',
-        'sodium',
-        'potassium',
-        'dietary_fiber',
-        'sugars',
-        'vitamin_a',
-        'vitamin_c',
-        'calcium',
-        'iron',
-        'custom_nutrients',
-      ],
-      actions: ['get_goals', 'set_goals', 'list_goal_timeline'],
-    },
-    {
       name: 'manageProfileInput',
       schema: manageProfileInput,
       properties: [
@@ -336,11 +220,6 @@ describe('published (flat) chatbot tool schemas', () => {
       properties: ['end_date'],
     },
     {
-      name: 'DetectPatternsSchema',
-      schema: DetectPatternsSchema,
-      properties: ['days'],
-    },
-    {
       name: 'GenerateCoachingPlanSchema',
       schema: GenerateCoachingPlanSchema,
       properties: ['goal', 'target_weight'],
@@ -359,22 +238,6 @@ describe('published (flat) chatbot tool schemas', () => {
       name: 'GetContextualNudgeSchema',
       schema: GetContextualNudgeSchema,
       properties: [],
-    },
-    {
-      name: 'AnalyzeFoodImageSchema',
-      schema: AnalyzeFoodImageSchema,
-      properties: [
-        'image_url',
-        'description',
-        'total_weight',
-        'meal_type',
-        'entry_date',
-      ],
-    },
-    {
-      name: 'ScanLabelSchema',
-      schema: ScanLabelSchema,
-      properties: ['image_url'],
     },
   ];
 
@@ -420,130 +283,6 @@ describe('published (flat) chatbot tool schemas', () => {
 });
 
 describe('strict discriminated-union validation schemas', () => {
-  it('manageFoodSchema accepts a valid log_food input', () => {
-    const result = manageFoodSchema.safeParse({
-      action: 'log_food',
-      food_name: 'Eggs',
-      quantity: 2,
-      unit: 'piece',
-      meal_type: 'breakfast',
-      entry_date: '2026-06-11',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('manageFoodSchema accepts custom meal type IDs for logging and moving entries', () => {
-    const customMealTypeId = '66666666-6666-4666-8666-666666666666';
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'log_food',
-        food_name: 'Eggs',
-        meal_type_id: customMealTypeId,
-      }).success
-    ).toBe(true);
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'update_entry',
-        entry_id: '33333333-3333-4333-8333-333333333333',
-        entry_type: 'food_entry',
-        meal_type_id: customMealTypeId,
-      }).success
-    ).toBe(true);
-  });
-
-  it('manageFoodSchema accepts food_name in place of entry_id for delete_entry and update_entry', () => {
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'delete_entry',
-        food_name: 'Oatmeal',
-        entry_date: '2026-06-10',
-      }).success
-    ).toBe(true);
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'update_entry',
-        food_name: 'Oatmeal',
-        meal_type: 'dinner',
-      }).success
-    ).toBe(true);
-  });
-
-  it('manageFoodSchema rejects food_name resolution for meal entries (food entries only)', () => {
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'delete_entry',
-        food_name: 'Oatmeal',
-        entry_type: 'food_entry_meal',
-      }).success
-    ).toBe(false);
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'update_entry',
-        food_name: 'Oatmeal',
-        entry_type: 'food_entry_meal',
-        quantity: 2,
-      }).success
-    ).toBe(false);
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'delete_entry',
-        entry_id: '33333333-3333-4333-8333-333333333333',
-        entry_type: 'food_entry_meal',
-      }).success
-    ).toBe(true);
-  });
-
-  it('manageFoodSchema still requires some entry identifier for delete_entry and update_entry', () => {
-    expect(manageFoodSchema.safeParse({ action: 'delete_entry' }).success).toBe(
-      false
-    );
-    expect(
-      manageFoodSchema.safeParse({ action: 'update_entry', quantity: 2 })
-        .success
-    ).toBe(false);
-  });
-
-  it('manageFoodSchema keeps meal_type as a built-in enum fallback (custom types go through meal_type_id)', () => {
-    // The legacy fallback accepts only the built-in slots...
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'log_food',
-        food_name: 'Eggs',
-        meal_type: 'breakfast',
-      }).success
-    ).toBe(true);
-    // ...and rejects anything else: custom meal types must NOT be passed by name.
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'log_food',
-        food_name: 'Eggs',
-        meal_type: 'invalid-slot',
-      }).success
-    ).toBe(false);
-    // Custom meal types are selected by ID, not by name.
-    expect(
-      manageFoodSchema.safeParse({
-        action: 'log_food',
-        food_name: 'Eggs',
-        meal_type_id: '66666666-6666-4666-8666-666666666666',
-      }).success
-    ).toBe(true);
-  });
-
-  it('manageFoodSchema rejects fields that do not belong to the action', () => {
-    const result = manageFoodSchema.safeParse({
-      action: 'list_diary',
-      entry_date: '2026-06-11',
-      quantity: 2,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('manageFoodSchema rejects an unknown action', () => {
-    const result = manageFoodSchema.safeParse({ action: 'bogus' });
-    expect(result.success).toBe(false);
-  });
-
   it('manageExerciseSchema accepts sets as an array or a JSON string', () => {
     const base = {
       action: 'log_exercise',
@@ -575,20 +314,6 @@ describe('strict discriminated-union validation schemas', () => {
     if (result.success && result.data.action === 'log_biometrics') {
       expect(result.data.weight).toBe(80.5);
     }
-  });
-
-  it('manageGoalsSchema accepts set_goals without start_date (defaults to today)', () => {
-    expect(
-      manageGoalsSchema.safeParse({ action: 'set_goals', calories: 2200 })
-        .success
-    ).toBe(true);
-    expect(
-      manageGoalsSchema.safeParse({
-        action: 'set_goals',
-        start_date: '2026-06-11',
-        calories: 2200,
-      }).success
-    ).toBe(true);
   });
 
   it('manageProfileSchema rejects update_preferences with an invalid enum value', () => {

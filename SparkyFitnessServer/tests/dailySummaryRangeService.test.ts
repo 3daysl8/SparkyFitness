@@ -1,33 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { addDays, format, isAfter, parseISO } from 'date-fns';
-import type { ExerciseSessionResponse } from '@workspace/shared';
-import {
-  EMPTY_SUPPLEMENT_TOTALS,
-  computeStepCalories,
-} from '@workspace/shared';
+import { computeStepCalories } from '@workspace/shared';
 import { getDailySummaryRange } from '../services/dailySummaryRangeService.js';
-import { getDailySummary } from '../services/dailySummaryService.js';
-import goalService from '../services/goalService.js';
-import foodEntryService from '../services/foodEntryService.js';
-import { getExerciseEntriesByDateV2 } from '../services/exerciseEntryHistoryService.js';
 import reportRepository from '../models/reportRepository.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import foodRepository from '../models/foodMisc.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import bmrService from '../services/bmrService.js';
 
-vi.mock('../services/goalService.js', () => ({
-  default: { getUserGoals: vi.fn(), getUserGoalsForRange: vi.fn() },
-}));
-vi.mock('../services/foodEntryService.js', () => ({
-  default: { getFoodEntriesByDate: vi.fn() },
-}));
-vi.mock('../services/exerciseEntryHistoryService.js', () => ({
-  getExerciseEntriesByDateV2: vi.fn(),
-}));
 vi.mock('../models/reportRepository.js', () => ({
   default: { getNutritionData: vi.fn() },
 }));
@@ -51,9 +32,6 @@ vi.mock('../models/userRepository.js', () => ({
 vi.mock('../models/preferenceRepository.js', () => ({
   default: { getUserPreferences: vi.fn() },
 }));
-vi.mock('../models/foodMisc.js', () => ({
-  default: { getDailySupplementTotals: vi.fn() },
-}));
 vi.mock('../models/genericHealthRepository.js', () => ({
   getHealthConnectTotalCaloriesByDateRange: vi.fn(),
 }));
@@ -62,7 +40,10 @@ vi.mock('../services/bmrService.js', () => ({
 }));
 
 const USER = 'user-1';
-const GOAL = 1962;
+// dailySummaryRangeService no longer resolves a per-user goal (user_goals/goalService
+// was hard-deleted with the food/goal domain) -- it uses the same flat fallback the
+// calorie-balance service already used when no goal could be resolved.
+const GOAL = 2000;
 const WEIGHT = 80;
 const HEIGHT = 180;
 
@@ -129,18 +110,6 @@ beforeEach(() => {
   vi.mocked(reportRepository.getNutritionData).mockResolvedValue(
     DATES.map((date) => ({ date, calories: FIXTURE[date].eaten }))
   );
-  vi.mocked(goalService.getUserGoalsForRange).mockImplementation(
-    async (_userId: string, startDate: string, endDate: string) => {
-      const goals: Record<string, { calories: number }> = {};
-      let cursor = parseISO(startDate);
-      const end = parseISO(endDate);
-      while (!isAfter(cursor, end)) {
-        goals[format(cursor, 'yyyy-MM-dd')] = { calories: GOAL };
-        cursor = addDays(cursor, 1);
-      }
-      return goals;
-    }
-  );
   vi.mocked(
     exerciseEntryRepository.getDailyExerciseCalorieSplitRange
   ).mockResolvedValue(
@@ -170,16 +139,6 @@ beforeEach(() => {
   vi.mocked(
     genericHealthRepository.getHealthConnectTotalCaloriesByDateRange
   ).mockResolvedValue([]);
-
-  // ── per-date path ──
-  vi.mocked(goalService.getUserGoals).mockResolvedValue({ calories: GOAL });
-  vi.mocked(measurementRepository.getWaterIntakeByDate).mockResolvedValue(null);
-  vi.mocked(foodRepository.getDailySupplementTotals).mockResolvedValue(
-    EMPTY_SUPPLEMENT_TOTALS
-  );
-  vi.mocked(measurementRepository.getExternalBmrForDate).mockResolvedValue(
-    null
-  );
 
   // ── shared ──
   vi.mocked(
@@ -237,66 +196,15 @@ describe('measured BMR is scoped to its own day', () => {
   });
 });
 
-describe('parity with the per-date Diary path', () => {
-  /**
-   * The structural guard for issue #2094.
-   *
-   * If anyone ever reintroduces a second implementation of the calorie balance, this
-   * fails. The bug was reopened precisely because Reports and the Diary each had their
-   * own idea of a day's balance, and nothing asserted they agreed.
-   */
-  test.each(DATES)(
-    'the ranged row for %s deep-equals the Diary calorieBalance',
-    async (date) => {
-      const fixture = FIXTURE[date];
-
-      vi.mocked(foodEntryService.getFoodEntriesByDate).mockResolvedValue([
-        { calories: fixture.eaten, quantity: 1, serving_size: 1 },
-      ]);
-      vi.mocked(getExerciseEntriesByDateV2).mockResolvedValue([
-        ...(fixture.active
-          ? [
-              {
-                type: 'individual',
-                name: 'Active Calories',
-                calories_burned: fixture.active,
-                steps: 0,
-              },
-            ]
-          : []),
-        ...(fixture.other
-          ? [
-              {
-                type: 'individual',
-                name: 'Run',
-                calories_burned: fixture.other,
-                steps: fixture.activitySteps,
-              },
-            ]
-          : []),
-      ] as unknown as ExerciseSessionResponse[]);
-      vi.mocked(measurementRepository.getStepCaloriesForDate).mockResolvedValue(
-        stepCaloriesFor(date)
-      );
-
-      const [{ days }, summary] = await Promise.all([
-        runRange(),
-        getDailySummary({
-          actorUserId: USER,
-          targetUserId: USER,
-          date,
-          includeCheckin: true,
-        }),
-      ]);
-
-      const row = days.find((entry) => entry.date === date);
-      expect(row).toBeDefined();
-
-      const { date: _date, stepCalories: _steps, ...balance } = row!;
-      expect(balance).toEqual(summary.calorieBalance);
-    }
-  );
-
+// This block used to cross-check every ranged row against the per-date Diary
+// path (services/dailySummaryService.ts's getDailySummary), which was the
+// structural guard for issue #2094: Reports and the Diary each had their own
+// idea of a day's balance, and nothing asserted they agreed. That per-date
+// service was hard-deleted along with the food/goal domain (there is no more
+// per-user food diary to summarize per date), so the cross-check itself is
+// gone. The two regression tests below still exercise the same ranged-path
+// exercise-crediting logic directly and are kept.
+describe('ranged calorie-balance edge cases', () => {
   test('the Aug 11 row credits 824, not 1415', async () => {
     const { days } = await runRange();
     const row = days.find((entry) => entry.date === '2026-08-11');
@@ -369,7 +277,6 @@ describe('range mechanics', () => {
     });
 
     expect(reportRepository.getNutritionData).toHaveBeenCalledTimes(1);
-    expect(goalService.getUserGoalsForRange).toHaveBeenCalledTimes(1);
     expect(
       exerciseEntryRepository.getDailyExerciseCalorieSplitRange
     ).toHaveBeenCalledTimes(1);

@@ -4,12 +4,10 @@ import { log } from '../../config/logging.js';
 import preferenceService from '../../services/preferenceService.js';
 import exerciseEntryDb from '../../models/exerciseEntry.js';
 import measurementRepository from '../../models/measurementRepository.js';
-import reportRepository from '../../models/reportRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeDayKeywords } from './dates.js';
 import { dayString, formatJsonResult } from './formatting.js';
 import { getResolvedExerciseCaloriesRange } from '../../services/exerciseCalorieRangeService.js';
-import { getNutritionalSummaryRows, getWaterHistoryRows } from './foodTools.js';
 import { getBiometricsHistoryRows } from './checkinTools.js';
 import {
   manageReportSchema,
@@ -17,6 +15,33 @@ import {
   dailyReportSchema,
   type ManageReportInput,
 } from './schemas/report.js';
+
+// Per-day water totals converted into the user's display unit. Previously
+// lived in the now-deleted foodTools.ts (food/nutrition tracking was
+// hard-deleted from this fork) — relocated here since water history isn't
+// food-specific and this is its only remaining consumer.
+export async function getWaterHistoryRows(
+  userId: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const prefs = await preferenceService.getUserPreferences(userId, userId);
+  const waterUnit = (prefs?.water_display_unit as string) || 'ml';
+  const rows = await measurementRepository.getWaterTotalsByDateRange(
+    userId,
+    startDate,
+    endDate
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((row: any) => {
+    const ml = Number(row.total_ml || 0);
+    return {
+      entry_date: dayString(row.entry_date),
+      amount: waterUnit === 'oz' ? Math.round((ml / 29.5735) * 10) / 10 : ml,
+      unit: waterUnit,
+    };
+  });
+}
 
 async function getWeeklyReport(
   userId: string,
@@ -26,26 +51,10 @@ async function getWeeklyReport(
   const end = endDate || todayInZone(tz);
   const start = addDays(end, -6);
 
-  const nutrition = await getNutritionalSummaryRows(userId, start, end);
   const water = await getWaterHistoryRows(userId, start, end);
   const bio = await getBiometricsHistoryRows(userId, start, end);
-  const prefs = await preferenceService.getUserPreferences(userId, userId);
-  const energyUnit = (prefs?.energy_unit as string) || 'kcal';
 
   let report = `# Weekly Performance Report (${start} to ${end})\n\n`;
-
-  // Nutrition & Energy
-  report += '## Nutrition & Energy\n';
-  if (nutrition.length === 0) {
-    report += '_No nutrition data logged this week._\n';
-  } else {
-    report += `| Date | Calories (${energyUnit}) | P (g) | C (g) | F (g) |\n`;
-    report += '| :--- | :--- | :--- | :--- | :--- |\n';
-    for (const n of nutrition) {
-      report += `| ${n.entry_date} | ${n.calories} | ${n.protein} | ${n.carbs} | ${n.fat} |\n`;
-    }
-  }
-  report += '\n';
 
   // Water
   report += '## Water Intake\n';
@@ -101,11 +110,6 @@ async function getDailyReport(
 ): Promise<Record<string, unknown>> {
   const { startDate, endDate } = reportDateRange(params, tz);
 
-  const nutritionRows = await reportRepository.getDailyNutritionTotalsRange(
-    userId,
-    startDate,
-    endDate
-  );
   const exerciseRows = await exerciseEntryDb.getDailyExerciseTotalsRange(
     userId,
     startDate,
@@ -129,15 +133,6 @@ async function getDailyReport(
   return {
     start_date: startDate,
     end_date: endDate,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nutrition: nutritionRows.map((r: any) => ({
-      entry_date: dayString(r.entry_date),
-      calories: r.calories,
-      protein: r.protein,
-      carbs: r.carbs,
-      fat: r.fat,
-      fiber: r.fiber,
-    })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     exercise: exerciseRows.map((r: any) => ({
       entry_date: dayString(r.entry_date),
@@ -189,7 +184,7 @@ export function buildReportTools(userId: string, tz: string) {
 
     sparky_get_daily_report: tool({
       description:
-        'Returns daily report data across nutrition, exercise, and water for a specific date or range.',
+        'Returns daily report data across exercise and water for a specific date or range.',
       inputSchema: dailyReportSchema,
       execute: async (rawArgs) => {
         const parsed = dailyReportSchema.safeParse(

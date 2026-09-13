@@ -9,8 +9,7 @@ import type {
 // Column lists kept in one place so SELECTs stay consistent.
 const MED_COLS = `id, user_id, name, display_name, type_id, route_id,
   strength_value, strength_unit, dose_amount, dose_unit, rxnorm_rxcui, ndc,
-  prescriber, pharmacy, rx_number, reason_text, effectiveness_rating,
-  color, icon, photo_path, is_active, is_quick, is_glp1, is_supplement, nutrients, notes,
+  reason_text, color, icon, is_active, is_quick, is_supplement, nutrients, notes,
   source, custom_fields, created_at, updated_at`;
 
 const SCHEDULE_COLS = `id, medication_id, user_id, schedule_type_id, time_of_day,
@@ -24,13 +23,13 @@ async function createMedication(userId: string, data: CreateMedicationBody) {
     const result = await client.query(
       `INSERT INTO medications (
          user_id, name, display_name, type_id, route_id, strength_value, strength_unit,
-         dose_amount, dose_unit, rxnorm_rxcui, ndc, prescriber, pharmacy, rx_number,
-         reason_text, effectiveness_rating, color, icon, photo_path, is_active, is_quick,
-         is_glp1, is_supplement, nutrients, notes, source, custom_fields)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
-         COALESCE($20, TRUE), COALESCE($21, FALSE), COALESCE($22, FALSE),
-         COALESCE($23, FALSE), COALESCE($24, '{}'::jsonb), $25,
-         COALESCE($26, 'manual'), COALESCE($27, '{}'::jsonb))
+         dose_amount, dose_unit, rxnorm_rxcui, ndc,
+         reason_text, color, icon, is_active, is_quick,
+         is_supplement, nutrients, notes, source, custom_fields)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
+         COALESCE($15, TRUE), COALESCE($16, FALSE),
+         COALESCE($17, FALSE), COALESCE($18, '{}'::jsonb), $19,
+         COALESCE($20, 'manual'), COALESCE($21, '{}'::jsonb))
        RETURNING ${MED_COLS}`,
       [
         userId,
@@ -44,17 +43,11 @@ async function createMedication(userId: string, data: CreateMedicationBody) {
         data.dose_unit ?? null,
         data.rxnorm_rxcui ?? null,
         data.ndc ?? null,
-        data.prescriber ?? null,
-        data.pharmacy ?? null,
-        data.rx_number ?? null,
         data.reason_text ?? null,
-        data.effectiveness_rating ?? null,
         data.color ?? null,
         data.icon ?? null,
-        data.photo_path ?? null,
         data.is_active ?? null,
         data.is_quick ?? null,
-        data.is_glp1 ?? null,
         data.is_supplement ?? null,
         data.nutrients ? JSON.stringify(data.nutrients) : null,
         data.notes ?? null,
@@ -70,12 +63,11 @@ async function createMedication(userId: string, data: CreateMedicationBody) {
 
 async function listMedications(
   userId: string,
-  opts: { glp1Only?: boolean; activeOnly?: boolean } = {}
+  opts: { activeOnly?: boolean } = {}
 ) {
   const client = await getClient(userId);
   try {
     const where: string[] = ['user_id = $1'];
-    if (opts.glp1Only) where.push('is_glp1 = TRUE');
     if (opts.activeOnly) where.push('is_active = TRUE');
     const medsResult = await client.query(
       `SELECT ${MED_COLS} FROM medications
@@ -152,17 +144,11 @@ async function updateMedication(
       'dose_unit',
       'rxnorm_rxcui',
       'ndc',
-      'prescriber',
-      'pharmacy',
-      'rx_number',
       'reason_text',
-      'effectiveness_rating',
       'color',
       'icon',
-      'photo_path',
       'is_active',
       'is_quick',
-      'is_glp1',
       'is_supplement',
       'nutrients',
       'notes',

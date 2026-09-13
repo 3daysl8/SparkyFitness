@@ -16,9 +16,6 @@ import {
 } from '../ai/modelCapabilities.js';
 import measurementRepository from '../models/measurementRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import foodRepository from '../models/foodRepository.js';
-import mealTypeRepository from '../models/mealType.js';
-import foodEntryService from '../services/foodEntryService.js';
 import { log } from '../config/logging.js';
 import { createOpenAI } from '@ai-sdk/openai';
 // Mock dependencies
@@ -36,28 +33,6 @@ vi.mock('../config/logging', () => ({
 }));
 vi.mock('../utils/timezoneLoader', () => ({
   loadUserTimezone: vi.fn(async () => 'UTC'),
-}));
-// Loading the real foodEntryService trips on a deep '@workspace/shared'
-// subpath import under vitest; the stub doubles as the log_food seam.
-vi.mock('../services/foodEntryService', () => ({
-  default: {
-    createFoodEntry: vi.fn(),
-  },
-}));
-vi.mock('../models/foodRepository', () => ({
-  default: {
-    getFoodsWithPagination: vi.fn(),
-    countFoods: vi.fn(),
-    getFoodById: vi.fn(),
-    getFoodVariantById: vi.fn(),
-    getFoodVariantsByFoodId: vi.fn(),
-  },
-}));
-vi.mock('../models/mealType.js', () => ({
-  default: {
-    getAllMealTypes: vi.fn(),
-    getMealTypeById: vi.fn(),
-  },
 }));
 vi.mock('../services/preferenceService', () => ({
   default: {
@@ -344,8 +319,6 @@ describe('chatService', () => {
     });
   });
   describe('processChatMessage (in-process tool integration)', () => {
-    const FOOD_ID = '11111111-1111-4111-8111-111111111111';
-    const VARIANT_ID = '22222222-2222-4222-8222-222222222222';
     // History is saved under the active user; tools act as the logged-in
     // actor (the MCP path scoped tools to the session-authenticated user).
     const activeUserId = 'user-123';
@@ -359,40 +332,10 @@ describe('chatService', () => {
       source: 'user',
     };
 
-    const eggsRow = {
-      id: FOOD_ID,
-      name: 'Eggs',
-      brand: 'Farm Fresh',
-      user_id: actorUserId,
-      default_variant: {
-        id: VARIANT_ID,
-        serving_size: 100,
-        serving_unit: 'g',
-        calories: 155,
-        protein: 13,
-        carbs: 1.1,
-        fat: 11,
-      },
-    };
-
     const usage = {
       inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },
       outputTokens: { total: 5, text: 5, reasoning: 0 },
     };
-
-    const toolCallStep = (input: Record<string, unknown>) => ({
-      finishReason: { unified: 'tool-calls' as const, raw: undefined },
-      usage,
-      content: [
-        {
-          type: 'tool-call' as const,
-          toolCallId: 'call-1',
-          toolName: 'sparky_manage_food',
-          input: JSON.stringify(input),
-        },
-      ],
-      warnings: [],
-    });
 
     // The AI SDK passes tools to the model as an array of function-tool defs
     // (each with a `.name`); normalize to a name list for assertions.
@@ -438,103 +381,6 @@ describe('chatService', () => {
       vi.mocked(measurementRepository.getCustomCategories).mockResolvedValue(
         []
       );
-      vi.mocked(mealTypeRepository.getAllMealTypes).mockResolvedValue([
-        {
-          id: 'breakfast-id',
-          name: 'Breakfast',
-          sort_order: 1,
-          user_id: null,
-        },
-        {
-          id: 'lunch-id',
-          name: 'Lunch',
-          sort_order: 2,
-          user_id: null,
-        },
-        {
-          id: 'dinner-id',
-          name: 'Dinner',
-          sort_order: 3,
-          user_id: null,
-        },
-        {
-          id: 'snacks-id',
-          name: 'Snacks',
-          sort_order: 4,
-          user_id: null,
-        },
-      ]);
-    });
-
-    it('executes a log_food tool call in-process, derives food_added from call input, and saves history', async () => {
-      vi.mocked(foodRepository.getFoodsWithPagination).mockResolvedValue([
-        {
-          ...eggsRow,
-          default_variant: {
-            ...eggsRow.default_variant,
-            serving_size: 1,
-            serving_unit: 'serving',
-          },
-        },
-      ]);
-      vi.mocked(foodRepository.getFoodVariantsByFoodId).mockResolvedValue([]);
-      vi.mocked(foodEntryService.createFoodEntry).mockResolvedValue({
-        id: 'entry-1',
-        food_name: 'Eggs',
-      });
-      const logFoodArgs = {
-        action: 'log_food',
-        food_name: 'Eggs',
-        quantity: 2,
-        unit: 'serving',
-        meal_type: 'breakfast',
-        entry_date: '2026-06-10',
-      };
-      scriptModel([
-        toolCallStep(logFoodArgs),
-        textStep('Logged 2 eggs for breakfast!'),
-      ]);
-
-      const result = await chatService.processChatMessage(
-        [{ role: 'user', content: 'log 2 eggs for breakfast' }],
-        'svc-1',
-        activeUserId,
-        actorUserId
-      );
-
-      expect(result.content).toBe('Logged 2 eggs for breakfast!');
-      expect(result.action).toBe('food_added');
-      expect(result.executedTools).toEqual([
-        { name: 'sparky_manage_food', args: logFoodArgs },
-      ]);
-      // Tool handlers act as the authenticated user, not the active user.
-      expect(foodEntryService.createFoodEntry).toHaveBeenCalledWith(
-        actorUserId,
-        actorUserId,
-        {
-          user_id: actorUserId,
-          food_id: FOOD_ID,
-          variant_id: VARIANT_ID,
-          entry_date: '2026-06-10',
-          quantity: 2,
-          unit: 'serving',
-          meal_type_id: 'breakfast-id',
-        }
-      );
-      expect(chatRepository.saveChatHistory).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: activeUserId,
-          messageType: 'user',
-          content: 'log 2 eggs for breakfast',
-        })
-      );
-      expect(chatRepository.saveChatHistory).toHaveBeenCalledWith(
-        expect.objectContaining({
-          user_id: activeUserId,
-          messageType: 'assistant',
-          content: 'Logged 2 eggs for breakfast!',
-        })
-      );
     });
 
     it('limits the tool set passed to the model when toolCategories is provided', async () => {
@@ -552,8 +398,8 @@ describe('chatService', () => {
       const toolNames = modelToolNames(model);
       // Exercise domain present, food/goals/reports excluded.
       expect(toolNames.some((n) => n.includes('exercise'))).toBe(true);
-      expect(toolNames).not.toContain('sparky_manage_food');
-      expect(toolNames).not.toContain('sparky_manage_goals');
+      expect(toolNames).not.toContain('sparky_manage_water_containers');
+      expect(toolNames).not.toContain('sparky_manage_focus');
       expect(toolNames).not.toContain('sparky_get_report');
     });
 
@@ -569,49 +415,9 @@ describe('chatService', () => {
 
       const toolNames = modelToolNames(model);
       // openai is a cloud provider -> full profile default.
-      expect(toolNames).toContain('sparky_manage_food');
+      expect(toolNames).toContain('sparky_manage_water_containers');
       expect(toolNames).toContain('sparky_manage_exercise');
       expect(toolNames).toContain('sparky_get_report');
-    });
-
-    it('completes with an ERRORS string as the tool result when a backing service throws', async () => {
-      vi.mocked(foodRepository.getFoodsWithPagination).mockRejectedValue(
-        new Error('connection refused')
-      );
-      const model = scriptModel([
-        toolCallStep({
-          action: 'search_food',
-          food_name: 'egg',
-          search_type: 'broad',
-        }),
-        textStep('Sorry, I could not search foods right now.'),
-      ]);
-
-      const result = await chatService.processChatMessage(
-        [{ role: 'user', content: 'find eggs' }],
-        'svc-1',
-        activeUserId,
-        actorUserId
-      );
-
-      expect(result.content).toBe('Sorry, I could not search foods right now.');
-      expect(result.action).toBe('advice');
-      expect(result.executedTools).toEqual([
-        {
-          name: 'sparky_manage_food',
-          args: {
-            action: 'search_food',
-            food_name: 'egg',
-            search_type: 'broad',
-          },
-        },
-      ]);
-      // The handler never throws; the ERRORS string reaches the model as the
-      // tool result on the follow-up generation step.
-      expect(model.doGenerateCalls).toHaveLength(2);
-      expect(JSON.stringify(model.doGenerateCalls[1].prompt)).toContain(
-        'Error [DB_ERROR]: A database error occurred.'
-      );
     });
 
     it('forwards a per-user OpenAI prompt cache key into the blocking model call', async () => {
@@ -652,7 +458,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 32\/53 active tools for chatbot \(profile=core/
+          /Loaded 17\/34 active tools for chatbot \(profile=core/
         )
       );
       // The core profile is the mitigation, so no context-window warning.
@@ -734,7 +540,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 53\/53 active tools for chatbot \(profile=full/
+          /Loaded 34\/34 active tools for chatbot \(profile=full/
         )
       );
       // Ollama + full profile is the risky combo, so warn about the 4096 default.
@@ -767,15 +573,15 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 53\/53 active tools for chatbot \(profile=full/
+          /Loaded 34\/34 active tools for chatbot \(profile=full/
         )
       );
     });
 
     it('never trims a non-Ollama service even with a stale core profile stored', async () => {
       // The profile gate keys on service_type, so a service that was Ollama+core
-      // and later switched to OpenAI still loads the full 38-tool surface
-      // (36 domain tools + sparky_enable_tools + sparky_ask_user).
+      // and later switched to OpenAI still loads the full 34-tool surface
+      // (32 domain tools + sparky_enable_tools + sparky_ask_user).
       vi.mocked(chatRepository.getAiServiceSettingForBackend).mockResolvedValue(
         {
           ...aiServiceSetting,
@@ -795,7 +601,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 53\/53 active tools for chatbot \(profile=full/
+          /Loaded 34\/34 active tools for chatbot \(profile=full/
         )
       );
       // The context-window warning is Ollama-only; cloud providers never see it.
@@ -894,7 +700,7 @@ describe('chatService', () => {
       const model = scriptModel([textStep('Sure.')]);
 
       await chatService.processChatMessage(
-        [{ role: 'user', content: 'log my lunch' }],
+        [{ role: 'user', content: 'log my water' }],
         'svc-1',
         activeUserId,
         actorUserId,
@@ -903,8 +709,9 @@ describe('chatService', () => {
       );
 
       const sentTools = modelToolNames(model);
-      // Chosen category is present...
-      expect(sentTools).toContain('sparky_manage_food');
+      // Chosen category is present (food now composes only water-container
+      // tools -- food/nutrition tracking was hard-deleted from this fork)...
+      expect(sentTools).toContain('sparky_manage_water_containers');
       // ...unchosen categories are not...
       expect(sentTools).not.toContain('sparky_manage_exercise');
       // ...and the escalation tool is withheld in manual mode.

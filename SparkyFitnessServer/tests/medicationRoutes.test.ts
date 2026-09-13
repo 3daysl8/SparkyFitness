@@ -3,22 +3,14 @@ import { vi, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import medicationRepository from '../models/medicationRepository.js';
-import medicationPenRepository from '../models/medicationPenRepository.js';
-import injectionRepository from '../models/injectionRepository.js';
-import titrationRepository from '../models/titrationRepository.js';
 import medicationEntryRepository from '../models/medicationEntryRepository.js';
 import medicationDisplayPreferenceRepository from '../models/medicationDisplayPreferenceRepository.js';
-import glp1Service from '../services/glp1Service.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
 import medicationRoutes from '../routes/v2/medicationRoutes.js';
 
 vi.mock('../models/medicationRepository.js');
-vi.mock('../models/medicationPenRepository.js');
-vi.mock('../models/injectionRepository.js');
-vi.mock('../models/titrationRepository.js');
 vi.mock('../models/medicationEntryRepository.js');
 vi.mock('../models/medicationDisplayPreferenceRepository.js');
-vi.mock('../services/glp1Service.js');
 vi.mock('../utils/permissionUtils.js', () => ({
   canAccessUserData: vi.fn(),
 }));
@@ -83,7 +75,7 @@ describe('Medication Routes V2', () => {
 
   describe('GET /api/v2/medications', () => {
     it('lists medications for the user', async () => {
-      const meds = [{ id: UID, name: 'Wegovy', is_glp1: true }];
+      const meds = [{ id: UID, name: 'Wegovy' }];
       vi.mocked(medicationRepository.listMedications).mockResolvedValue(meds);
       const res = await request(app)
         .get('/api/v2/medications')
@@ -93,17 +85,6 @@ describe('Medication Routes V2', () => {
       expect(medicationRepository.listMedications).toHaveBeenCalledWith(
         'testUser',
         expect.any(Object)
-      );
-    });
-
-    it('passes glp1Only filter through', async () => {
-      vi.mocked(medicationRepository.listMedications).mockResolvedValue([]);
-      await request(app)
-        .get('/api/v2/medications?glp1Only=true')
-        .set('Cookie', cookie);
-      expect(medicationRepository.listMedications).toHaveBeenCalledWith(
-        'testUser',
-        expect.objectContaining({ glp1Only: true })
       );
     });
   });
@@ -119,7 +100,6 @@ describe('Medication Routes V2', () => {
         .set('Cookie', cookie)
         .send({
           name: 'Wegovy',
-          is_glp1: true,
           strength_value: 1,
           strength_unit: 'mg',
         });
@@ -131,7 +111,7 @@ describe('Medication Routes V2', () => {
       const res = await request(app)
         .post('/api/v2/medications')
         .set('Cookie', cookie)
-        .send({ is_glp1: true });
+        .send({});
       expect(res.statusCode).toBe(400);
       expect(res.body).toHaveProperty('error', 'Invalid request');
     });
@@ -409,211 +389,6 @@ describe('Medication Routes V2', () => {
     });
   });
 
-  describe('POST /api/v2/medications/injections', () => {
-    it('logs an injection (with pen auto-deduct passthrough)', async () => {
-      const result = {
-        id: 'inj-1',
-        site: 'left_thigh',
-        pen: { doses_used: 1 },
-      };
-      vi.mocked(injectionRepository.createInjection).mockResolvedValue(result);
-      const res = await request(app)
-        .post('/api/v2/medications/injections')
-        .set('Cookie', cookie)
-        .send({
-          medication_id: UID,
-          site: 'left_thigh',
-          dose_mg: 1,
-          deduct_pen: true,
-        });
-      expect(res.statusCode).toBe(201);
-      expect(res.body).toEqual(result);
-      expect(injectionRepository.createInjection).toHaveBeenCalledWith(
-        'testUser',
-        expect.objectContaining({ medication_id: UID, deduct_pen: true })
-      );
-    });
-
-    it('returns 400 when medication_id is missing', async () => {
-      const res = await request(app)
-        .post('/api/v2/medications/injections')
-        .set('Cookie', cookie)
-        .send({ site: 'left_thigh' });
-      expect(res.statusCode).toBe(400);
-    });
-
-    it('files a backdated entry under the day it was administered, not today', async () => {
-      vi.mocked(injectionRepository.createInjection).mockResolvedValue({
-        id: 'inj-1',
-      });
-      await request(app)
-        .post('/api/v2/medications/injections')
-        .set('Cookie', cookie)
-        .send({
-          medication_id: UID,
-          injected_at: '2026-06-24T15:45:00.000Z',
-        });
-      expect(injectionRepository.createInjection).toHaveBeenCalledWith(
-        'testUser',
-        expect.objectContaining({ entry_date: '2026-06-24' })
-      );
-    });
-
-    it('resolves the day in the user timezone, not UTC', async () => {
-      vi.mocked(injectionRepository.createInjection).mockResolvedValue({
-        id: 'inj-1',
-      });
-      await request(app)
-        .post('/api/v2/medications/injections')
-        .set('Cookie', cookie)
-        .send({
-          medication_id: UID,
-          injected_at: '2026-06-25T02:00:00.000Z',
-        });
-      expect(injectionRepository.createInjection).toHaveBeenCalledWith(
-        'testUser',
-        expect.objectContaining({ entry_date: '2026-06-24' })
-      );
-    });
-
-    it('honors an explicit entry_date over the administration time', async () => {
-      vi.mocked(injectionRepository.createInjection).mockResolvedValue({
-        id: 'inj-1',
-      });
-      await request(app)
-        .post('/api/v2/medications/injections')
-        .set('Cookie', cookie)
-        .send({
-          medication_id: UID,
-          injected_at: '2026-06-24T15:45:00.000Z',
-          entry_date: '2026-06-30',
-        });
-      expect(injectionRepository.createInjection).toHaveBeenCalledWith(
-        'testUser',
-        expect.objectContaining({ entry_date: '2026-06-30' })
-      );
-    });
-
-    it('falls back to today when no administration time is supplied', async () => {
-      vi.mocked(injectionRepository.createInjection).mockResolvedValue({
-        id: 'inj-1',
-      });
-      await request(app)
-        .post('/api/v2/medications/injections')
-        .set('Cookie', cookie)
-        .send({ medication_id: UID });
-      const today = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/New_York',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date());
-      expect(injectionRepository.createInjection).toHaveBeenCalledWith(
-        'testUser',
-        expect.objectContaining({ entry_date: today })
-      );
-    });
-  });
-
-  describe('PUT /api/v2/medications/injections/:id', () => {
-    it('updates an injection', async () => {
-      const updated = { id: UID, site: 'right_thigh', dose_mg: 0.5 };
-      vi.mocked(injectionRepository.updateInjection).mockResolvedValue(updated);
-      const res = await request(app)
-        .put(`/api/v2/medications/injections/${UID}`)
-        .set('Cookie', cookie)
-        .send({ site: 'right_thigh', dose_mg: 0.5 });
-      expect(res.statusCode).toBe(200);
-      expect(res.body).toEqual(updated);
-      expect(injectionRepository.updateInjection).toHaveBeenCalledWith(
-        'testUser',
-        UID,
-        expect.objectContaining({ site: 'right_thigh', dose_mg: 0.5 })
-      );
-    });
-
-    it('moves entry_date when the administration time is corrected', async () => {
-      vi.mocked(injectionRepository.updateInjection).mockResolvedValue({
-        id: UID,
-      });
-      await request(app)
-        .put(`/api/v2/medications/injections/${UID}`)
-        .set('Cookie', cookie)
-        .send({ injected_at: '2026-07-01T22:00:00.000Z' });
-      expect(injectionRepository.updateInjection).toHaveBeenCalledWith(
-        'testUser',
-        UID,
-        expect.objectContaining({ entry_date: '2026-07-01' })
-      );
-    });
-
-    it('leaves entry_date alone when the administration time is unchanged', async () => {
-      vi.mocked(injectionRepository.updateInjection).mockResolvedValue({
-        id: UID,
-      });
-      await request(app)
-        .put(`/api/v2/medications/injections/${UID}`)
-        .set('Cookie', cookie)
-        .send({ site: 'right_thigh' });
-      const arg = vi.mocked(injectionRepository.updateInjection).mock
-        .calls[0][2];
-      expect(arg).not.toHaveProperty('entry_date');
-    });
-
-    it('honors an explicit entry_date alongside a corrected time', async () => {
-      vi.mocked(injectionRepository.updateInjection).mockResolvedValue({
-        id: UID,
-      });
-      await request(app)
-        .put(`/api/v2/medications/injections/${UID}`)
-        .set('Cookie', cookie)
-        .send({
-          injected_at: '2026-07-01T22:00:00.000Z',
-          entry_date: '2026-07-05',
-        });
-      expect(injectionRepository.updateInjection).toHaveBeenCalledWith(
-        'testUser',
-        UID,
-        expect.objectContaining({ entry_date: '2026-07-05' })
-      );
-    });
-
-    it('returns 404 when the injection is missing', async () => {
-      vi.mocked(injectionRepository.updateInjection).mockResolvedValue(null);
-      const res = await request(app)
-        .put(`/api/v2/medications/injections/${UID}`)
-        .set('Cookie', cookie)
-        .send({ site: 'right_thigh' });
-      expect(res.statusCode).toBe(404);
-    });
-
-    it('returns 400 for an invalid uuid', async () => {
-      const res = await request(app)
-        .put('/api/v2/medications/injections/not-a-uuid')
-        .set('Cookie', cookie)
-        .send({ site: 'right_thigh' });
-      expect(res.statusCode).toBe(400);
-    });
-  });
-
-  describe('Pens', () => {
-    it('creates a pen/vial', async () => {
-      const pen = { id: 'pen-1', kind: 'vial', concentration_mg_ml: 2.5 };
-      vi.mocked(medicationPenRepository.createPen).mockResolvedValue(pen);
-      const res = await request(app)
-        .post(`/api/v2/medications/${UID}/pens`)
-        .set('Cookie', cookie)
-        .send({
-          kind: 'vial',
-          concentration_mg_ml: 2.5,
-          volume_ml: 1,
-          doses_total: 4,
-        });
-      expect(res.statusCode).toBe(201);
-      expect(res.body).toEqual(pen);
-    });
-  });
-
   describe('Schedules', () => {
     it('adds a schedule', async () => {
       const schedule = { id: 'sched-1', schedule_type_id: 'daily' };
@@ -756,119 +531,14 @@ describe('Medication Routes V2', () => {
     });
   });
 
-  describe('Titration / taper', () => {
-    it('adds a titration step', async () => {
-      const step = { id: 'step-1', dose_mg: 0.5, status: 'planned' };
-      vi.mocked(titrationRepository.createStep).mockResolvedValue(step);
-      const res = await request(app)
-        .post(`/api/v2/medications/${UID}/titration`)
-        .set('Cookie', cookie)
-        .send({ dose_mg: 0.5, planned_weeks: 4, status: 'planned' });
-      expect(res.statusCode).toBe(201);
-      expect(res.body).toEqual(step);
-      expect(titrationRepository.createStep).toHaveBeenCalledWith(
-        'testUser',
-        UID,
-        expect.objectContaining({ dose_mg: 0.5 })
-      );
-    });
-
-    it('returns 400 when dose_mg is missing', async () => {
-      const res = await request(app)
-        .post(`/api/v2/medications/${UID}/titration`)
-        .set('Cookie', cookie)
-        .send({ planned_weeks: 4 });
-      expect(res.statusCode).toBe(400);
-    });
-
-    it('updates a titration step', async () => {
-      const updated = { id: UID, dose_mg: 1, status: 'active' };
-      vi.mocked(titrationRepository.updateStep).mockResolvedValue(updated);
-      const res = await request(app)
-        .put(`/api/v2/medications/titration/${UID}`)
-        .set('Cookie', cookie)
-        .send({ dose_mg: 1, status: 'active' });
-      expect(res.statusCode).toBe(200);
-      expect(res.body).toEqual(updated);
-      expect(titrationRepository.updateStep).toHaveBeenCalledWith(
-        'testUser',
-        UID,
-        expect.objectContaining({ dose_mg: 1, status: 'active' })
-      );
-    });
-
-    it('returns 404 when the titration step is missing', async () => {
-      vi.mocked(titrationRepository.updateStep).mockResolvedValue(null);
-      const res = await request(app)
-        .put(`/api/v2/medications/titration/${UID}`)
-        .set('Cookie', cookie)
-        .send({ dose_mg: 1 });
-      expect(res.statusCode).toBe(404);
-    });
-
-    it('returns 400 when updating with an invalid status', async () => {
-      const res = await request(app)
-        .put(`/api/v2/medications/titration/${UID}`)
-        .set('Cookie', cookie)
-        .send({ status: 'bogus' });
-      expect(res.statusCode).toBe(400);
-    });
-  });
-
-  describe('GLP-1 derived', () => {
-    it('returns the modeled serum curve', async () => {
-      const payload = {
-        drugId: 'semaglutide',
-        curve: [{ day: 0, level: 1, fraction: 1 }],
-        currentLevelFraction: 0.7,
-        doseDays: [0],
-        anchorDate: '2026-01-01T09:00:00.000Z',
-        disclaimer: 'Modeled estimate',
-      };
-      vi.mocked(glp1Service.getSerumCurve).mockResolvedValue(payload);
-      const res = await request(app)
-        .get(`/api/v2/medications/${UID}/glp1/serum-curve`)
-        .set('Cookie', cookie);
-      expect(res.statusCode).toBe(200);
-      expect(res.body).toEqual(payload);
-    });
-
-    it('returns the site suggestion', async () => {
-      const payload = {
-        suggestedSiteId: 'right_arm',
-        restingSiteIds: ['left_thigh'],
-        sites: [],
-        restDays: 7,
-        activeSiteIds: null,
-      };
-      vi.mocked(glp1Service.getSiteSuggestion).mockResolvedValue(payload);
-      const res = await request(app)
-        .get(`/api/v2/medications/${UID}/glp1/site-suggestion`)
-        .set('Cookie', cookie);
-      expect(res.statusCode).toBe(200);
-      expect(res.body.suggestedSiteId).toBe('right_arm');
-    });
-
-    it('returns 404 when the medication is missing for the curve', async () => {
-      vi.mocked(glp1Service.getSerumCurve).mockRejectedValue(
-        new Error('Medication not found')
-      );
-      const res = await request(app)
-        .get(`/api/v2/medications/${UID}/glp1/serum-curve`)
-        .set('Cookie', cookie);
-      expect(res.statusCode).toBe(404);
-    });
-  });
-
   describe('Entries', () => {
-    it('lists medication entries merged with injections', async () => {
+    // The injection_entries table (clinical/GLP-1 medication tracking) was
+    // hard-deleted along with the food/goal/clinical-medication schema, so
+    // listEntriesWithInjections is now a thin wrapper around medication_entries
+    // that always reports entry_type: 'entry' (kept for API-shape compatibility
+    // with callers that still read that field).
+    it('lists medication entries', async () => {
       const entries = [
-        {
-          id: 'inj-1',
-          medication_id: UID,
-          status: 'taken',
-          entry_type: 'injection',
-        },
         {
           id: 'entry-1',
           medication_id: UID,

@@ -7,10 +7,8 @@ import {
   type ChatToolCategorySlug,
 } from '@workspace/shared';
 import { ASK_USER_TOOL_NAME } from '@workspace/shared';
-import { buildAllergenTools } from './allergenTools.js';
 import { buildAskTools } from './askTools.js';
 import { buildCheckinTools } from './checkinTools.js';
-import { buildCustomNutrientTools } from './customNutrientTools.js';
 import { buildWaterContainerTools } from './waterContainerTools.js';
 import { buildCoachTools } from './coachTools.js';
 import { buildEngagementTools } from './engagementTools.js';
@@ -20,20 +18,13 @@ import { buildSleepScienceTools } from './sleepScienceTools.js';
 import { buildIntegrationsTools } from './integrationsTools.js';
 import { buildSyncedDataTools } from './syncedDataTools.js';
 import { buildProgressPhotoTools } from './progressPhotoTools.js';
-import { buildBarcodeTools } from './barcodeTools.js';
 import { buildDashboardTools } from './dashboardTools.js';
-import { buildFavoritesTools } from './favoritesTools.js';
-import { buildFoodTools } from './foodTools.js';
-import { buildGoalTools } from './goalTools.js';
 import { buildFocusTools } from './focusTools.js';
 import { buildHabitTools } from './habitTools.js';
-import { buildMealPlanTools } from './mealPlansTools.js';
 import { buildMedicationTools } from './medicationTools.js';
 import { ENABLE_TOOLS_TOOL_NAME, buildMetaTools } from './metaTools.js';
 import { buildProfileTools } from './profileTools.js';
 import { buildReportTools } from './reportTools.js';
-import { buildVisionTools } from './visionTools.js';
-import type { FoodPhotoEstimateSink } from './foodPhotoEstimateSink.js';
 import { buildWizardTools } from './wizardTools.js';
 import { buildWorkoutPlanTools } from './workoutPlanTools.js';
 
@@ -62,15 +53,13 @@ type ToolMap = Record<string, Tool>;
  * and logged verbatim); every other builder ignores the argument.
  */
 export interface ToolBuildContext {
-  foodPhotoEstimateSink?: FoodPhotoEstimateSink;
   /**
    * The image attached to this turn, as a data URL.
    *
    * A model can see an attached image but cannot put it in a tool call — a
    * tool call is JSON text and the bytes are not something it can transcribe.
-   * Asked for an `image_url` it therefore invents one, which the vision tool
-   * rejects. Set after the tools are built (the caller has the messages, the
-   * builder does not); the tools read it at call time.
+   * Set after the tools are built (the caller has the messages, the builder
+   * does not); a tool that needs it reads it at call time.
    */
   latestImageDataUrl?: string | null;
   /** The active AI service config ID from the current chat session, if known. */
@@ -86,29 +75,28 @@ const CATEGORY_BUILDERS: Record<
     (u, tz) => buildExerciseStatsTools(u, tz),
     (u, tz) => buildWorkoutPlanTools(u, tz),
   ],
-  food: [
-    (u, tz) => buildFoodTools(u, tz),
-    (u, tz) => buildFavoritesTools(u, tz),
-    (u, tz) => buildMealPlanTools(u, tz),
-    (u, tz) => buildCustomNutrientTools(u, tz),
-    (u, tz) => buildWaterContainerTools(u, tz),
-    (u, tz) => buildAllergenTools(u, tz),
-    (u, tz) => buildBarcodeTools(u, tz),
-  ],
+  // Food/nutrition tracking was hard-deleted from this fork (Ouroboros Life
+  // restructure); water containers are hydration, not food-diary, so they are
+  // the sole survivor of what was once the 'food' category.
+  food: [(u, tz) => buildWaterContainerTools(u, tz)],
   checkin: [
     (u, tz) => buildCheckinTools(u, tz),
     (u, tz) => buildProgressPhotoTools(u, tz),
     (u, tz) => buildSleepScienceTools(u, tz),
   ],
-  goals: [(u, tz) => buildGoalTools(u, tz), (u, tz) => buildFocusTools(u, tz)],
+  // Macro/calorie goals (goalTools.ts) were hard-deleted along with user_goals;
+  // Focus's own goal-adjacent tools are what remains here.
+  goals: [(u, tz) => buildFocusTools(u, tz)],
   coaching: [
     (u, tz) => buildCoachTools(u, tz),
     (u, tz) => buildEngagementTools(u, tz),
     (u) => buildWizardTools(u),
   ],
-  vision: [
-    (u, _tz, ctx) => buildVisionTools(u, ctx?.foodPhotoEstimateSink, ctx),
-  ],
+  // Vision tools (food-photo estimation, label scanning) were hard-deleted
+  // along with the food domain they served — the category slug is kept
+  // (it's part of the shared ChatToolCategorySlug union the frontend also
+  // uses) but now composes to zero tools.
+  vision: [],
   profile: [
     (u) => buildProfileTools(u),
     (u, tz) => buildHabitTools(u, tz),

@@ -59,7 +59,6 @@ vi.mock('../services/garminService.js', () => ({
   default: {
     processGarminHealthAndWellnessData: vi.fn(),
     processActivitiesAndWorkouts: vi.fn(),
-    processGarminNutritionData: vi.fn(),
     syncGarminData: vi.fn(),
   },
 }));
@@ -99,15 +98,6 @@ describe('permission gating (switched-context delegate without diary access)', (
     expect(garminService.syncGarminData).not.toHaveBeenCalled();
   });
 
-  it('returns 403 from /sync/nutrition_diary and does not fetch nutrition', async () => {
-    permissionState.allow = false;
-    const res = await request(app)
-      .post('/integrations/garmin/sync/nutrition_diary')
-      .send({ startDate: '2026-06-01', endDate: '2026-06-07' });
-    expect(res.statusCode).toBe(403);
-    expect(garminService.processGarminNutritionData).not.toHaveBeenCalled();
-  });
-
   it('returns 403 from /unlink and does not delete the provider', async () => {
     permissionState.allow = false;
     const res = await request(app).post('/integrations/garmin/unlink');
@@ -120,7 +110,6 @@ describe('POST /integrations/garmin/sync', () => {
     const result = {
       health: { processedEntries: 1 },
       activities: { processedEntries: 2 },
-      nutrition: { processedEntries: 3 },
     };
     (garminService.syncGarminData as any).mockResolvedValue(result);
 
@@ -145,7 +134,6 @@ describe('POST /integrations/garmin/sync', () => {
     const result = {
       health: { error: 'Garmin health API rate limited' },
       activities: { processedEntries: 2 },
-      nutrition: { processedEntries: 3 },
     };
     (garminService.syncGarminData as any).mockResolvedValue(result);
 

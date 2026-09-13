@@ -4,7 +4,6 @@ import exerciseDb from '../models/exercise.js';
 import exerciseEntryDb, {
   EXERCISE_ENTRY_TELEMETRY_COLUMNS,
 } from '../models/exerciseEntry.js';
-import foodRepository from '../models/foodRepository.js';
 import moodRepository from '../models/moodRepository.js';
 import waterContainerRepository from '../models/waterContainerRepository.js';
 import * as workoutTelemetryRepo from '../models/workoutTelemetryRepository.js';
@@ -109,8 +108,6 @@ const DEFAULT_UNITS_BY_HEALTH_TYPE = {
   CyclingPedalingCadence: 'rpm',
   blood_alcohol_content: '%',
   BloodAlcoholContent: '%',
-  nutrition: 'kcal',
-  Nutrition: 'kcal',
   // Aggregated min/max/avg types from mobile health data
   // Chunk 1: Heart rate + vitals
   heart_rate_min: 'bpm',
@@ -270,145 +267,6 @@ function sanitizeHealthConnectSleepStageEvents(stageEvents: any) {
     });
     return sanitized;
   }, []);
-}
-
-// Health Connect nutrient fields that map to dedicated food_entry columns.
-// (Vitamins/minerals without a column arrive already grouped in custom_nutrients.)
-const NUTRITION_DIRECT_COLUMNS = [
-  'calories',
-  'protein',
-  'carbs',
-  'fat',
-  'saturated_fat',
-  'polyunsaturated_fat',
-  'monounsaturated_fat',
-  'trans_fat',
-  'cholesterol',
-  'sodium',
-  'potassium',
-  'dietary_fiber',
-  'sugars',
-  'vitamin_a',
-  'vitamin_c',
-  'calcium',
-  'iron',
-  'caffeine_mg',
-] as const;
-
-// Maps the client's display label (dataEntry.source) to a stable provider tag
-// used for food deduplication and diary entry source. Unknown/missing values
-// fall back to 'health_connect' so existing Android data is byte-for-byte
-// unchanged (Android sends 'Health Connect').
-const PROVIDER_TYPE_BY_SOURCE: Record<string, string> = {
-  'Health Connect': 'health_connect',
-  HealthKit: 'healthkit',
-};
-
-function resolveProvider(source: string | undefined): {
-  providerType: string;
-  fallbackName: string;
-} {
-  const providerType =
-    PROVIDER_TYPE_BY_SOURCE[source ?? ''] ?? 'health_connect';
-  const fallbackName =
-    providerType === 'healthkit' ? 'Apple Health food' : 'Health Connect food';
-  return { providerType, fallbackName };
-}
-
-// Ingest a single health-platform NutritionRecord (Health Connect or HealthKit)
-// as a food entry.
-//
-// A NutritionRecord is a *consumed amount*, not a per-serving food definition, so
-// the food/variant is just a labelled container: we reuse one food per name
-// (provider_external_id = name) and refresh its variant to the latest values,
-// mirroring the Garmin nutrition path (findFoodByProviderExternalId /
-// updateFoodVariantNutrition). The consumed nutrients are written onto the diary
-// entry itself, so two different amounts of the same food keep their own values
-// instead of collapsing to one variant's. The entry upserts by (source,
-// source_id), so re-syncing the same record updates in place — which lets the
-// client chunk freely without a destructive range-delete.
-async function ingestNutritionFoodEntry(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dataEntry: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  userId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actingUserId: any,
-  parsedDate: string
-) {
-  const { providerType, fallbackName } = resolveProvider(dataEntry.source);
-  const trimmedName =
-    typeof dataEntry.food_name === 'string' ? dataEntry.food_name.trim() : '';
-  const foodName = trimmedName || fallbackName;
-  // Named records reuse one food per name; nameless ones key off the record id so
-  // each gets its own (hidden) food instead of collapsing onto a single shared
-  // 'Health Connect food' row whose variant would churn on every sync.
-  const providerExternalId = trimmedName || dataEntry.source_id || foodName;
-
-  // Consumed nutrients (serving_size = 1, so one serving = the consumed amount).
-  // Fields the provider omitted are stored as null, never a phantom 0.
-  const nutrients: Record<string, number | null> = {};
-  for (const field of NUTRITION_DIRECT_COLUMNS) {
-    nutrients[field] = dataEntry[field] ?? null;
-  }
-
-  // Reuse this provider's food for the same external id if present (refreshing its
-  // variant to the latest values), else create it. The provider_type scoping
-  // keeps user-authored library foods untouched.
-  let food = await foodRepository.findFoodByProviderExternalId(
-    userId,
-    providerExternalId,
-    providerType
-  );
-  let variantId = food?.default_variant_id ?? food?.default_variant?.id;
-  if (food && variantId) {
-    await foodRepository.updateFoodVariantNutrition(variantId, userId, {
-      serving_size: 1,
-      serving_unit: 'serving',
-      ...nutrients,
-    });
-  } else {
-    food = await foodRepository.createFood({
-      name: foodName,
-      user_id: userId,
-      is_custom: false,
-      // Hidden from food search (these are diary-only provider entries, and the
-      // generic fallback food name would otherwise clutter results).
-      is_quick_food: true,
-      provider_type: providerType,
-      provider_external_id: providerExternalId,
-      shared_with_public: false,
-      // food_variants.source is constrained to manual|ai_estimate|imported.
-      source: 'imported',
-      serving_size: 1,
-      serving_unit: 'serving',
-      ...nutrients,
-    });
-    variantId = food.default_variant_id ?? food.default_variant?.id;
-  }
-
-  // The consumed nutrients are passed through as snapshot overrides so the entry
-  // keeps its own values; createFoodEntry upserts on (user, source, source_id).
-  return foodRepository.createFoodEntry(
-    {
-      user_id: userId,
-      food_id: food.id,
-      variant_id: variantId,
-      quantity: 1,
-      unit: 'serving',
-      entry_date: parsedDate,
-      meal_type: dataEntry.meal_type || 'snacks',
-      serving_size: 1,
-      serving_unit: 'serving',
-      food_name: foodName,
-      ...nutrients,
-      // Idempotency key. Tagged with the provider tag (not the client's display
-      // label) so it stays consistent with the food's provider_type.
-      source: providerType,
-      source_id: dataEntry.source_id || null,
-    },
-    actingUserId
-  );
 }
 
 // ── Registry types ─────────────────────────────────────────────────────────
@@ -1716,46 +1574,6 @@ const workoutHandler: HealthTypeHandler = {
   },
 };
 
-// Ingest a Health Connect NutritionRecord as a food entry
-// (see ingestNutritionFoodEntry).
-const nutritionHandler: HealthTypeHandler = {
-  async handle(entry, ctx) {
-    // Idempotency depends on source_id (the upsert key). A record without
-    // one can't be deduped and would re-insert on every sync, so skip it
-    // rather than risk duplicates (guards against client/device variance).
-    if (!entry.source_id) {
-      log(
-        'warn',
-        `[processHealthData] Skipping Nutrition record without source_id (cannot dedupe): '${entry.food_name || 'unnamed'}'`
-      );
-      return {
-        status: 'skipped',
-        reason:
-          'Nutrition record without source_id cannot be deduplicated; skipped.',
-      };
-    }
-    try {
-      const foodEntry = await ingestNutritionFoodEntry(
-        entry,
-        ctx.userId,
-        ctx.actingUserId,
-        ctx.parsedDate
-      );
-      return { status: 'success', data: foodEntry };
-    } catch (nutritionError) {
-      const errMsg =
-        nutritionError instanceof Error
-          ? nutritionError.message
-          : String(nutritionError);
-      log('error', `Error processing Nutrition entry: ${errMsg}`, entry);
-      return {
-        status: 'error',
-        error: `Failed to process Nutrition entry: ${errMsg}`,
-      };
-    }
-  },
-};
-
 // Handle structured sleep entry data (legacy/web)
 const sleepEntryHandler: HealthTypeHandler = {
   async handle(entry, ctx) {
@@ -1873,11 +1691,30 @@ export const customMeasurementHandler: HealthTypeHandler = {
   handleBatch: customMeasurementHandleBatch,
 };
 
+// Food/nutrition tracking (food_entries, the whole food domain) was
+// hard-deleted from this fork (Ouroboros Life restructure), so a synced
+// Nutrition record from Health Connect/HealthKit has nowhere left to land.
+// Rather than let it fall through to the generic custom-measurement handler
+// (which would create a spurious "Nutrition" category and try to store a
+// food's calorie/macro fields as an arbitrary numeric metric), it is always
+// skipped, explicitly and without error, regardless of source_id.
+const nutritionHandler: HealthTypeHandler = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async handle(_entry: any, _ctx: HealthEntryContext): Promise<HandlerOutcome> {
+    return {
+      status: 'skipped',
+      reason:
+        'Nutrition/food data is not tracked in this app; the entry was ignored.',
+    };
+  },
+};
+
 // ── Registry ────────────────────────────────────────────────────────────────
 
 // Handlers keyed by canonical type name.
 export const HEALTH_TYPE_HANDLERS: Record<string, HealthTypeHandler> = {
   steps: stepsHandler,
+  Nutrition: nutritionHandler,
   water: waterHandler,
   active_calories: activeCaloriesHandler,
   total_calories: totalCaloriesHandler,
@@ -1894,7 +1731,6 @@ export const HEALTH_TYPE_HANDLERS: Record<string, HealthTypeHandler> = {
   SleepSession: sleepSessionHandler,
   Stress: stressHandler,
   Workout: workoutHandler,
-  Nutrition: nutritionHandler,
   sleep_entry: sleepEntryHandler,
   Mood: moodHandler,
 };

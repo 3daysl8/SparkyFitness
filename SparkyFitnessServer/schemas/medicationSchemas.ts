@@ -63,17 +63,11 @@ const MedicationFieldsSchema = z.object({
   dose_unit: optionalNullableString,
   rxnorm_rxcui: optionalNullableString,
   ndc: optionalNullableString,
-  prescriber: optionalNullableString,
-  pharmacy: optionalNullableString,
-  rx_number: optionalNullableString,
   reason_text: optionalNullableString,
-  effectiveness_rating: optionalNullableInt,
   color: optionalNullableString,
   icon: optionalNullableString,
-  photo_path: optionalNullableString,
   is_active: z.boolean().optional(),
   is_quick: z.boolean().optional(),
-  is_glp1: z.boolean().optional(),
   is_supplement: z.boolean().optional(),
   nutrients: MedicationNutrientsSchema.optional(),
   notes: optionalNullableString,
@@ -122,99 +116,6 @@ export const UpdateScheduleBodySchema = CreateScheduleBodySchema.partial();
 export type UpdateScheduleBody = z.infer<typeof UpdateScheduleBodySchema>;
 
 // --------------------------------------------------------------------------
-// Pens / vials
-// --------------------------------------------------------------------------
-const PenFieldsSchema = z.object({
-  kind: z.enum(['pen', 'vial']).optional(),
-  label: optionalNullableString,
-  dose_mg: optionalNullableNumber,
-  concentration_mg_ml: optionalNullableNumber,
-  volume_ml: optionalNullableNumber,
-  doses_total: optionalNullableInt,
-  doses_used: optionalNullableInt,
-  status: z.enum(['sealed', 'in_use', 'finished']).optional(),
-  opened_at: optionalDateString,
-  expiry_date: optionalDateString,
-  bud_date: optionalDateString,
-  reorder_flag: z.boolean().optional(),
-  reorder_threshold: optionalNullableInt,
-  notes: optionalNullableString,
-  source: z.string().optional(),
-  custom_fields: customFields,
-});
-export const CreatePenBodySchema = PenFieldsSchema.loose();
-export type CreatePenBody = z.infer<typeof CreatePenBodySchema>;
-export const UpdatePenBodySchema = PenFieldsSchema.partial().loose();
-export type UpdatePenBody = z.infer<typeof UpdatePenBodySchema>;
-
-// --------------------------------------------------------------------------
-// Injections
-// --------------------------------------------------------------------------
-export const CreateInjectionBodySchema = z
-  .object({
-    medication_id: z.string().uuid(),
-    pen_id: z.string().uuid().nullable().optional(),
-    injected_at: z.string().nullable().optional(), // ISO timestamp
-    entry_date: optionalDateString,
-    site: optionalNullableString,
-    dose_mg: optionalNullableNumber,
-    notes: optionalNullableString,
-    /**
-     * when true, increment the pen's doses_used in the same txn; with a pen_id that pen is
-     * used, without one the best candidate pen is auto-picked (in-use first, else oldest
-     * sealed with doses remaining)
-     */
-    deduct_pen: z.boolean().optional(),
-    source: z.string().optional(),
-    custom_fields: customFields,
-  })
-  .loose();
-export type CreateInjectionBody = z.infer<typeof CreateInjectionBodySchema>;
-
-// Update is a partial patch. pen_id/deduct_pen are deliberately excluded — inventory
-// deduction can't be re-pointed after the fact; delete and re-log instead.
-export const UpdateInjectionBodySchema = z
-  .object({
-    injected_at: z.string().nullable().optional(), // ISO timestamp
-    entry_date: optionalDateString,
-    site: optionalNullableString,
-    dose_mg: optionalNullableNumber,
-    notes: optionalNullableString,
-    source: z.string().optional(),
-    custom_fields: customFields,
-  })
-  .loose();
-export type UpdateInjectionBody = z.infer<typeof UpdateInjectionBodySchema>;
-
-// --------------------------------------------------------------------------
-// Titration / taper steps
-// --------------------------------------------------------------------------
-export const CreateTitrationStepBodySchema = z
-  .object({
-    dose_mg: z.number(),
-    dose_unit: z.string().optional(),
-    start_date: optionalDateString,
-    planned_weeks: optionalNullableInt,
-    step_order: optionalNullableInt,
-    status: z.enum(['done', 'active', 'planned']).optional(),
-    is_taper: z.boolean().optional(),
-    note: optionalNullableString,
-    source: z.string().optional(),
-    custom_fields: customFields,
-  })
-  .loose();
-export type CreateTitrationStepBody = z.infer<
-  typeof CreateTitrationStepBodySchema
->;
-
-// Update is a partial patch — every field optional, including dose_mg.
-export const UpdateTitrationStepBodySchema =
-  CreateTitrationStepBodySchema.partial();
-export type UpdateTitrationStepBody = z.infer<
-  typeof UpdateTitrationStepBodySchema
->;
-
-// --------------------------------------------------------------------------
 // Param / query schemas
 // --------------------------------------------------------------------------
 export const MedicationIdParamSchema = z
@@ -224,20 +125,10 @@ export type MedicationIdParam = z.infer<typeof MedicationIdParamSchema>;
 
 export const ListMedicationsQuerySchema = z
   .object({
-    glp1Only: z.coerce.boolean().optional(),
     activeOnly: z.coerce.boolean().optional(),
   })
   .loose();
 export type ListMedicationsQuery = z.infer<typeof ListMedicationsQuerySchema>;
-
-export const SerumCurveQuerySchema = z
-  .object({
-    fromDay: z.coerce.number().optional(),
-    toDay: z.coerce.number().optional(),
-    stepDays: z.coerce.number().optional(),
-  })
-  .loose();
-export type SerumCurveQuery = z.infer<typeof SerumCurveQuerySchema>;
 
 // --------------------------------------------------------------------------
 // Medication Entries

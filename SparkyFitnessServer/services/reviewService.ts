@@ -1,21 +1,10 @@
-import foodRepository from '../models/foodRepository.js';
 import exerciseRepository from '../models/exerciseRepository.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getNeedsReviewItems(userId: any) {
-  const foodsNeedingReview = await foodRepository.getFoodsNeedingReview(userId);
   const exercisesNeedingReview =
     await exerciseRepository.getExercisesNeedingReview(userId);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reviewItems: any = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  foodsNeedingReview.forEach((food: any) => {
-    reviewItems.push({
-      id: food.id,
-      type: 'food',
-      name: food.food_name,
-      // Add other relevant food details if needed
-    });
-  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exercisesNeedingReview.forEach((exercise: any) => {
     reviewItems.push({
@@ -35,10 +24,9 @@ async function getNeedsReviewItems(userId: any) {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getNeedsReviewCount(userId: any) {
-  const foodsNeedingReview = await foodRepository.getFoodsNeedingReview(userId);
   const exercisesNeedingReview =
     await exerciseRepository.getExercisesNeedingReview(userId);
-  return foodsNeedingReview.length + exercisesNeedingReview.length;
+  return exercisesNeedingReview.length;
 }
 export { getNeedsReviewCount };
 export { getNeedsReviewItems };

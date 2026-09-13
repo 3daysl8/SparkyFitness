@@ -5,17 +5,13 @@ import preferenceService from '../services/preferenceService.js';
 import measurementService from '../services/measurementService.js';
 import exerciseEntryDb from '../models/exerciseEntry.js';
 import measurementRepository from '../models/measurementRepository.js';
-import reportRepository from '../models/reportRepository.js';
 import { getResolvedExerciseCaloriesRange } from '../services/exerciseCalorieRangeService.js';
 
-// Stubs for foodTools/checkinTools imports the report tools never call;
-// loading the real services trips on deep '@workspace/shared' subpath imports.
-vi.mock('../services/foodCoreService', () => ({ default: {} }));
-vi.mock('../services/foodEntryService', () => ({ default: {} }));
-vi.mock('../services/mealService', () => ({ default: {} }));
-vi.mock('../services/externalFoodSearchService', () => ({
-  searchProviderFoods: vi.fn(),
-}));
+// Food/nutrition tracking was hard-deleted from this fork (Ouroboros Life
+// restructure): reportTools.ts no longer imports models/reportRepository.js
+// at all, so the weekly report has no Nutrition & Energy section and the
+// daily report has no `nutrition` field -- both tools are now exercise +
+// water (+ biometrics for the weekly report).
 vi.mock('../services/preferenceService', () => ({
   default: {
     getUserPreferences: vi.fn(),
@@ -34,11 +30,6 @@ vi.mock('../models/exerciseEntry', () => ({
 vi.mock('../models/measurementRepository', () => ({
   default: {
     getWaterTotalsByDateRange: vi.fn(),
-  },
-}));
-vi.mock('../models/reportRepository', () => ({
-  default: {
-    getDailyNutritionTotalsRange: vi.fn(),
   },
 }));
 vi.mock('../services/exerciseCalorieRangeService', () => ({
@@ -68,20 +59,12 @@ beforeEach(() => {
   vi.mocked(getResolvedExerciseCaloriesRange).mockResolvedValue(new Map());
   vi.clearAllMocks();
   vi.mocked(preferenceService.getUserPreferences).mockResolvedValue(PREFS);
+  vi.mocked(getResolvedExerciseCaloriesRange).mockResolvedValue(new Map());
   tools = buildReportTools('user-1', 'UTC');
 });
 
 describe('sparky_get_report (get_weekly_report)', () => {
-  it('renders the three weekly sections from the trailing 7-day window', async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
-      {
-        entry_date: '2026-06-08',
-        calories: '2100.5',
-        protein: '95',
-        carbs: '240',
-        fat: '70',
-      },
-    ]);
+  it('renders the water and biometrics sections from the trailing 7-day window', async () => {
     vi.mocked(
       measurementRepository.getWaterTotalsByDateRange
     ).mockResolvedValue([
@@ -112,11 +95,6 @@ describe('sparky_get_report (get_weekly_report)', () => {
 
     expect(result).toBe(
       '# Weekly Performance Report (2026-06-04 to 2026-06-10)\n\n' +
-        '## Nutrition & Energy\n' +
-        '| Date | Calories (kcal) | P (g) | C (g) | F (g) |\n' +
-        '| :--- | :--- | :--- | :--- | :--- |\n' +
-        '| 2026-06-08 | 2100.5 | 95 | 240 | 70 |\n' +
-        '\n' +
         '## Water Intake\n' +
         '| Date | Amount (ml) |\n' +
         '| :--- | :--- |\n' +
@@ -129,11 +107,6 @@ describe('sparky_get_report (get_weekly_report)', () => {
         '| 2026-06-08 | 82 | - | - |\n' +
         '| 2026-06-09 | 81.5 | 22.5 | 9000 |\n'
     );
-    expect(reportRepository.getDailyNutritionTotalsRange).toHaveBeenCalledWith(
-      'user-1',
-      '2026-06-04',
-      '2026-06-10'
-    );
     expect(
       measurementRepository.getWaterTotalsByDateRange
     ).toHaveBeenCalledWith('user-1', '2026-06-04', '2026-06-10');
@@ -143,9 +116,6 @@ describe('sparky_get_report (get_weekly_report)', () => {
   });
 
   it('defaults the window to today (UTC) and renders empty-section placeholders', async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue(
-      []
-    );
     vi.mocked(
       measurementRepository.getWaterTotalsByDateRange
     ).mockResolvedValue([]);
@@ -162,20 +132,15 @@ describe('sparky_get_report (get_weekly_report)', () => {
     const start = addDays(end, -6);
     expect(result).toBe(
       `# Weekly Performance Report (${start} to ${end})\n\n` +
-        '## Nutrition & Energy\n' +
-        '_No nutrition data logged this week._\n' +
-        '\n' +
         '## Water Intake\n' +
         '_No water intake logged this week._\n' +
         '\n' +
         '## Biometrics Trend\n' +
         '_No biometric data logged this week._\n'
     );
-    expect(reportRepository.getDailyNutritionTotalsRange).toHaveBeenCalledWith(
-      'user-1',
-      start,
-      end
-    );
+    expect(
+      measurementRepository.getWaterTotalsByDateRange
+    ).toHaveBeenCalledWith('user-1', start, end);
   });
 
   it('returns a validation error for a malformed end_date', async () => {
@@ -190,9 +155,9 @@ describe('sparky_get_report (get_weekly_report)', () => {
   });
 
   it('maps repository failures to DB_ERROR', async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockRejectedValue(
-      new Error('boom')
-    );
+    vi.mocked(
+      measurementRepository.getWaterTotalsByDateRange
+    ).mockRejectedValue(new Error('boom'));
 
     const result = await tools.sparky_get_report.execute!(
       { action: 'get_weekly_report' },
@@ -204,19 +169,7 @@ describe('sparky_get_report (get_weekly_report)', () => {
 });
 
 describe('sparky_get_daily_report', () => {
-  it('returns nutrition, exercise, and water rows projected to MCP columns', async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
-      {
-        entry_date: '2026-06-10',
-        calories: 2100.5,
-        protein: 95,
-        carbs: 240,
-        fat: 70,
-        fiber: 28,
-        sugar: 40,
-        sodium: 1500,
-      },
-    ]);
+  it('returns exercise and water rows projected to MCP columns', async () => {
     vi.mocked(exerciseEntryDb.getDailyExerciseTotalsRange).mockResolvedValue([
       {
         entry_date: '2026-06-10',
@@ -240,16 +193,6 @@ describe('sparky_get_daily_report', () => {
       JSON.stringify({
         start_date: '2026-06-10',
         end_date: '2026-06-10',
-        nutrition: [
-          {
-            entry_date: '2026-06-10',
-            calories: 2100.5,
-            protein: 95,
-            carbs: 240,
-            fat: 70,
-            fiber: 28,
-          },
-        ],
         exercise: [
           {
             entry_date: '2026-06-10',
@@ -268,17 +211,7 @@ describe('sparky_get_daily_report', () => {
     );
   });
 
-  it('renders pg local-midnight Date rows as calendar-day strings in all three sets', async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
-      {
-        entry_date: new Date(2026, 5, 10),
-        calories: 2100.5,
-        protein: 95,
-        carbs: 240,
-        fat: 70,
-        fiber: 28,
-      },
-    ]);
+  it('renders pg local-midnight Date rows as calendar-day strings in both sets', async () => {
     vi.mocked(exerciseEntryDb.getDailyExerciseTotalsRange).mockResolvedValue([
       {
         entry_date: new Date(2026, 5, 10),
@@ -304,16 +237,6 @@ describe('sparky_get_daily_report', () => {
       JSON.stringify({
         start_date: '2026-06-10',
         end_date: '2026-06-10',
-        nutrition: [
-          {
-            entry_date: '2026-06-10',
-            calories: 2100.5,
-            protein: 95,
-            carbs: 240,
-            fat: 70,
-            fiber: 28,
-          },
-        ],
         exercise: [
           {
             entry_date: '2026-06-10',
@@ -328,9 +251,6 @@ describe('sparky_get_daily_report', () => {
   });
 
   it('lets date override start/end and defaults the range to today (UTC)', async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue(
-      []
-    );
     vi.mocked(exerciseEntryDb.getDailyExerciseTotalsRange).mockResolvedValue(
       []
     );
@@ -346,7 +266,7 @@ describe('sparky_get_daily_report', () => {
       },
       opts
     );
-    expect(reportRepository.getDailyNutritionTotalsRange).toHaveBeenCalledWith(
+    expect(exerciseEntryDb.getDailyExerciseTotalsRange).toHaveBeenCalledWith(
       'user-1',
       '2026-06-01',
       '2026-06-01'
@@ -354,7 +274,7 @@ describe('sparky_get_daily_report', () => {
 
     await tools.sparky_get_daily_report.execute!({}, opts);
     const today = todayInZone('UTC');
-    expect(reportRepository.getDailyNutritionTotalsRange).toHaveBeenCalledWith(
+    expect(exerciseEntryDb.getDailyExerciseTotalsRange).toHaveBeenCalledWith(
       'user-1',
       today,
       today
@@ -365,9 +285,6 @@ describe('sparky_get_daily_report', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-10T20:00:00Z'));
     try {
-      vi.mocked(
-        reportRepository.getDailyNutritionTotalsRange
-      ).mockResolvedValue([]);
       vi.mocked(exerciseEntryDb.getDailyExerciseTotalsRange).mockResolvedValue(
         []
       );
@@ -378,13 +295,13 @@ describe('sparky_get_daily_report', () => {
       const tokyoTools = buildReportTools('user-1', 'Asia/Tokyo');
       await tokyoTools.sparky_get_daily_report.execute!({}, opts);
       expect(
-        reportRepository.getDailyNutritionTotalsRange
+        exerciseEntryDb.getDailyExerciseTotalsRange
       ).toHaveBeenLastCalledWith('user-1', '2026-06-11', '2026-06-11');
 
       const utcTools = buildReportTools('user-1', 'UTC');
       await utcTools.sparky_get_daily_report.execute!({}, opts);
       expect(
-        reportRepository.getDailyNutritionTotalsRange
+        exerciseEntryDb.getDailyExerciseTotalsRange
       ).toHaveBeenLastCalledWith('user-1', '2026-06-10', '2026-06-10');
     } finally {
       vi.useRealTimers();
@@ -392,7 +309,7 @@ describe('sparky_get_daily_report', () => {
   });
 
   it("maps a 'not found' failure to NOT_FOUND keyed by the requested date", async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockRejectedValue(
+    vi.mocked(exerciseEntryDb.getDailyExerciseTotalsRange).mockRejectedValue(
       new Error('Daily report not found')
     );
 
@@ -407,7 +324,7 @@ describe('sparky_get_daily_report', () => {
   });
 
   it('maps other failures to DB_ERROR', async () => {
-    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockRejectedValue(
+    vi.mocked(exerciseEntryDb.getDailyExerciseTotalsRange).mockRejectedValue(
       new Error('boom')
     );
 

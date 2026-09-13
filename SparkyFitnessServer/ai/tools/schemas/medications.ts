@@ -4,10 +4,6 @@ import { optionalDateSchema, uuidSchema } from './common.js';
 const listMedicationsSchema = z
   .object({
     action: z.literal('list_medications'),
-    glp1_only: z
-      .boolean()
-      .optional()
-      .describe('Filter to GLP-1 medications only'),
     active_only: z
       .boolean()
       .optional()
@@ -92,48 +88,6 @@ const deleteEntrySchema = z
   })
   .strict();
 
-const logInjectionSchema = z
-  .object({
-    action: z.literal('log_injection'),
-    medication_id: uuidSchema
-      .optional()
-      .describe('UUID of the GLP-1 medication (or use medication_name)'),
-    medication_name: z
-      .string()
-      .optional()
-      .describe('Name of the medication (alternative to medication_id)'),
-    dose_mg: z
-      .number()
-      .optional()
-      .describe(
-        'Dose in mg (defaults from active titration step or medication dose)'
-      ),
-    site: z
-      .string()
-      .optional()
-      .describe('Injection site (abdomen, thigh, arm, etc.)'),
-    deduct_pen: z
-      .boolean()
-      .optional()
-      .describe(
-        'Whether to deduct from pen inventory (auto-picks best pen if true)'
-      ),
-    entry_date: optionalDateSchema,
-    notes: z.string().optional().describe('Optional notes'),
-  })
-  .strict();
-
-const listInjectionsSchema = z
-  .object({
-    action: z.literal('list_injections'),
-    medication_id: uuidSchema
-      .optional()
-      .describe('Filter to a specific medication'),
-    from_date: optionalDateSchema,
-    to_date: optionalDateSchema,
-  })
-  .strict();
-
 const createMedicationSchema = z
   .object({
     action: z.literal('create_medication'),
@@ -162,10 +116,6 @@ const createMedicationSchema = z
       .string()
       .optional()
       .describe('Why the medication is taken (condition/reason)'),
-    is_glp1: z
-      .boolean()
-      .optional()
-      .describe('Whether this is a GLP-1 medication'),
     is_supplement: z
       .boolean()
       .optional()
@@ -206,7 +156,6 @@ const updateMedicationSchema = z
       .describe('New default dose unit'),
     type_id: z.string().nullable().optional().describe('New medication form'),
     reason_text: z.string().nullable().optional().describe('New reason'),
-    is_glp1: z.boolean().optional().describe('Set GLP-1 flag'),
     is_supplement: z.boolean().optional().describe('Set supplement flag'),
     is_active: z.boolean().optional().describe('Set active flag'),
     notes: z
@@ -314,8 +263,6 @@ export const manageMedicationsSchema = z
     listEntriesSchema,
     updateEntrySchema,
     deleteEntrySchema,
-    logInjectionSchema,
-    listInjectionsSchema,
     createMedicationSchema,
     updateMedicationSchema,
     deleteMedicationSchema,
@@ -325,7 +272,7 @@ export const manageMedicationsSchema = z
   ])
   .refine(
     (data) => {
-      if (data.action === 'log' || data.action === 'log_injection') {
+      if (data.action === 'log') {
         return !!(data.medication_id || data.medication_name);
       }
       return true;
@@ -344,8 +291,6 @@ export const manageMedicationsInput = z.object({
       'list_entries',
       'update_entry',
       'delete_entry',
-      'log_injection',
-      'list_injections',
       'create_medication',
       'update_medication',
       'delete_medication',
@@ -359,9 +304,7 @@ export const manageMedicationsInput = z.object({
   medication_name: z
     .string()
     .optional()
-    .describe(
-      'Name of the medication (alternative to medication_id for log / log_injection)'
-    ),
+    .describe('Name of the medication (alternative to medication_id for log)'),
   entry_id: uuidSchema
     .optional()
     .describe('UUID of the entry (for update_entry / delete_entry)'),
@@ -377,17 +320,12 @@ export const manageMedicationsInput = z.object({
     'Calendar date for the dose (YYYY-MM-DD, defaults to today)'
   ),
   notes: z.string().nullable().optional().describe('Notes about the entry'),
-  glp1_only: z
-    .boolean()
-    .optional()
-    .describe('Filter to GLP-1 medications only'),
   active_only: z
     .boolean()
     .optional()
     .describe('Filter to active medications only'),
   from_date: optionalDateSchema,
   to_date: optionalDateSchema,
-  dose_mg: z.number().optional().describe('Dose in mg (for log_injection)'),
   dosage: z
     .number()
     .optional()
@@ -404,11 +342,6 @@ export const manageMedicationsInput = z.object({
     .string()
     .optional()
     .describe('Dosage unit (alternative to dosage_unit, e.g. mg)'),
-  site: z.string().optional().describe('Injection site'),
-  deduct_pen: z
-    .boolean()
-    .optional()
-    .describe('Whether to deduct from pen inventory'),
   name: z
     .string()
     .optional()
@@ -441,10 +374,6 @@ export const manageMedicationsInput = z.object({
     .nullable()
     .optional()
     .describe('Why the medication is taken'),
-  is_glp1: z
-    .boolean()
-    .optional()
-    .describe('Whether this is a GLP-1 medication'),
   is_supplement: z
     .boolean()
     .optional()

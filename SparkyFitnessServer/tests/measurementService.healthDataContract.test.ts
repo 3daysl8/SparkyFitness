@@ -245,29 +245,45 @@ describe('processHealthData per-record error contract', () => {
     );
   });
 
-  it('reports Nutrition records without source_id in skipped, not errors', async () => {
-    const nutritionEntry = {
-      type: 'Nutrition',
-      food_name: 'Banana',
-      calories: 105,
-      date: '2025-02-01',
-      source: 'Health Connect',
-    };
-    const result = await measurementService.processHealthData(
-      [
-        nutritionEntry,
-        { type: 'step', value: 5000, date: '2025-02-01', source: 'HealthKit' },
-      ],
-      userId,
-      actingUserId
-    );
+  // Food/nutrition tracking was hard-deleted from this fork, so a synced
+  // Nutrition record has nowhere to land: it must always be skipped
+  // (never routed to the generic custom-measurement fallback, and never an
+  // error), with or without a source_id.
+  it.each([
+    ['with a source_id', { source_id: 'hc-nutrition-1' }],
+    ['without a source_id', {}],
+  ])(
+    'reports Nutrition records %s in skipped, not errors',
+    async (_label, extra) => {
+      const nutritionEntry = {
+        type: 'Nutrition',
+        food_name: 'Banana',
+        calories: 105,
+        date: '2025-02-01',
+        source: 'Health Connect',
+        ...extra,
+      };
+      const result = await measurementService.processHealthData(
+        [
+          nutritionEntry,
+          {
+            type: 'step',
+            value: 5000,
+            date: '2025-02-01',
+            source: 'HealthKit',
+          },
+        ],
+        userId,
+        actingUserId
+      );
 
-    expect(result.processed).toHaveLength(1);
-    expect(result.errors).toEqual([]);
-    expect(result.skipped).toHaveLength(1);
-    expect(result.skipped[0].entry).toEqual(nutritionEntry);
-    expect(result.skipped[0].reason).toContain('source_id');
-    // Skips do not fail the batch.
-    expect(result.message).toBe('All health data successfully processed.');
-  });
+      expect(result.processed).toHaveLength(1);
+      expect(result.errors).toEqual([]);
+      expect(result.skipped).toHaveLength(1);
+      expect(result.skipped[0].entry).toEqual(nutritionEntry);
+      expect(result.skipped[0].reason).toContain('not tracked');
+      // Skips do not fail the batch.
+      expect(result.message).toBe('All health data successfully processed.');
+    }
+  );
 });

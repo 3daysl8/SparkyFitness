@@ -2,8 +2,6 @@ import waterContainerRepository, {
   type CreateWaterContainerData,
   type UpdateWaterContainerData,
 } from '../models/waterContainerRepository.js';
-import foodRepository from '../models/food.js';
-import foodVariantRepository from '../models/foodVariant.js';
 import { log } from '../config/logging.js';
 import { WATER_CONTAINER_UNITS } from '../schemas/waterContainerSchemas.js';
 import {
@@ -28,45 +26,20 @@ function statusError(message: string, statusCode: number): HttpStatusError {
   return error;
 }
 
-// #2115: when a container is linked to a food, resolve/validate the variant
-// so "+" always has a real variant to snapshot from.
-async function resolveLinkedVariantId<
+// #2115's food-linking feature (a container backed by a food/variant so it could
+// carry nutrient data) no longer has a food catalog to link to -- food/nutrition
+// tracking was hard-deleted from this fork. linked_food_id/linked_variant_id/
+// linked_meal_type_id are now orphaned columns (see the food-goals-cycle-schema
+// migration's notes): unlink unconditionally rather than looking anything up, so
+// a stale value from before the restructure can still be cleared via update but
+// nothing new can ever be attached.
+function unlinkFoodFields<
   T extends CreateWaterContainerData | UpdateWaterContainerData,
->(userId: string, containerData: T): Promise<T> {
-  if (!('linked_food_id' in containerData)) {
-    return containerData;
-  }
+>(containerData: T): T {
   const resolved = { ...containerData };
-  if (!containerData.linked_food_id) {
-    resolved.linked_variant_id = null;
-    resolved.linked_meal_type_id = resolved.linked_meal_type_id ?? null;
-    return resolved;
-  }
-  const food = await foodRepository.getFoodById(
-    containerData.linked_food_id,
-    userId
-  );
-  if (!food) {
-    throw statusError('Linked food not found.', 404);
-  }
-  if (containerData.linked_variant_id) {
-    const variant = await foodVariantRepository.getFoodVariantById(
-      containerData.linked_variant_id,
-      userId
-    );
-    if (!variant || variant.food_id !== containerData.linked_food_id) {
-      throw statusError(
-        'Linked variant does not belong to the linked food.',
-        400
-      );
-    }
-  } else {
-    const defaultVariantId = food.default_variant?.id;
-    if (!defaultVariantId) {
-      throw statusError('Linked food has no default variant to attach.', 400);
-    }
-    resolved.linked_variant_id = defaultVariantId;
-  }
+  if ('linked_food_id' in resolved) resolved.linked_food_id = null;
+  if ('linked_variant_id' in resolved) resolved.linked_variant_id = null;
+  if ('linked_meal_type_id' in resolved) resolved.linked_meal_type_id = null;
   return resolved;
 }
 
@@ -96,11 +69,10 @@ async function createWaterContainer(
   }
   try {
     const volumeInMl = convertToMl(containerData.volume, containerData.unit);
-    const withResolvedLink = await resolveLinkedVariantId(
-      userId,
-      containerData
-    );
-    const dataToSave = { ...withResolvedLink, volume: volumeInMl };
+    const dataToSave = {
+      ...unlinkFoodFields(containerData),
+      volume: volumeInMl,
+    };
     return await waterContainerRepository.createWaterContainer(
       userId,
       dataToSave
@@ -134,7 +106,7 @@ async function updateWaterContainer(
     throw statusError('Invalid unit provided.', 400);
   }
   try {
-    const dataToSave = await resolveLinkedVariantId(userId, updateData);
+    const dataToSave = unlinkFoodFields(updateData);
     if (updateData.volume !== undefined && updateData.unit !== undefined) {
       dataToSave.volume = convertToMl(updateData.volume, updateData.unit);
     } else if (
@@ -246,85 +218,19 @@ async function materializeDrinkPreset(
     0
   );
 
-  // 1. Reuse the user's own food of this name, or create it.
-  //
-  // The idempotency check above only sees containers, so deleting a preset and
-  // adding it again created a fresh food every time and orphaned the last one.
-  // Reusing by name also means a user who already keeps their own "Latte" gets
-  // their numbers rather than a second entry competing with them in search.
-  const existingFood = await foodRepository.findVisibleFoodByName(
-    userId,
-    preset.defaultName
-  );
-
-  const createdFood =
-    existingFood ??
-    (await foodRepository.createFood({
-      user_id: userId,
-      name: preset.defaultName,
-      is_custom: true,
-      shared_with_public: false,
-      serving_size: preset.volumeMl,
-      serving_unit: preset.servingUnit,
-      calories: preset.caloriesKcal ?? 0,
-      protein: preset.proteinG ?? 0,
-      carbs: preset.carbsG ?? 0,
-      fat: preset.fatG ?? 0,
-      sugars: preset.sugarsG ?? 0,
-      saturated_fat: preset.saturatedFatG ?? 0,
-      caffeine_mg: preset.caffeineMg ?? 0,
-      abv_percent: preset.abvPercent ?? 0,
-      alcohol_g: preset.alcoholG ?? 0,
-      // The food's water content is a fact about the drink; the container's
-      // hydration factor is a preference about how much of it counts. Deriving
-      // one from the other made an espresso claim to be dry, so its entry
-      // showed 0 ml of water in a 60 ml cup.
-      water_ml: preset.waterMl ?? preset.volumeMl,
-    }));
-
-  const defaultVariant = createdFood?.default_variant;
-  const variantId =
-    defaultVariant?.id || createdFood?.default_variant_id || null;
-
-  // A reused food is whatever the user already had under this name, and one
-  // without a default variant carries no serving to measure. Linking the
-  // container to it anyway produced a preset that logged nothing when pressed,
-  // so fail loudly here instead.
-  if (!variantId) {
-    throw statusError(
-      `"${preset.defaultName}" already exists without a default serving, so it cannot back a quick-add drink. Give that food a serving size, or rename it, and try again.`,
-      409
-    );
-  }
-
-  // One whole serving of whatever food we ended up with -- a reused food may
-  // be sized differently from the catalog entry.
-  const servingSize =
-    Number(defaultVariant?.serving_size) ||
-    Number(createdFood?.serving_size) ||
-    preset.volumeMl;
-
-  // 2. Create water container linked to this food.
-  // volume stays 0: the preset's volume already lives on the variant it just
-  // created (serving_size/water_ml), and on a linked container volume means
-  // "the glass holds more than the food" -- setting it here would override the
-  // food with a duplicate of its own number.
-  //
-  // linked_quantity is one whole serving, expressed in the variant's own unit
-  // as the diary expresses it. It must be the serving size, not 1: nutrients
-  // are stored per serving_size and consumed as value * quantity / serving_size,
-  // so quantity 1 against a 60 ml espresso logged one millilitre of it --
-  // 2 mg of its 126 mg of caffeine.
+  // Materializes as a plain water container sized from the catalog's volume,
+  // carrying only its hydration_factor -- the preset's nutrient fields
+  // (calories/caffeine/alcohol/etc.) had nowhere left to live once food/
+  // nutrition tracking was hard-deleted from this fork, so a "Latte" or
+  // "Beer (Pint)" quick-add now only ever contributes to the water/hydration
+  // total, at whatever fraction of its volume hydrationFactor says counts.
   return await waterContainerRepository.createWaterContainer(userId, {
     name: preset.defaultName,
-    volume: 0,
+    volume: preset.waterMl ?? preset.volumeMl,
     unit: 'ml',
     is_primary: false,
     servings_per_container: 1,
-    linked_quantity: servingSize,
     hydration_factor: preset.hydrationFactor,
-    linked_food_id: createdFood.id,
-    linked_variant_id: variantId,
     is_quick_add: true,
     sort_order: maxSortOrder + 1,
   });

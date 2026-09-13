@@ -1,4 +1,4 @@
-const GARMIN_SYNC_PHASES = ['health', 'activities', 'nutrition'] as const;
+const GARMIN_SYNC_PHASES = ['health', 'activities'] as const;
 
 type GarminSyncPhase = (typeof GARMIN_SYNC_PHASES)[number];
 type GarminSyncPhaseResult = Record<string, unknown> | null;

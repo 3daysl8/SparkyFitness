@@ -2,7 +2,6 @@ import express from 'express';
 import { pipeUIMessageStreamToResponse } from 'ai';
 import { authenticate } from '../middleware/authMiddleware.js';
 import chatService from '../services/chatService.js';
-import type { FoodOptionsErrorCategory } from '../services/chatService.js';
 import globalSettingsRepository from '../models/globalSettingsRepository.js';
 import { resolveIsAdmin } from '../utils/adminCheck.js';
 import {
@@ -772,88 +771,6 @@ router.post('/save-history', authenticate, async (req, res, next) => {
       // @ts-expect-error TS(2571): Object is of type 'unknown'.
       return res.status(403).json({ error: error.message });
     }
-    next(error);
-  }
-});
-/**
- * @swagger
- * /chat/food-options:
- *   post:
- *     summary: Generate food options for a given food name and unit
- *     tags: [AI & Insights]
- *     security:
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               foodName:
- *                 type: string
- *               unit:
- *                 type: string
- *               service_config_id:
- *                 type: string
- *                 format: uuid
- *     responses:
- *       200:
- *         description: Raw AI JSON text containing the generated food options, returned as a string in `content`.
- *       400:
- *         description: Missing service_config_id.
- *       404:
- *         description: No AI service configured, or its API key / custom URL is missing.
- *       422:
- *         description: AI response unusable (refused, truncated, empty, invalid JSON, or unsupported provider).
- *       500:
- *         description: Server error.
- *       502:
- *         description: Upstream AI service error.
- *       504:
- *         description: AI service timed out.
- */
-// Unlike scan-label (422), api_key_missing/custom_url_missing/no_ai_configured
-// map to 404 here to preserve this endpoint's legacy semantics.
-const FOOD_OPTIONS_ERROR_HTTP_STATUS: Record<FoodOptionsErrorCategory, number> =
-  {
-    no_ai_configured: 404,
-    api_key_missing: 404,
-    custom_url_missing: 404,
-    private_network_forbidden: 403,
-    unsupported_provider: 422,
-    unsupported_media: 422, // unreachable (no images sent); required for exhaustiveness
-    refused: 422,
-    truncated: 422,
-    no_content: 422,
-    parse_error: 422,
-    upstream_error: 502,
-    timeout: 504,
-  };
-
-router.post('/food-options', authenticate, async (req, res, next) => {
-  const { foodName, unit, service_config_id } = req.body;
-  if (!service_config_id) {
-    return res
-      .status(400)
-      .json({ error: 'AI service configuration ID is required.' });
-  }
-  try {
-    const isAdmin = await resolveIsAdmin(req.user, req.authenticatedUserId);
-    const result = await chatService.processFoodOptionsRequest(
-      foodName,
-      unit,
-
-      req.userId,
-      service_config_id,
-      isAdmin
-    );
-    if (!result.success) {
-      const status = FOOD_OPTIONS_ERROR_HTTP_STATUS[result.category] ?? 500;
-      return res.status(status).json({ error: result.error });
-    }
-    return res.status(200).json({ content: result.content });
-  } catch (error) {
     next(error);
   }
 });

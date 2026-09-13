@@ -117,17 +117,11 @@ async function getWaterContainersByUserId(
   const client = await getClient(userId);
   try {
     const result = await client.query(
-      `SELECT
-         c.*,
-         f.name AS linked_food_name,
-         fv.serving_size AS linked_variant_serving_size,
-         fv.serving_unit AS linked_variant_serving_unit,
-         fv.water_ml AS linked_variant_water_ml,
-         mt.name AS linked_meal_type_name
+      // linked_food_id/linked_variant_id/linked_meal_type_id are orphaned columns
+      // (their FK constraints were dropped along with foods/food_variants/meal_types
+      // in the food-domain hard-delete) -- no more joining out to describe them.
+      `SELECT c.*
        FROM user_water_containers c
-       LEFT JOIN foods f ON c.linked_food_id = f.id
-       LEFT JOIN food_variants fv ON c.linked_variant_id = fv.id
-       LEFT JOIN meal_types mt ON c.linked_meal_type_id = mt.id
        WHERE c.user_id = $1
        ORDER BY c.sort_order ASC, c.created_at ASC`,
       [userId]
@@ -322,17 +316,8 @@ async function getPrimaryWaterContainerByUserId(
   const client = await getClient(userId);
   try {
     const result = await client.query(
-      `SELECT
-         c.*,
-         f.name AS linked_food_name,
-         fv.serving_size AS linked_variant_serving_size,
-         fv.serving_unit AS linked_variant_serving_unit,
-         fv.water_ml AS linked_variant_water_ml,
-         mt.name AS linked_meal_type_name
+      `SELECT c.*
        FROM user_water_containers c
-       LEFT JOIN foods f ON c.linked_food_id = f.id
-       LEFT JOIN food_variants fv ON c.linked_variant_id = fv.id
-       LEFT JOIN meal_types mt ON c.linked_meal_type_id = mt.id
        WHERE c.user_id = $1 AND c.is_primary = TRUE AND (c.is_quick_add IS FALSE OR c.is_quick_add IS NULL)`,
       [userId]
     );
@@ -349,17 +334,8 @@ async function getWaterContainerById(
   const client = await getClient(userId);
   try {
     const result = await client.query(
-      `SELECT
-         c.*,
-         f.name AS linked_food_name,
-         fv.serving_size AS linked_variant_serving_size,
-         fv.serving_unit AS linked_variant_serving_unit,
-         fv.water_ml AS linked_variant_water_ml,
-         mt.name AS linked_meal_type_name
+      `SELECT c.*
        FROM user_water_containers c
-       LEFT JOIN foods f ON c.linked_food_id = f.id
-       LEFT JOIN food_variants fv ON c.linked_variant_id = fv.id
-       LEFT JOIN meal_types mt ON c.linked_meal_type_id = mt.id
        WHERE c.id = $1`,
       [id]
     );

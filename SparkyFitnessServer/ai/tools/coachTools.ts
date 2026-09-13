@@ -1,11 +1,8 @@
 import { tool } from 'ai';
-import {
-  addDays,
-  todayInZone,
-  ENERGY_DENSITY_KCAL_PER_KG,
-} from '@workspace/shared';
+import { addDays, todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import coachRepository from '../../models/coachRepository.js';
+import adaptiveTdeeService from '../../services/AdaptiveTdeeService.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { normalizeDayKeywords } from './dates.js';
 import { getResolvedExerciseCaloriesTotal } from '../../services/exerciseCalorieRangeService.js';
@@ -14,12 +11,17 @@ import {
   GetHealthSummarySchema,
   AnalyzeTrendsSchema,
   Get30DayTrendsSchema,
-  DetectPatternsSchema,
   GenerateCoachingPlanSchema,
 } from './schemas/coach.js';
 
-// Trend math and pattern classification ported from MCP's coachService; the
-// SQL lives in models/coachRepository.ts.
+// Trend math ported from MCP's coachService; the SQL lives in
+// models/coachRepository.ts.
+//
+// sparky_detect_patterns (nutrient-vs-sleep/mood correlation) was removed:
+// food/nutrition tracking was hard-deleted from this fork, and that tool's
+// entire methodology was correlating food_entries nutrients against sleep
+// and mood. No non-food replacement pattern was implemented (that would be
+// new coaching logic, not a straight port).
 
 /**
  * Inclusive start of the 30-day window `get30DayExerciseAggregates` uses.
@@ -38,11 +40,6 @@ async function getHealthSummary(
 ): Promise<Record<string, unknown>> {
   const end = endDate || startDate;
 
-  const nutrition = await coachRepository.getNutritionAggregates(
-    userId,
-    startDate,
-    end
-  );
   const exercise = await coachRepository.getExerciseAggregates(
     userId,
     startDate,
@@ -68,13 +65,6 @@ async function getHealthSummary(
 
   return {
     period: { start_date: startDate, end_date: end },
-    nutrition: {
-      total_calories: Number(nutrition.total_calories),
-      avg_protein: Number(Number(nutrition.avg_protein).toFixed(1)),
-      avg_carbs: Number(Number(nutrition.avg_carbs).toFixed(1)),
-      avg_fat: Number(Number(nutrition.avg_fat).toFixed(1)),
-      entry_count: nutrition.entry_count,
-    },
     fitness: {
       total_calories_burned: resolvedBurned,
       workout_count: exercise.workout_count,
@@ -93,22 +83,11 @@ async function getHealthSummary(
 async function analyzeTrends(userId: string, tz: string, days: number) {
   const today = todayInZone(tz);
   const weightRows = await coachRepository.getWeightSeries(userId, days, today);
-  const calorieRows = await coachRepository.getDailyCalorieSeries(
-    userId,
-    days,
-    today
-  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const weights = weightRows.map((r: any) => ({
     date: dayString(r.entry_date),
     weight: Number(r.weight),
-  }));
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const calories = calorieRows.map((r: any) => ({
-    date: dayString(r.entry_date),
-    calories: Number(r.daily_calories),
   }));
 
   let weightTrend:
@@ -127,28 +106,12 @@ async function analyzeTrends(userId: string, tz: string, days: number) {
     }
   }
 
-  const avgCalories =
-    calories.length > 0
-      ? Number(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (
-            calories.reduce((sum: number, c: any) => sum + c.calories, 0) /
-            calories.length
-          ).toFixed(0)
-        )
-      : 0;
-
   return {
     period_days: days,
     weight: {
       trend: weightTrend,
       data_points: weights.length,
       entries: weights,
-    },
-    calories: {
-      average_daily: avgCalories,
-      data_points: calories.length,
-      entries: calories,
     },
   };
 }
@@ -160,7 +123,6 @@ async function get30DayTrends(
 ): Promise<Record<string, unknown>> {
   const end = endDate || todayInZone(tz);
 
-  const food = await coachRepository.get30DayFoodAggregates(userId, end);
   const exercise = await coachRepository.get30DayExerciseAggregates(
     userId,
     end
@@ -184,11 +146,6 @@ async function get30DayTrends(
 
   return {
     period: { end_date: end, days: 30 },
-    food: {
-      days_logged: food.days_logged,
-      avg_daily_calories: Number(Number(food.avg_daily_calories).toFixed(0)),
-      avg_daily_protein: Number(Number(food.avg_daily_protein).toFixed(1)),
-    },
     exercise: {
       total_workouts: exercise.total_workouts,
       active_days: exercise.active_days,
@@ -212,161 +169,40 @@ async function get30DayTrends(
   };
 }
 
-async function detectPatterns(
-  userId: string,
-  tz: string,
-  days: number
-): Promise<Record<string, unknown>> {
-  const data = await coachRepository.getDailyCorrelationRows(
-    userId,
-    days,
-    todayInZone(tz)
-  );
-  const patterns: string[] = [];
-
-  if (data.length >= 7) {
-    // 1. High Sugar vs Sleep Score
-    const highSugarDays = data.filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (r: any) => Number(r.sugars) > 50 && r.sleep_score
-    );
-    if (highSugarDays.length >= 3) {
-      const avgHighSugarSleep =
-        highSugarDays.reduce(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (sum: number, r: any) => sum + Number(r.sleep_score),
-          0
-        ) / highSugarDays.length;
-      const avgNormalSleep =
-        data
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((r: any) => Number(r.sugars) <= 50 && r.sleep_score)
-          .reduce(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (sum: number, r: any) => sum + Number(r.sleep_score),
-            0
-          ) /
-        (data.length - highSugarDays.length);
-
-      if (avgHighSugarSleep < avgNormalSleep - 5) {
-        patterns.push(
-          'High sugar intake (>50g) correlates with a lower sleep score.'
-        );
-      }
-    }
-
-    // 2. Calories vs Mood
-    const highCalDays = data.filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (r: any) => Number(r.calories) > 2500 && r.mood_value
-    );
-    if (highCalDays.length >= 3) {
-      const avgHighCalMood =
-        highCalDays.reduce(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (sum: number, r: any) => sum + Number(r.mood_value),
-          0
-        ) / highCalDays.length;
-      if (avgHighCalMood > 7)
-        patterns.push(
-          'High calorie days (>2500) are associated with higher reported mood.'
-        );
-    }
-
-    // 3. Sodium vs Sleep (High sodium can cause nighttime thirst/disruption)
-    const highSodiumDays = data.filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (r: any) => Number(r.sodium) > 2300 && r.sleep_score
-    );
-    if (highSodiumDays.length >= 3) {
-      patterns.push(
-        'Frequent high sodium intake (>2300mg) detected; this may impact morning weight fluctuations.'
-      );
-    }
-  }
-
-  return {
-    period_days: days,
-    data_points: data.length,
-    detected_patterns:
-      patterns.length > 0
-        ? patterns
-        : ['No strong patterns detected in the current data range.'],
-    raw_correlations: data
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((r: any) => ({
-        date: dayString(r.entry_date),
-        nutrition: {
-          calories: Number(r.calories),
-          protein: Number(r.protein),
-          carbs: Number(r.carbs),
-          fat: Number(r.fat),
-          sugars: Number(r.sugars),
-          sodium: Number(r.sodium),
-          fiber: Number(r.fiber),
-          saturated_fat: Number(r.sat_fat),
-          cholesterol: Number(r.cholesterol),
-          potassium: Number(r.potassium),
-          vitamin_a: Number(r.vit_a),
-          vitamin_c: Number(r.vit_c),
-          calcium: Number(r.calcium),
-          iron: Number(r.iron),
-        },
-        sleep_score: r.sleep_score,
-        mood_value: r.mood_value,
-      }))
-      .slice(0, 7),
-  };
-}
-
 async function generateCoachingPlan(
   userId: string,
   tz: string,
   goal: 'weight_loss' | 'muscle_gain' | 'maintenance'
 ): Promise<Record<string, unknown>> {
-  // 1. Get recent trends to calculate TDEE
+  // 1. TDEE: delegate to AdaptiveTdeeService (weight-trend + BMR/activity based,
+  // with its own BMR x activity-multiplier fallback when there isn't enough
+  // weight-trend data yet) rather than the food-diary-derived estimate this
+  // used to compute inline -- food/nutrition tracking was hard-deleted from
+  // this fork, so there is no daily calorie series left to derive a TDEE from
+  // that way.
   const trends = await analyzeTrends(userId, tz, 14);
-  const weightData = trends.weight.entries;
-  const calorieData = trends.calories.entries;
-
-  let estimatedTdee = 2200; // Fallback
-  if (weightData.length >= 2 && calorieData.length >= 7) {
-    const weightChange =
-      weightData[weightData.length - 1].weight - weightData[0].weight;
-    const totalCals = calorieData.reduce(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (sum: number, c: any) => sum + c.calories,
-      0
-    );
-    const avgCals = totalCals / calorieData.length;
-
-    // Weight change over 14 days. Note this window is shorter than
-    // AdaptiveTdeeService's 28-day + 7-day-SMA window, where the same constant is
-    // better justified; short windows carry proportionally more water/glycogen.
-    const dailyCaloricBalance =
-      (weightChange * ENERGY_DENSITY_KCAL_PER_KG) / 14;
-    estimatedTdee = Math.round(avgCals - dailyCaloricBalance);
-  }
+  const today = todayInZone(tz);
+  const tdeeResult = await adaptiveTdeeService.calculateAdaptiveTdee(
+    userId,
+    today
+  );
+  const estimatedTdee = tdeeResult.tdee;
 
   // 2. Set targets
   let targetCals = estimatedTdee;
   if (goal === 'weight_loss') targetCals -= 500;
   if (goal === 'muscle_gain') targetCals += 300;
 
-  // 3. Find favorite high-protein foods for the shopping list
-  const favorites = await coachRepository.getFrequentHighProteinFoods(userId);
-
   return {
     goal,
     current_estimated_tdee: estimatedTdee,
+    tdee_confidence: tdeeResult.confidence,
     recommended_targets: {
       daily_calories: targetCals,
       protein_grams: Math.round((targetCals * 0.3) / 4), // 30% protein
       carbs_grams: Math.round((targetCals * 0.4) / 4), // 40% carbs
       fat_grams: Math.round((targetCals * 0.3) / 9), // 30% fat
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    shopping_list_suggestions: favorites.map((r: any) => r.food_name),
     coaching_insight:
       goal === 'weight_loss' && trends.weight.trend === 'increasing'
         ? 'Your weight is currently trending up. To hit your weight loss goal, we need to bring daily calories down to ' +
@@ -380,7 +216,7 @@ export function buildCoachTools(userId: string, tz: string) {
   return {
     sparky_get_health_summary: tool({
       description:
-        "Get a summary of the user's health status (Nutrition, Fitness, Vitals, Hydration) for a specific date range.",
+        "Get a summary of the user's health status (Fitness, Vitals, Hydration) for a specific date range.",
       inputSchema: GetHealthSummarySchema,
       execute: async (rawArgs) => {
         const rawArgsWithDefaults = {
@@ -409,7 +245,7 @@ export function buildCoachTools(userId: string, tz: string) {
 
     sparky_analyze_trends: tool({
       description:
-        'Analyze weight trends vs. calorie intake to identify plateaus or progress over a specified number of days.',
+        'Analyze the weight trend (increasing/decreasing/stable) over a specified number of days.',
       inputSchema: AnalyzeTrendsSchema,
       execute: async (rawArgs) => {
         const parsed = AnalyzeTrendsSchema.safeParse(
@@ -430,7 +266,7 @@ export function buildCoachTools(userId: string, tz: string) {
 
     sparky_get_30_day_trends: tool({
       description:
-        'Get comprehensive trends for the last 30 days including food, exercise, mood, sleep, and biometrics.',
+        'Get comprehensive trends for the last 30 days including exercise, mood, sleep, and biometrics.',
       inputSchema: Get30DayTrendsSchema,
       execute: async (rawArgs) => {
         const parsed = Get30DayTrendsSchema.safeParse(
@@ -444,27 +280,6 @@ export function buildCoachTools(userId: string, tz: string) {
           return formatSuccess(result, '30-Day Trends');
         } catch (error) {
           log('error', '[Coach Tool] get30DayTrends error:', error);
-          return ERRORS.DB_ERROR(error);
-        }
-      },
-    }),
-
-    sparky_detect_patterns: tool({
-      description:
-        'Health Detective: Scans historical data for correlations between nutrition, sleep, and mood.',
-      inputSchema: DetectPatternsSchema,
-      execute: async (rawArgs) => {
-        const parsed = DetectPatternsSchema.safeParse(
-          normalizeDayKeywords(rawArgs, tz)
-        );
-        if (!parsed.success) {
-          return formatZodError(parsed.error);
-        }
-        try {
-          const result = await detectPatterns(userId, tz, parsed.data.days);
-          return formatSuccess(result, 'Pattern Detection');
-        } catch (error) {
-          log('error', '[Coach Tool] detectPatterns error:', error);
           return ERRORS.DB_ERROR(error);
         }
       },

@@ -12,7 +12,6 @@ import {
   sendMagicLinkEmail,
   sendEmailMfaCode,
 } from './services/emailService.js';
-import { createDefaultNutrientPreferencesForUser } from './services/nutrientDisplayPreferenceService.js';
 import { isPrivateNetworkAddress } from './utils/corsHelper.js';
 import { apiKey } from '@better-auth/api-key';
 import { v4 } from 'uuid';
@@ -506,8 +505,6 @@ const auth = betterAuth({
               user.name || user.email.split('@')[0],
               user.image
             );
-            // Also initialize default nutrient preferences
-            await createDefaultNutrientPreferencesForUser(user.id);
             log('info', `[AUTH] Hook: Initialization complete for ${user.id}`);
           } catch (error) {
             log(

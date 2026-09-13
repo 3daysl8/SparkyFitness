@@ -1,10 +1,8 @@
-import goalService from './goalService.js';
 import reportRepository from '../models/reportRepository.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
-import nutrientGoalPreferenceService from './nutrientGoalPreferenceService.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
 import { log } from '../config/logging.js';
 import { resolveBackgroundStepCalories } from '@workspace/shared';
@@ -12,6 +10,12 @@ import {
   computeCalorieBalance,
   resolveDeviceProjectionSnapshot,
 } from './calorieBalanceService.js';
+
+// The stored, per-user calorie goal (user_goals/goalService) was hard-deleted
+// along with food/nutrition tracking -- there is no more per-user target to
+// read here. This is the same flat fallback every calorie-balance call site
+// already used when no goal could be resolved.
+const DEFAULT_CALORIE_GOAL_KCAL = 2000;
 
 /**
  * Aggregates stats for external dashboards (like gethomepage.dev).
@@ -31,27 +35,15 @@ async function getDashboardStats(
 ) {
   try {
     const [
-      goals,
       nutritionData,
       exerciseSplits,
       userProfile,
       userPreferences,
-      effectiveGoalTypes,
       measurements,
       checkInMeasurements,
       latestWeightHeight,
       healthConnectTotalRows,
     ] = await Promise.all([
-      // `adjust` is unconditionally true, matching `dailySummaryService` and
-      // `dailySummaryRangeService`. It used to be tied to `includeCheckin`, which made
-      // this endpoint the only one of the three to report an unadjusted goal for a
-      // family viewer holding `diary` but not `checkin` — the same class of
-      // surface-by-surface divergence as #2094, just one surface further out.
-      //
-      // Gating it bought no privacy either: `adjust` derives the goal from the target's
-      // own measurements, and that same actor can already read the adjusted number from
-      // GET /daily-summary and GET /daily-summary/range, both of which pass true.
-      goalService.getUserGoals(userId, date, undefined, true),
       reportRepository.getNutritionData(userId, date, date, []),
       // Replaces a forEach over `reportRepository.getExerciseEntries`, whose SELECT omits
       // `steps` — so the old `activitySteps` was always 0 and every step a logged workout
@@ -63,7 +55,6 @@ async function getDashboardStats(
       ),
       userRepository.getUserProfile(userId),
       preferenceRepository.getUserPreferences(userId),
-      nutrientGoalPreferenceService.getEffectiveGoalTypes(userId),
       includeCheckin
         ? measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate(
             userId,
@@ -132,15 +123,12 @@ async function getDashboardStats(
           : 0,
       exercise,
       backgroundStepCalories: stepCalories,
-      adjustedGoalCalories:
-        parseFloat(String((goals as { calories?: unknown })?.calories)) || 2000,
+      adjustedGoalCalories: DEFAULT_CALORIE_GOAL_KCAL,
       userProfile,
       userPreferences,
       measurements,
       ...deviceProjectionSnapshot,
     });
-
-    const calorieGoalType = effectiveGoalTypes?.['calories'];
 
     return {
       eaten: balance.eaten,
@@ -153,13 +141,9 @@ async function getDashboardStats(
       stepCalories,
       bmr: balance.bmr,
       unit: 'kcal',
-      calorieGoalType: calorieGoalType
-        ? {
-            goalType: calorieGoalType.goalType,
-            targetMin: calorieGoalType.targetMin,
-            targetMax: calorieGoalType.targetMax,
-          }
-        : undefined,
+      // The per-user calorie-goal-type configuration (nutrientGoalPreferenceService)
+      // was dropped along with the food/goals domain -- nothing left to report here.
+      calorieGoalType: undefined,
     };
   } catch (error) {
     log(

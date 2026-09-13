@@ -1,16 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { getDashboardStats } from '../services/DashboardService.js';
-import goalService from '../services/goalService.js';
 import reportRepository from '../models/reportRepository.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import * as genericHealthRepository from '../models/genericHealthRepository.js';
-
-vi.mock('../services/goalService.js', () => ({
-  default: { getUserGoals: vi.fn() },
-}));
 
 vi.mock('../models/reportRepository.js', () => ({
   default: {
@@ -45,12 +40,6 @@ vi.mock('../models/genericHealthRepository.js', () => ({
   getHealthConnectTotalCaloriesByDateRange: vi.fn(),
 }));
 
-vi.mock('../services/nutrientGoalPreferenceService.js', () => ({
-  default: {
-    getEffectiveGoalTypes: vi.fn().mockResolvedValue({}),
-  },
-}));
-
 vi.mock('../services/bmrService.js', () => ({
   default: {
     calculateBmr: vi.fn().mockReturnValue(1800),
@@ -80,7 +69,6 @@ const baseMeasurements = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(goalService.getUserGoals).mockResolvedValue({ calories: 2000 });
   vi.mocked(reportRepository.getNutritionData).mockResolvedValue([
     { calories: '1500' },
   ]);
@@ -117,12 +105,6 @@ describe('getDashboardStats includeCheckin gate', () => {
   test('includeCheckin=true reads measurements and steps', async () => {
     await getDashboardStats('user1', '2026-06-13', true);
 
-    expect(goalService.getUserGoals).toHaveBeenCalledWith(
-      'user1',
-      '2026-06-13',
-      undefined,
-      true
-    );
     expect(
       measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate
     ).toHaveBeenCalledWith('user1', '2026-06-13');
@@ -131,17 +113,9 @@ describe('getDashboardStats includeCheckin gate', () => {
     ).toHaveBeenCalledWith('user1', '2026-06-13');
   });
 
-  // `adjust` stays true even here: /daily-summary and /daily-summary/range both pass
-  // true for the same actor, so gating it only made this endpoint disagree with them.
-  test('includeCheckin=false skips measurements and steps but still requests an adjusted goal', async () => {
+  test('includeCheckin=false skips measurements and steps', async () => {
     await getDashboardStats('user1', '2026-06-13', false);
 
-    expect(goalService.getUserGoals).toHaveBeenCalledWith(
-      'user1',
-      '2026-06-13',
-      undefined,
-      true
-    );
     expect(
       measurementRepository.getLatestCheckInMeasurementsOnOrBeforeDate
     ).not.toHaveBeenCalled();

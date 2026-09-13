@@ -22,7 +22,6 @@ import {
 import {
   processGarminHealthAndWellnessData,
   processGarminSleepData,
-  processGarminNutritionData,
 } from './garmin/garminHealthProcessor.js';
 
 /**
@@ -122,16 +121,13 @@ async function syncGarminData(
   const results: GarminSyncResult = {
     health: null,
     activities: null,
-    nutrition: null,
   };
 
   let totalProcessedHealth = 0;
   let totalProcessedActivities = 0;
-  let totalProcessedNutrition = 0;
   let lastHealthResult: Record<string, unknown> | null = null;
   const healthErrors: string[] = [];
   const activityErrors: string[] = [];
-  const nutritionErrors: string[] = [];
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
@@ -198,34 +194,6 @@ async function syncGarminData(
       );
       activityErrors.push(`[${chunk.start}..${chunk.end}]: ${errMsg}`);
     }
-
-    // Phase 3: Nutrition Diary for this chunk
-    try {
-      const nutritionData =
-        await garminConnectService.fetchGarminNutritionDiaryChunk(
-          userId,
-          chunk.start,
-          chunk.end
-        );
-      const nutrResult = await processGarminNutritionData(
-        userId,
-        nutritionData.nutrition_data,
-        chunk.start,
-        chunk.end
-      );
-      totalProcessedNutrition += nutrResult.processedEntries;
-    } catch (nutritionError: unknown) {
-      const errMsg =
-        nutritionError instanceof Error
-          ? nutritionError.message
-          : String(nutritionError);
-      log(
-        'error',
-        `[garminService] Error during nutrition sync for chunk ${chunk.start} to ${chunk.end}:`,
-        errMsg
-      );
-      nutritionErrors.push(`[${chunk.start}..${chunk.end}]: ${errMsg}`);
-    }
   }
 
   // Finalize Phase 1 result
@@ -249,16 +217,6 @@ async function syncGarminData(
     };
   }
 
-  // Finalize Phase 3 result
-  if (nutritionErrors.length === chunks.length) {
-    results.nutrition = { error: nutritionErrors.join('; ') };
-  } else {
-    results.nutrition = {
-      processedEntries: totalProcessedNutrition,
-      ...(nutritionErrors.length > 0 ? { partialErrors: nutritionErrors } : {}),
-    };
-  }
-
   log('info', `[garminService] Full Garmin sync completed for user ${userId}.`);
   return results;
 }
@@ -270,7 +228,6 @@ export {
   processGarminSimpleActivity,
   processGarminSleepData,
   processGarminHealthAndWellnessData,
-  processGarminNutritionData,
   syncGarminData,
   mapGarminExerciseCategory,
   formatExerciseName,
@@ -284,7 +241,6 @@ export default {
   processGarminSimpleActivity,
   processGarminSleepData,
   processGarminHealthAndWellnessData,
-  processGarminNutritionData,
   syncGarminData,
   mapGarminExerciseCategory,
   formatExerciseName,

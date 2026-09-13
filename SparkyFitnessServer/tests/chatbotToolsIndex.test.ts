@@ -1,27 +1,25 @@
-import { vi, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildChatbotTools, buildChatToolSurface } from '../ai/tools/index.js';
 import { ENABLE_TOOLS_TOOL_NAME } from '../ai/tools/metaTools.js';
 import { ASK_USER_TOOL_NAME } from '@workspace/shared';
 
-// Loading the real foodEntryService trips on a deep '@workspace/shared'
-// subpath import; the registry surface test never executes handlers.
-vi.mock('../services/foodEntryService', () => ({ default: {} }));
-vi.mock('../config/logging', () => ({
-  log: vi.fn(),
-}));
-
 // The chat-visible tool surface: every MCP tool except the three dev tools
 // (sparky_inspect_schema, sparky_get_user_info, sparky_get_db_stats),
 // which are intentionally not ported.
+//
+// The food/nutrition domain (search_foods, manage_food, food diary/usage,
+// barcode, label scan, photo estimation, favorites, custom nutrients,
+// allergens, meal plans) and the goal/macro domain (manage_goals,
+// get_goal_snapshot, detect_patterns' food-correlation methodology) were
+// hard-deleted along with food/nutrition tracking (Ouroboros Life
+// restructure). 'food' now composes only water containers, and 'goals' only
+// Focus's pillars/check-ins.
 const EXPECTED_TOOLS = [
-  'sparky_analyze_food_image',
   'sparky_analyze_trends',
   'sparky_check_engagement',
   'sparky_daily_checkin_wizard',
-  'sparky_detect_patterns',
   'sparky_generate_coaching_plan',
   'sparky_get_30_day_trends',
-  'sparky_get_barcode',
   'sparky_get_contextual_nudge',
   'sparky_get_daily_exercise_totals',
   'sparky_get_daily_report',
@@ -31,81 +29,49 @@ const EXPECTED_TOOLS = [
   'sparky_get_exercise_progress',
   'sparky_get_exercise_stats',
   'sparky_get_exercise_usage',
-  'sparky_get_food_details',
-  'sparky_get_food_diary',
-  'sparky_get_food_usage',
-  'sparky_get_goal_snapshot',
   'sparky_get_health_summary',
   'sparky_get_integrations',
   'sparky_get_logging_streak',
-  'sparky_get_nutrition_summary',
   'sparky_get_recent_exercise_entries',
-  'sparky_get_recent_food_entries',
   'sparky_get_report',
   'sparky_get_sleep_science',
   'sparky_get_synced_data',
   'sparky_list_exercises',
-  'sparky_list_foods',
-  'sparky_log_food_photo',
-  'sparky_manage_allergens',
   'sparky_manage_checkin',
-  'sparky_manage_custom_nutrients',
   'sparky_manage_exercise',
-  'sparky_manage_favorites',
   'sparky_manage_focus',
-  'sparky_manage_food',
-  'sparky_manage_goals',
   'sparky_manage_habits',
-  'sparky_manage_meal_plans',
   'sparky_manage_medications',
   'sparky_manage_profile',
   'sparky_manage_progress_photos',
   'sparky_manage_water_containers',
   'sparky_manage_workout_plans',
-  'sparky_scan_label',
   'sparky_search_exercises',
-  'sparky_search_foods',
 ];
 
 // The 'core' profile (used for Ollama and other small/local models): the
 // food, exercise, and measurement logging the system prompt centers on, plus
 // goals (a coaching chat must answer "what are my goals?"), minus the
 // coaching, vision, profile, and report tools that weaker models struggle to
-// drive. The food/exercise/checkin domains also carry their folded single-tool
-// helpers (favorites, meal plans, water containers, workout plans, progress
-// photos, sleep science, etc.) since those now live inside those categories.
+// drive. 'food' is now just water containers and 'goals' just Focus, per the
+// food/goal domain deletion above.
 const EXPECTED_CORE_TOOLS = [
-  'sparky_get_barcode',
   'sparky_get_daily_exercise_totals',
   'sparky_get_exercise_details',
   'sparky_get_exercise_diary',
   'sparky_get_exercise_progress',
   'sparky_get_exercise_stats',
   'sparky_get_exercise_usage',
-  'sparky_get_food_details',
-  'sparky_get_food_diary',
-  'sparky_get_food_usage',
-  'sparky_get_goal_snapshot',
-  'sparky_get_nutrition_summary',
   'sparky_get_recent_exercise_entries',
-  'sparky_get_recent_food_entries',
   'sparky_get_sleep_science',
   'sparky_list_exercises',
-  'sparky_list_foods',
-  'sparky_manage_allergens',
   'sparky_manage_checkin',
-  'sparky_manage_custom_nutrients',
   'sparky_manage_exercise',
-  'sparky_manage_favorites',
   'sparky_manage_focus',
-  'sparky_manage_food',
-  'sparky_manage_goals',
-  'sparky_manage_meal_plans',
   'sparky_manage_progress_photos',
   'sparky_manage_water_containers',
   'sparky_manage_workout_plans',
   'sparky_search_exercises',
-  'sparky_search_foods',
 ];
 
 describe('buildChatbotTools', () => {
@@ -201,18 +167,16 @@ describe('buildChatbotTools', () => {
   it('strips null-valued optional fields from chat-tool input before validation', () => {
     const tools = buildChatbotTools('user-1', 'UTC');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const schema = tools.sparky_manage_food.inputSchema as any;
+    const schema = tools.sparky_manage_water_containers.inputSchema as any;
     const parsed = schema.safeParse({
-      action: 'log_external_food',
-      food_name: 'egg',
-      external_id: null,
-      quantity: 2,
-      unit: 'piece',
-      meal_type: 'breakfast',
+      action: 'update_water_container',
+      id: 1,
+      name: 'Bottle',
+      is_primary: null,
     });
     expect(parsed.success).toBe(true);
-    expect(parsed.data.external_id).toBeUndefined();
-    expect(parsed.data.food_name).toBe('egg');
+    expect(parsed.data.is_primary).toBeUndefined();
+    expect(parsed.data.name).toBe('Bottle');
   });
 
   // The MCP surface strips nulls upstream (routes/mcpRoutes.ts), so its
@@ -221,12 +185,12 @@ describe('buildChatbotTools', () => {
   it('does not add the null-stripping wrapper to the MCP surface', () => {
     const tools = buildChatbotTools('mcp-user', 'UTC', 'full', false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const schema = tools.sparky_manage_food.inputSchema as any;
+    const schema = tools.sparky_manage_water_containers.inputSchema as any;
     const parsed = schema.safeParse({
-      action: 'log_external_food',
-      food_name: 'egg',
-      external_id: null,
-      meal_type: 'breakfast',
+      action: 'update_water_container',
+      id: 1,
+      name: 'Bottle',
+      is_primary: null,
     });
     expect(parsed.success).toBe(false);
   });
@@ -251,11 +215,12 @@ describe('buildChatbotTools', () => {
         'food',
       ]);
       const names = Object.keys(tools);
-      expect(names).toContain('sparky_manage_food');
-      expect(names).toContain('sparky_search_foods');
+      // 'food' composes to just water containers now (food/nutrition tracking
+      // was hard-deleted from this fork).
+      expect(names).toEqual(['sparky_manage_water_containers']);
       // No other domain leaks in.
       expect(names.some((n) => n.includes('exercise'))).toBe(false);
-      expect(names).not.toContain('sparky_manage_goals');
+      expect(names).not.toContain('sparky_manage_focus');
       expect(names).not.toContain('sparky_get_report');
     });
 
@@ -263,7 +228,7 @@ describe('buildChatbotTools', () => {
       const names = Object.keys(
         buildChatbotTools('cat-user', 'UTC', 'full', true, ['food', 'reports'])
       );
-      expect(names).toContain('sparky_manage_food');
+      expect(names).toContain('sparky_manage_water_containers');
       expect(names).toContain('sparky_get_report');
       expect(names.some((n) => n.includes('exercise'))).toBe(false);
     });

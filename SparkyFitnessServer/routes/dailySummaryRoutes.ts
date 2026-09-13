@@ -1,5 +1,4 @@
 import express, { Request, RequestHandler } from 'express';
-import { getDailySummary } from '../services/dailySummaryService.js';
 import { getDailySummaryRange } from '../services/dailySummaryRangeService.js';
 
 import { z } from 'zod';
@@ -10,10 +9,8 @@ const router = express.Router();
 
 router.use(checkPermissionMiddleware('diary'));
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
 /**
- * Bounds the goalService day loop and the response size. A year of report is already
+ * Bounds the day loop and the response size. A year of report is already
  * far more than any chart renders legibly.
  */
 const MAX_RANGE_DAYS = 366;
@@ -59,9 +56,7 @@ interface SummaryAccess {
   /**
    * Whether check-in data may be read. Water intake, step calories and external BMR all
    * derive from `check_in_measurements` and require the `checkin` permission, not
-   * `diary`. Shared by both handlers so the single-date and ranged paths cannot gate
-   * differently -- if they did, Reports and the Diary would disagree for exactly the
-   * family viewers least able to explain why.
+   * `diary`.
    */
   includeCheckin: boolean;
 }
@@ -99,76 +94,13 @@ async function resolveSummaryAccess(
 
 /**
  * @swagger
- * /daily-summary:
- *   get:
- *     summary: Get consolidated daily summary
- *     tags: [Dashboard]
- *     description: Returns goals, food entries, exercise sessions, and water intake for a single date in one response.
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: query
- *         name: date
- *         required: true
- *         schema:
- *           type: string
- *           format: date
- *           example: "2026-03-26"
- *         description: Date in YYYY-MM-DD format
- *       - in: query
- *         name: userId
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Optional user ID for family access
- *     responses:
- *       200:
- *         description: Daily summary containing goals, food entries, exercise sessions, and water intake
- *       400:
- *         description: Missing or invalid date parameter
- *       403:
- *         description: User does not have permission to access this resource
- *       500:
- *         description: Internal server error
- */
-const handler: RequestHandler = async (req, res, next) => {
-  try {
-    const date = req.query.date as string | undefined;
-    if (!date || !DATE_REGEX.test(date)) {
-      res.status(400).json({
-        error: 'Missing or invalid date query parameter (expected YYYY-MM-DD)',
-      });
-      return;
-    }
-
-    const access = await resolveSummaryAccess(req);
-    if (!access) {
-      res.status(403).json({ error: 'Forbidden' });
-      return;
-    }
-
-    const result = await getDailySummary({
-      actorUserId: access.actorUserId,
-      targetUserId: access.targetUserId,
-      date,
-      includeCheckin: access.includeCheckin,
-    });
-    res.status(200).json(result);
-  } catch (error: unknown) {
-    next(error);
-  }
-};
-
-/**
- * @swagger
  * /daily-summary/range:
  *   get:
  *     summary: Get per-day calorie balance for a date range
  *     tags: [Dashboard]
  *     description: >
- *       Returns one calorie-balance row per day, computed by the same code path as
- *       GET /daily-summary. Reports uses this instead of deriving the balance in the
- *       browser, which is what caused issue #2094.
+ *       Returns one calorie-balance row per day. Reports uses this instead of deriving
+ *       the balance in the browser, which is what caused issue #2094.
  *     security:
  *       - cookieAuth: []
  *     parameters:
@@ -232,7 +164,11 @@ const rangeHandler: RequestHandler = async (req, res, next) => {
   }
 };
 
+// The single-date `/` route (GET /api/daily-summary) was deleted along with
+// services/dailySummaryService.ts: food/nutrition tracking was hard-deleted
+// from this fork, and that route's only consumer was the frontend's
+// Diary.tsx/DailyProgress.tsx (also being removed). Only the ranged path
+// survives -- it backs the still-live Reports page.
 router.get('/range', rangeHandler);
-router.get('/', handler);
 
-module.exports = router;
+export default router;

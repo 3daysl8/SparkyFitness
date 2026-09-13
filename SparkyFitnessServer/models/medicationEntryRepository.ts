@@ -124,12 +124,13 @@ async function listEntries(
 }
 
 /**
- * Adherence entries merged with GLP-1 injection logs, so shots logged through the
- * injection endpoint show up in the same feed. Injection rows are mapped to the entry
- * shape and discriminated by entry_type ('entry' | 'injection'); their ids are injection
- * ids, so deletes for them must go through DELETE /injections/:id. Kept separate from
- * listEntries because reportService fetches entries and injections independently and
- * would double-count merged rows.
+ * Adherence entries, shaped to include `entry_type: 'entry'` for API
+ * compatibility with the (now-removed) GLP-1 injection feed this used to be
+ * merged with. Injections (`injection_entries`) were hard-deleted along with
+ * clinical medication tracking, so this is now a thin wrapper around the same
+ * query as listEntries. Kept as a separate name/export rather than folded
+ * into listEntries since routes/v2/medicationRoutes.ts and the AI medication
+ * tool both call it by this name.
  */
 async function listEntriesWithInjections(
   userId: string,
@@ -153,25 +154,10 @@ async function listEntriesWithInjections(
       where.push(`medication_id = $${params.length}`);
     }
 
-    const entryWhere = where.join(' AND ');
-    const injectionWhere = where.map((w) => `i.${w}`).join(' AND ');
-
     const result = await client.query(
       `SELECT ${ENTRY_COLS}, NULL::varchar AS site, 'entry'::text AS entry_type
          FROM medication_entries
-        WHERE ${entryWhere}
-       UNION ALL
-       SELECT i.id, i.medication_id, NULL::uuid AS schedule_id, i.user_id,
-              'taken'::text AS status, i.injected_at AS taken_at,
-              NULL::timestamptz AS scheduled_for, i.entry_date,
-              COALESCE(m.display_name, m.name) AS med_name_snapshot,
-              i.dose_mg AS dose_amount_snapshot, 'mg'::text AS dose_unit_snapshot,
-              i.notes, i.source, i.custom_fields, i.created_at, i.updated_at,
-              NULL::jsonb AS nutrients_snapshot,
-              i.site, 'injection'::text AS entry_type
-         FROM injection_entries i
-         LEFT JOIN medications m ON m.id = i.medication_id
-        WHERE ${injectionWhere}
+        WHERE ${where.join(' AND ')}
        ORDER BY taken_at DESC`,
       params
     );

@@ -3,7 +3,6 @@ import { todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import medicationRepository from '../../models/medicationRepository.js';
 import medicationEntryRepository from '../../models/medicationEntryRepository.js';
-import injectionRepository from '../../models/injectionRepository.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { dayString, formatConfirmation, formatList } from './formatting.js';
 import { normalizeActionArgs } from './dates.js';
@@ -36,7 +35,6 @@ interface MedicationRow {
 interface MedicationDetailRow extends MedicationRow {
   dose_amount: number | null;
   dose_unit: string | null;
-  is_glp1: boolean;
   reason_text: string | null;
   notes: string | null;
   schedules: {
@@ -55,20 +53,6 @@ interface MedicationEntryRow {
   dose_unit_snapshot: string | null;
   notes: string | null;
   entry_type: string | null;
-}
-
-interface InjectionRow {
-  entry_date: string;
-  dose_mg: number | null;
-  site: string | null;
-  notes: string | null;
-}
-
-interface InjectionWithPenRow extends InjectionRow {
-  pen: {
-    doses_used: number;
-    doses_total: number | null;
-  } | null;
 }
 
 interface MedicationMutationRow {
@@ -102,13 +86,9 @@ interface PreProcessedArgs {
   status?: string;
   taken_at?: string;
   notes?: string | null;
-  glp1_only?: boolean;
   active_only?: boolean;
   from_date?: string;
   to_date?: string;
-  dose_mg?: number;
-  site?: string;
-  deduct_pen?: boolean;
   entry_id?: string;
   name?: string;
   strength_value?: number | null;
@@ -117,7 +97,6 @@ interface PreProcessedArgs {
   dose_unit?: string | null;
   type_id?: string | null;
   reason_text?: string | null;
-  is_glp1?: boolean;
   is_supplement?: boolean;
   is_active?: boolean;
   schedule_id?: string;
@@ -137,8 +116,6 @@ const VALID_ACTIONS = [
   'list_entries',
   'update_entry',
   'delete_entry',
-  'log_injection',
-  'list_injections',
   'create_medication',
   'update_medication',
   'delete_medication',
@@ -172,10 +149,10 @@ export function buildMedicationTools(userId: string, tz: string) {
       description: `Medication tracking: manage medications and schedules, log doses, and view history.
 
 Actions:
-- list_medications(glp1_only?, active_only?)
+- list_medications(active_only?)
 - get_medication(medication_id)
-- create_medication(name, strength_value?, strength_unit?, dose_amount?, dose_unit?, type_id?, reason_text?, is_glp1?, is_supplement?, is_active?, notes?)
-- update_medication(medication_id, name?, strength_value?, strength_unit?, dose_amount?, dose_unit?, type_id?, reason_text?, is_glp1?, is_supplement?, is_active?, notes?)
+- create_medication(name, strength_value?, strength_unit?, dose_amount?, dose_unit?, type_id?, reason_text?, is_supplement?, is_active?, notes?)
+- update_medication(medication_id, name?, strength_value?, strength_unit?, dose_amount?, dose_unit?, type_id?, reason_text?, is_supplement?, is_active?, notes?)
 - delete_medication(medication_id)
 - list_schedules(medication_id)
 - add_schedule(medication_id, schedule_type_id?, time_of_day?, dose_amount?, days_of_week?, interval_days?, with_meal?, prn_reason?, start_date?)
@@ -183,9 +160,7 @@ Actions:
 - log(medication_id?|medication_name?, status?, taken_at?, entry_date?, dosage?, dosage_unit?, notes?)
 - list_entries(medication_id?, from_date?, to_date?)
 - update_entry(entry_id, status?, taken_at?, entry_date?, notes?)
-- delete_entry(entry_id)
-- log_injection(medication_id?|medication_name?, dose_mg?, site?, deduct_pen?, entry_date?, notes?)
-- list_injections(medication_id?, from_date?, to_date?)`,
+- delete_entry(entry_id)`,
       inputSchema: manageMedicationsInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -213,7 +188,6 @@ Actions:
               args.dose_unit !== undefined ||
               args.type_id !== undefined ||
               args.reason_text !== undefined ||
-              args.is_glp1 !== undefined ||
               args.is_supplement !== undefined ||
               args.is_active !== undefined;
             if (args.entry_id) {
@@ -227,9 +201,6 @@ Actions:
               }
               return 'delete_entry';
             }
-            if (args.site || args.dose_mg || args.deduct_pen !== undefined) {
-              return 'log_injection';
-            }
             if (args.medication_name || args.dosage !== undefined) return 'log';
             if (args.status) return 'log';
             if (hasMedicationUpdateField) {
@@ -241,13 +212,7 @@ Actions:
               if (args.from_date || args.to_date) return 'list_entries';
               return 'get_medication';
             }
-            if (args.from_date || args.to_date) return 'list_injections';
-            if (
-              args.glp1_only !== undefined ||
-              args.active_only !== undefined
-            ) {
-              return 'list_medications';
-            }
+            if (args.from_date || args.to_date) return 'list_entries';
             return 'list_medications';
           }
         ) as PreProcessedArgs;
@@ -292,7 +257,6 @@ Actions:
             case 'list_medications': {
               const meds: MedicationRow[] =
                 await medicationRepository.listMedications(userId, {
-                  glp1Only: args.glp1_only,
                   activeOnly: args.active_only,
                 });
               return formatList(meds, 'Medications', (m) => {
@@ -328,7 +292,6 @@ Actions:
                 text += `\nDose: ${med.dose_amount} ${med.dose_unit}`;
               }
               text += `\nActive: ${med.is_active ? 'Yes' : 'No'}`;
-              if (med.is_glp1) text += '\nType: GLP-1';
               if (med.reason_text) text += `\nReason: ${med.reason_text}`;
               if (med.notes) text += `\nNotes: ${med.notes}`;
               text += `\nID: ${med.id}`;
@@ -389,7 +352,6 @@ Actions:
                   text += ` (${e.dose_amount_snapshot} ${e.dose_unit_snapshot || ''})`;
                 }
                 if (e.notes) text += ` — ${e.notes}`;
-                if (e.entry_type === 'injection') text += ' [injection]';
                 return text;
               });
             }
@@ -418,37 +380,6 @@ Actions:
               if (!ok) return ERRORS.NOT_FOUND('Entry', args.entry_id);
               return formatConfirmation('Entry deleted.');
             }
-            case 'log_injection': {
-              if (!args.entry_date) args.entry_date = todayInZone(tz);
-              const injection: InjectionWithPenRow =
-                await injectionRepository.createInjection(userId, {
-                  medication_id: args.medication_id!,
-                  dose_mg: args.dose_mg,
-                  site: args.site ?? null,
-                  deduct_pen: args.deduct_pen,
-                  entry_date: args.entry_date!,
-                  notes: args.notes ?? null,
-                });
-              let text = `Injection logged (${injection.dose_mg} mg) for ${dayString(injection.entry_date)}.`;
-              if (injection.pen) {
-                text += ` Pen: ${injection.pen.doses_used}/${injection.pen.doses_total ?? '?'} doses used.`;
-              }
-              return formatConfirmation(text);
-            }
-            case 'list_injections': {
-              const injections: InjectionRow[] =
-                await injectionRepository.listInjections(userId, {
-                  medicationId: args.medication_id,
-                  fromDate: args.from_date,
-                  toDate: args.to_date,
-                });
-              return formatList(
-                injections,
-                'Injections',
-                (i) =>
-                  `${dayString(i.entry_date)}: ${i.dose_mg} mg${i.site ? ` at ${i.site}` : ''}${i.notes ? ` — ${i.notes}` : ''}`
-              );
-            }
             case 'create_medication': {
               const med: MedicationMutationRow =
                 await medicationRepository.createMedication(userId, {
@@ -459,7 +390,6 @@ Actions:
                   dose_unit: args.dose_unit ?? undefined,
                   type_id: args.type_id ?? undefined,
                   reason_text: args.reason_text ?? undefined,
-                  is_glp1: args.is_glp1,
                   is_supplement: args.is_supplement,
                   is_active: args.is_active,
                   notes: args.notes ?? undefined,
@@ -485,7 +415,6 @@ Actions:
                     dose_unit: args.dose_unit,
                     type_id: args.type_id,
                     reason_text: args.reason_text,
-                    is_glp1: args.is_glp1,
                     is_supplement: args.is_supplement,
                     is_active: args.is_active,
                     notes: args.notes,

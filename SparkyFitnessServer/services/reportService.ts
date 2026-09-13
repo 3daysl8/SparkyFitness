@@ -1,64 +1,16 @@
 import reportRepository from '../models/reportRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import userRepository from '../models/userRepository.js';
-import goalService from './goalService.js';
 import preferenceRepository from '../models/preferenceRepository.js';
 import bmrService from './bmrService.js';
 import sleepAnalyticsService from './sleepAnalyticsService.js';
-import customNutrientService from './customNutrientService.js';
 import medicationRepository from '../models/medicationRepository.js';
 import medicationEntryRepository from '../models/medicationEntryRepository.js';
-import symptomRepository from '../models/symptomRepository.js';
-import injectionRepository from '../models/injectionRepository.js';
-import titrationRepository from '../models/titrationRepository.js';
 import { log } from '../config/logging.js';
-import {
-  addDays,
-  compareDays,
-  FOOD_VARIANT_NUTRIENT_FIELDS,
-  todayInZone,
-  isUsableMeasuredBmr,
-} from '@workspace/shared';
+import { addDays, todayInZone, isUsableMeasuredBmr } from '@workspace/shared';
 import { userAge } from '../utils/dateHelpers.js';
 import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { parseJsonArrayField } from '../utils/exerciseJsonFields.js';
-
-interface CustomNutrientDefinition {
-  id: string;
-  user_id: string;
-  name: string;
-  unit: string;
-  created_at: Date | string;
-  updated_at: Date | string;
-}
-
-interface TabularFoodRow {
-  food_name: string;
-  brand?: string | null;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  saturated_fat?: number;
-  polyunsaturated_fat?: number;
-  monounsaturated_fat?: number;
-  trans_fat?: number;
-  cholesterol?: number;
-  sodium?: number;
-  potassium?: number;
-  dietary_fiber?: number;
-  sugars?: number;
-  glycemic_index?: number;
-  vitamin_a?: number;
-  vitamin_c?: number;
-  calcium?: number;
-  iron?: number;
-  caffeine_mg?: number;
-  water_ml?: number;
-  alcohol_g?: number;
-  serving_size: number;
-  [key: string]: unknown;
-}
 
 interface MeasurementEntry {
   entry_date: string | Date;
@@ -127,12 +79,8 @@ async function getReportsData(
   endDate: any
 ) {
   try {
-    // Fetch custom nutrients first as they are needed for dynamic SQL generation in repositories
-    const customNutrients =
-      await customNutrientService.getCustomNutrients(targetUserId);
     const [
       fetchedNutritionData,
-      tabularDataRaw,
       exerciseEntriesRaw,
       measurementData,
       customCategoriesResult,
@@ -141,22 +89,11 @@ async function getReportsData(
       sleepAnalyticsData,
       medications,
       medicationEntries,
-      symptomEntries,
-      injections,
       waterTotals,
     ] = await Promise.all([
-      reportRepository.getNutritionData(
-        targetUserId,
-        startDate,
-        endDate,
-        customNutrients
-      ),
-      reportRepository.getTabularFoodData(
-        targetUserId,
-        startDate,
-        endDate,
-        customNutrients
-      ),
+      // Custom-nutrient catalog was dropped along with the food domain that
+      // defined it; this is now supplement-only (see reportRepository.js).
+      reportRepository.getNutritionData(targetUserId, startDate, endDate, []),
       reportRepository.getExerciseEntries(targetUserId, startDate, endDate),
       reportRepository.getMeasurementData(targetUserId, startDate, endDate),
       measurementRepository.getCustomCategories(targetUserId),
@@ -165,14 +102,6 @@ async function getReportsData(
       sleepAnalyticsService.getSleepAnalytics(targetUserId, startDate, endDate),
       medicationRepository.listMedications(targetUserId),
       medicationEntryRepository.listEntries(targetUserId, {
-        fromDate: startDate,
-        toDate: endDate,
-      }),
-      symptomRepository.listSymptomEntries(targetUserId, {
-        fromDate: startDate,
-        toDate: endDate,
-      }),
-      injectionRepository.listInjections(targetUserId, {
         fromDate: startDate,
         toDate: endDate,
       }),
@@ -202,82 +131,32 @@ async function getReportsData(
         customMeasurementsData.push(customMeasurementResult[i]);
       }
     }
-    const tabularData = tabularDataRaw.map((row: TabularFoodRow) => {
-      // Custom nutrients are now already in the row, scaled and summed by the repository
-      return {
-        ...row,
-        foods: {
-          name: row.food_name,
-          brand: row.brand,
-          calories: row.calories,
-          protein: row.protein,
-          carbs: row.carbs,
-          fat: row.fat,
-          saturated_fat: row.saturated_fat,
-          polyunsaturated_fat: row.polyunsaturated_fat,
-          monounsaturated_fat: row.monounsaturated_fat,
-          trans_fat: row.trans_fat,
-          cholesterol: row.cholesterol,
-          sodium: row.sodium,
-          potassium: row.potassium,
-          dietary_fiber: row.dietary_fiber,
-          sugars: row.sugars,
-          glycemic_index: row.glycemic_index,
-          vitamin_a: row.vitamin_a,
-          vitamin_c: row.vitamin_c,
-          calcium: row.calcium,
-          iron: row.iron,
-          caffeine_mg: row.caffeine_mg,
-          water_ml: row.water_ml,
-          alcohol_g: row.alcohol_g,
-          serving_size: row.serving_size,
-        },
-      };
-    });
+    // Supplement-adherence nutrient totals (food's own contribution is gone
+    // along with the food domain -- see reportRepository.getNutritionData).
     const nutritionData = fetchedNutritionData.map(
-      (item: Record<string, string | number>) => {
-        const mappedItem: Record<string, string | number> = {
-          date: item.date,
-          calories: parseFloat(String(item.calories)) || 0,
-          protein: parseFloat(String(item.protein)) || 0,
-          carbs: parseFloat(String(item.carbs)) || 0,
-          fat: parseFloat(String(item.fat)) || 0,
-          saturated_fat: parseFloat(String(item.saturated_fat)) || 0,
-          polyunsaturated_fat:
-            parseFloat(String(item.polyunsaturated_fat)) || 0,
-          monounsaturated_fat:
-            parseFloat(String(item.monounsaturated_fat)) || 0,
-          trans_fat: parseFloat(String(item.trans_fat)) || 0,
-          cholesterol: parseFloat(String(item.cholesterol)) || 0,
-          sodium: parseFloat(String(item.sodium)) || 0,
-          potassium: parseFloat(String(item.potassium)) || 0,
-          dietary_fiber: parseFloat(String(item.dietary_fiber)) || 0,
-          sugars: parseFloat(String(item.sugars)) || 0,
-          vitamin_a: parseFloat(String(item.vitamin_a)) || 0,
-          vitamin_c: parseFloat(String(item.vitamin_c)) || 0,
-          calcium: parseFloat(String(item.calcium)) || 0,
-          iron: parseFloat(String(item.iron)) || 0,
-          caffeine_mg: parseFloat(String(item.caffeine_mg)) || 0,
-          alcohol_g: parseFloat(String(item.alcohol_g)) || 0,
-          water: waterByDate.get(String(item.date)) || 0,
-        };
-        FOOD_VARIANT_NUTRIENT_FIELDS.forEach((nutrient) => {
-          mappedItem[`food_${nutrient}`] =
-            parseFloat(String(item[`food_${nutrient}`])) || 0;
-          mappedItem[`supplement_${nutrient}`] =
-            parseFloat(String(item[`supplement_${nutrient}`])) || 0;
-        });
-        // Map custom nutrients dynamically
-        customNutrients.forEach((cn: CustomNutrientDefinition) => {
-          const key = cn.name; // Use exact name as key, matching frontend expectation
-          mappedItem[key] = parseFloat(String(item[key])) || 0;
-          mappedItem[`food_${key}`] =
-            parseFloat(String(item[`food_${key}`])) || 0;
-          mappedItem[`supplement_${key}`] =
-            parseFloat(String(item[`supplement_${key}`])) || 0;
-        });
-        return mappedItem;
-      }
+      (item: Record<string, string | number>) => ({
+        date: item.date,
+        calories: parseFloat(String(item.calories)) || 0,
+        protein: parseFloat(String(item.protein)) || 0,
+        carbs: parseFloat(String(item.carbs)) || 0,
+        fat: parseFloat(String(item.fat)) || 0,
+        saturated_fat: parseFloat(String(item.saturated_fat)) || 0,
+        polyunsaturated_fat: parseFloat(String(item.polyunsaturated_fat)) || 0,
+        monounsaturated_fat: parseFloat(String(item.monounsaturated_fat)) || 0,
+        trans_fat: parseFloat(String(item.trans_fat)) || 0,
+        cholesterol: parseFloat(String(item.cholesterol)) || 0,
+        sodium: parseFloat(String(item.sodium)) || 0,
+        potassium: parseFloat(String(item.potassium)) || 0,
+        dietary_fiber: parseFloat(String(item.dietary_fiber)) || 0,
+        sugars: parseFloat(String(item.sugars)) || 0,
+        vitamin_a: parseFloat(String(item.vitamin_a)) || 0,
+        vitamin_c: parseFloat(String(item.vitamin_c)) || 0,
+        calcium: parseFloat(String(item.calcium)) || 0,
+        iron: parseFloat(String(item.iron)) || 0,
+        caffeine_mg: parseFloat(String(item.caffeine_mg)) || 0,
+        alcohol_g: parseFloat(String(item.alcohol_g)) || 0,
+        water: waterByDate.get(String(item.date)) || 0,
+      })
     );
     // BMR Calculation
     if (userProfile && userPreferences) {
@@ -380,17 +259,8 @@ async function getReportsData(
       },
     }));
 
-    // Fetch titration steps in a single query (avoid N+1 pattern)
-    const medIds = new Set(medications.map((m: any) => m.id));
-    const allTitrationSteps =
-      await titrationRepository.listStepsForUser(targetUserId);
-    const titrationSteps = allTitrationSteps.filter((step: any) =>
-      medIds.has(step.medication_id)
-    );
-
     return {
       nutritionData,
-      tabularData,
       exerciseEntries, // Include exercise entries
       measurementData,
       customCategories: customCategoriesResult,
@@ -398,149 +268,11 @@ async function getReportsData(
       sleepAnalyticsData, // New: Include sleep analytics data
       medications,
       medicationEntries,
-      symptomEntries,
-      injections,
-      titrationSteps,
     };
   } catch (error) {
     log(
       'error',
       `Error fetching reports data for user ${targetUserId} by ${authenticatedUserId}:`,
-      error
-    );
-    throw error;
-  }
-}
-async function getMiniNutritionTrends(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  startDate: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  endDate: any
-) {
-  try {
-    if (!targetUserId) {
-      log(
-        'error',
-        'getMiniNutritionTrends: targetUserId is undefined. Returning empty array.'
-      );
-      return [];
-    }
-    // Fetch custom nutrients to include in the trends
-    const customNutrients =
-      await customNutrientService.getCustomNutrients(targetUserId);
-    const result = await reportRepository.getMiniNutritionTrends(
-      targetUserId,
-      startDate,
-      endDate,
-      customNutrients
-    );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedResults = result.map((row: any) => {
-      const mappedRow = {
-        date: row.entry_date,
-        calories: parseFloat(row.total_calories || 0),
-        protein: parseFloat(row.total_protein || 0),
-        carbs: parseFloat(row.total_carbs || 0),
-        fat: parseFloat(row.total_fat || 0),
-        saturated_fat: parseFloat(row.total_saturated_fat) || 0,
-        polyunsaturated_fat: parseFloat(row.total_polyunsaturated_fat) || 0,
-        monounsaturated_fat: parseFloat(row.total_monounsaturated_fat) || 0,
-        trans_fat: parseFloat(row.total_trans_fat) || 0,
-        cholesterol: parseFloat(row.total_cholesterol) || 0,
-        sodium: parseFloat(row.total_sodium) || 0,
-        potassium: parseFloat(row.total_potassium) || 0,
-        dietary_fiber: parseFloat(row.total_dietary_fiber) || 0,
-        sugars: parseFloat(row.total_sugars) || 0,
-        vitamin_a: parseFloat(row.total_vitamin_a) || 0,
-        vitamin_c: parseFloat(row.total_vitamin_c) || 0,
-        calcium: parseFloat(row.total_calcium) || 0,
-        iron: parseFloat(row.total_iron) || 0,
-        caffeine_mg: parseFloat(row.total_caffeine_mg) || 0,
-        alcohol_g: parseFloat(row.total_alcohol_g) || 0,
-      };
-      // Map custom nutrients dynamically
-      customNutrients.forEach((cn: CustomNutrientDefinition) => {
-        // The repository will return them as columns like "MyNutrient", matching the nutrient name
-        // However, standard nutrients in this query are prefixed with "total_", so let's check how we implement the repo.
-        // Usually, for consistency, I might prefix them or just use the name.
-        // Let's assume for now I will use the raw name in the repo query to match getNutritionData pattern.
-        // @ts-expect-error TS(7053): Element implicitly has an 'any' type because expre... Remove this comment to see the full error message
-        mappedRow[cn.name] = parseFloat(row[cn.name] || 0);
-      });
-      return mappedRow;
-    });
-    return formattedResults;
-  } catch (error) {
-    log(
-      'error',
-      `Error fetching mini nutrition trends for user ${targetUserId} by ${authenticatedUserId}:`,
-      error
-    );
-    throw error;
-  }
-}
-async function getNutritionTrendsWithGoals(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  targetUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  startDate: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  endDate: any
-) {
-  try {
-    // Fetch daily nutrition data
-    const nutritionData = await reportRepository.getNutritionData(
-      targetUserId,
-      startDate,
-      endDate
-    );
-    // Fetch daily goals for range with adjustments (deficit targets, adaptive TDEE offset)
-    const rangeGoals = (await goalService.getUserGoals(
-      targetUserId,
-      startDate,
-      endDate,
-      true // adjust = true
-    )) as Record<string, any>;
-
-    // Create a map for quick lookup of nutrition data by date
-    const nutritionMap = new Map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nutritionData.map((item: any) => [item.date, item])
-    );
-    const trendData = [];
-    let currentDay = startDate;
-    while (compareDays(currentDay, endDate) <= 0) {
-      const dailyNutrition = nutritionMap.get(currentDay) || {};
-      const dailyGoal = rangeGoals[currentDay] || {};
-
-      trendData.push({
-        date: currentDay,
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        calories: parseFloat(dailyNutrition.calories || 0),
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        protein: parseFloat(dailyNutrition.protein || 0),
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        carbs: parseFloat(dailyNutrition.carbs || 0),
-        // @ts-expect-error TS(2571): Object is of type 'unknown'.
-        fat: parseFloat(dailyNutrition.fat || 0),
-        calorieGoal: parseFloat(dailyGoal.calories || 0),
-        proteinGoal: parseFloat(dailyGoal.protein || 0),
-        carbsGoal: parseFloat(dailyGoal.carbs || 0),
-        fatGoal: parseFloat(dailyGoal.fat || 0),
-      });
-      currentDay = addDays(currentDay, 1);
-    }
-    return trendData;
-  } catch (error) {
-    log(
-      'error',
-      `Error fetching nutrition trends with goals for user ${targetUserId} by ${authenticatedUserId}:`,
       error
     );
     throw error;
@@ -911,12 +643,8 @@ async function getExerciseDashboardData(
   }
 }
 export { getReportsData };
-export { getMiniNutritionTrends };
-export { getNutritionTrendsWithGoals };
 export { getExerciseDashboardData };
 export default {
   getReportsData,
-  getMiniNutritionTrends,
-  getNutritionTrendsWithGoals,
   getExerciseDashboardData,
 };

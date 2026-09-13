@@ -1,4 +1,3 @@
-import goalService from './goalService.js';
 import reportRepository from '../models/reportRepository.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
 import measurementRepository from '../models/measurementRepository.js';
@@ -46,6 +45,12 @@ export interface DailySummaryRangeOptions {
 export interface DailySummaryRangeResult {
   days: DailyCalorieBalanceRow[];
 }
+
+// The stored, per-user calorie goal (user_goals/goalService) was hard-deleted
+// along with food/nutrition tracking -- there is no more per-user target to
+// look up per day. This is the same flat fallback every calorie-balance call
+// site already used when no goal could be resolved.
+const DEFAULT_CALORIE_GOAL_KCAL = 2000;
 
 interface CheckInRow {
   entry_date: string;
@@ -101,7 +106,6 @@ export async function getDailySummaryRange({
 }: DailySummaryRangeOptions): Promise<DailySummaryRangeResult> {
   const [
     nutritionRows,
-    goalsByDate,
     exerciseSplits,
     checkInRows,
     seedMeasurement,
@@ -112,8 +116,9 @@ export async function getDailySummaryRange({
   ] = await Promise.all([
     // Only `calories` is needed, so the custom-nutrient catalog is deliberately not
     // passed — it would inflate the dynamic SQL for columns nothing here reads.
+    // (Now supplement-only: food's own contribution was dropped along with the
+    // food domain, see reportRepository.getNutritionData.)
     reportRepository.getNutritionData(targetUserId, startDate, endDate, []),
-    goalService.getUserGoalsForRange(targetUserId, startDate, endDate, true),
     exerciseEntryRepository.getDailyExerciseCalorieSplitRange(
       targetUserId,
       startDate,
@@ -259,9 +264,6 @@ export async function getDailySummaryRange({
         })
       : 0;
 
-    const dayGoals = (goalsByDate as Record<string, { calories?: unknown }>)[
-      date
-    ];
     const healthConnectTotal = healthConnectTotalByDate.get(date);
     const deviceProjectionSnapshot = resolveDeviceProjectionSnapshot({
       date,
@@ -277,7 +279,7 @@ export async function getDailySummaryRange({
         eatenCalories: eatenByDate.get(date) ?? 0,
         exercise,
         backgroundStepCalories: stepCalories,
-        adjustedGoalCalories: Number(dayGoals?.calories) || 2000,
+        adjustedGoalCalories: DEFAULT_CALORIE_GOAL_KCAL,
         userProfile,
         userPreferences,
         measurements: { ...carried, bmr: bmrByDate.get(date) ?? null },

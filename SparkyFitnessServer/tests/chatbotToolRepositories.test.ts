@@ -6,10 +6,7 @@ import habitRepository from '../models/habitRepository.js';
 import measurementRepository from '../models/measurementRepository.js';
 import reportRepository from '../models/reportRepository.js';
 import exerciseEntryRepository from '../models/exerciseEntry.js';
-import foodEntryRepository from '../models/foodEntry.js';
-import goalRepository from '../models/goalRepository.js';
 import fastingRepository from '../models/fastingRepository.js';
-import foodEntryMealRepository from '../models/foodEntryMealRepository.js';
 import externalProviderRepository from '../models/externalProviderRepository.js';
 
 vi.mock('../db/poolManager', () => ({
@@ -40,17 +37,14 @@ beforeEach(() => {
 });
 
 describe('coachRepository', () => {
-  it('getNutritionAggregates scopes by user and date range and returns the aggregate row', async () => {
+  it('getExerciseAggregates scopes by user and date range and returns the aggregate row', async () => {
     const row = {
-      total_calories: '2100',
-      avg_protein: '80.1',
-      avg_carbs: '210.5',
-      avg_fat: '70.2',
-      entry_count: 12,
+      total_calories_burned: '2100',
+      workout_count: 4,
     };
     mockClient.query.mockResolvedValue({ rows: [row] });
 
-    const result = await coachRepository.getNutritionAggregates(
+    const result = await coachRepository.getExerciseAggregates(
       'user-1',
       '2026-06-01',
       '2026-06-07'
@@ -58,8 +52,7 @@ describe('coachRepository', () => {
 
     expect(result).toBe(row);
     const [sql, params] = mockClient.query.mock.calls[0];
-    expect(sql).toContain('FROM food_entries');
-    expect(sql).toContain('NULLIF(serving_size, 0)');
+    expect(sql).toContain('FROM exercise_entries');
     expect(params).toEqual(['user-1', '2026-06-01', '2026-06-07']);
     expect(mockClient.release).toHaveBeenCalled();
   });
@@ -81,31 +74,10 @@ describe('coachRepository', () => {
     expect(params).toEqual(['user-1', 14, '2026-06-11']);
   });
 
-  it("getDailyCalorieSeries anchors the window on the caller's today", async () => {
-    await coachRepository.getDailyCalorieSeries('user-1', 14, '2026-06-11');
-    const [sql, params] = mockClient.query.mock.calls[0];
-    expect(sql).toContain('entry_date >= ($3::date - $2::int)');
-    expect(sql).not.toContain('CURRENT_DATE');
-    expect(params).toEqual(['user-1', 14, '2026-06-11']);
-  });
-
-  it("getDailyCorrelationRows joins food, sleep and mood by day, all anchored on the caller's today", async () => {
-    await coachRepository.getDailyCorrelationRows('user-1', 30, '2026-06-11');
-    const [sql, params] = mockClient.query.mock.calls[0];
-    expect(sql).toContain('daily_food');
-    expect(sql).toContain('daily_sleep');
-    expect(sql).toContain('daily_mood');
-    // All three CTEs must carry the anchor — a single toContain would pass
-    // with a half-fixed query.
-    expect(sql.match(/entry_date >= \$3::date - \$2::int/g)).toHaveLength(3);
-    expect(sql).not.toContain('CURRENT_DATE');
-    expect(params).toEqual(['user-1', 30, '2026-06-11']);
-  });
-
   it('releases the client when a query throws', async () => {
     mockClient.query.mockRejectedValue(new Error('boom'));
     await expect(
-      coachRepository.getNutritionAggregates(
+      coachRepository.getExerciseAggregates(
         'user-1',
         '2026-06-01',
         '2026-06-07'
@@ -296,7 +268,7 @@ describe('measurementRepository.getWaterTotalsByDateRange', () => {
 });
 
 describe('reportRepository.getDailyNutritionTotalsRange', () => {
-  it('returns per-day scaled totals including micros', async () => {
+  it('returns per-day supplement-only totals including micros', async () => {
     const rows = [{ entry_date: '2026-06-10', calories: '1900', iron: '8' }];
     mockClient.query.mockResolvedValue({ rows });
 
@@ -308,16 +280,12 @@ describe('reportRepository.getDailyNutritionTotalsRange', () => {
 
     expect(result).toBe(rows);
     const [sql, params] = mockClient.query.mock.calls[0];
-    // Food SUMs are COALESCE-wrapped and carry a dose-scaled supplement contribution.
-    // They are `fe.`-qualified because the query now LEFT JOINs food_entries onto a
-    // date set unioned with supplement-only days, which makes bare columns ambiguous.
-    expect(sql).toContain(
-      'COALESCE(SUM(fe.dietary_fiber * fe.quantity / NULLIF(fe.serving_size, 0)), 0)'
-    );
+    // Food/nutrition tracking was hard-deleted from this fork: this is now
+    // purely the dose-scaled supplement contribution (models/supplementSql.ts),
+    // with no food_entries involved at all.
+    expect(sql).toContain('FROM medication_entries me');
+    expect(sql).not.toContain('food_entries');
     expect(sql).toContain(' as fiber');
-    expect(sql).toContain(
-      'COALESCE(SUM(fe.sugars * fe.quantity / NULLIF(fe.serving_size, 0)), 0)'
-    );
     expect(sql).toContain(' as sugar');
     expect(params).toEqual(['user-1', '2026-06-01', '2026-06-11']);
   });
@@ -472,83 +440,6 @@ describe('exerciseEntry range/usage queries', () => {
     const [sql, params] = updateCall!;
     expect(sql).toContain('steps = $25');
     expect(params[24]).toBe(1234);
-  });
-});
-
-describe('foodEntry recent/usage queries', () => {
-  it('getRecentFoodEntries joins meal types and the food catalog', async () => {
-    await foodEntryRepository.getRecentFoodEntries('user-1', 25);
-    const [sql, params] = mockClient.query.mock.calls[0];
-    expect(sql).toContain('LEFT JOIN meal_types mt ON mt.id = fe.meal_type_id');
-    expect(sql).toContain('LEFT JOIN foods f ON f.id = fe.food_id');
-    expect(params).toEqual(['user-1', 25]);
-  });
-
-  it('getFoodUsage returns rows with the total count and defaults count to 0', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: 'entry-1' }] });
-
-    const result = await foodEntryRepository.getFoodUsage(
-      'user-1',
-      'food-1',
-      '2026-06-01',
-      '2026-06-11',
-      20,
-      40
-    );
-
-    expect(result).toEqual({ rows: [{ id: 'entry-1' }], totalCount: 0 });
-    const [, dataParams] = mockClient.query.mock.calls[1];
-    expect(dataParams).toEqual([
-      'user-1',
-      'food-1',
-      '2026-06-01',
-      '2026-06-11',
-      20,
-      40,
-    ]);
-  });
-});
-
-describe('goalRepository.getGoalTimeline', () => {
-  it('returns the compact goal history newest first', async () => {
-    const rows = [{ id: 'goal-1', goal_date: '2026-06-01', calories: 2200 }];
-    mockClient.query.mockResolvedValue({ rows });
-
-    const result = await goalRepository.getGoalTimeline('user-1');
-
-    expect(result).toBe(rows);
-    const [sql, params] = mockClient.query.mock.calls[0];
-    expect(sql).toContain(
-      'SELECT id, goal_date, calories, protein, carbs, fat, water_goal_ml'
-    );
-    expect(sql).toContain('ORDER BY goal_date DESC');
-    expect(params).toEqual(['user-1']);
-  });
-});
-
-describe('foodEntryMealRepository.getFoodEntryMealsByDateRange', () => {
-  it('returns flat meal-container rows for the range in diary order', async () => {
-    const rows = [{ id: 'fem-1', name: 'Protein Shake' }];
-    mockClient.query.mockResolvedValue({ rows });
-
-    const result = await foodEntryMealRepository.getFoodEntryMealsByDateRange(
-      'user-1',
-      '2026-06-01',
-      '2026-06-11'
-    );
-
-    expect(result).toBe(rows);
-    const [sql, params] = mockClient.query.mock.calls[0];
-    expect(sql).toContain('FROM food_entry_meals fem');
-    expect(sql).toContain(
-      'LEFT JOIN meal_types mt ON fem.meal_type_id = mt.id'
-    );
-    expect(sql).toContain('fem.entry_date BETWEEN $2 AND $3');
-    expect(sql).toContain('ORDER BY fem.entry_date ASC, fem.created_at ASC');
-    expect(params).toEqual(['user-1', '2026-06-01', '2026-06-11']);
-    expect(mockClient.release).toHaveBeenCalled();
   });
 });
 

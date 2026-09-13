@@ -7,12 +7,16 @@ import {
 } from '../services/chatService.js';
 
 describe('classifyByKeywords', () => {
-  it('matches multiple categories on one message (food + reports)', () => {
+  it('matches reports on a summary request (food/nutrition tracking removed)', () => {
     // Regression case: "ate" used to short-circuit on `food` alone and skip
     // the LLM fallback entirely, so the reports/summary intent was dropped.
-    // The reports rule now stems "summarize", so both fire from keywords.
+    // Food/nutrition tracking was hard-deleted from this fork, so 'food' no
+    // longer has a keyword rule for eating language at all (it is
+    // water-containers-only now) -- only 'reports' fires here, from the
+    // "summarize" stem.
     const result = classifyByKeywords('summarize what I ate and did yesterday');
-    expect(result).toEqual(expect.arrayContaining(['food', 'reports']));
+    expect(result).toContain('reports');
+    expect(result).not.toContain('food');
   });
 
   it('stems weigh/weighing/weighed to checkin', () => {
@@ -41,8 +45,13 @@ describe('classifyByKeywords', () => {
     );
   });
 
-  it('matches the new vision keyword rule for label/photo language', () => {
-    expect(classifyByKeywords('can you scan this label')).toContain('vision');
+  // The 'vision' keyword rule (label/photo language) was removed along with
+  // the food-photo/label-scan tools it used to escalate into -- vision now
+  // composes to zero tools, so there is no keyword rule left to test.
+  it('does not match vision for label/photo language (vision tools were removed)', () => {
+    expect(classifyByKeywords('can you scan this label')).not.toContain(
+      'vision'
+    );
   });
 
   it('returns an empty array when nothing matches', () => {

@@ -16,8 +16,6 @@ import {
   requiresUserSuppliedAiUrl,
 } from '../utils/outboundUrlPolicy.js';
 import { auth } from '../auth.js';
-import { invalidateOpenFoodFactsSession } from '../integrations/openfoodfacts/openFoodFactsAuth.js';
-import { evaluateOpenFoodFactsProviderCredentials } from '../services/openFoodFactsProviderCredentials.js';
 import externalProviderService from '../services/externalProviderService.js';
 const router = express.Router();
 // Middleware to ensure only admins can access these routes
@@ -936,11 +934,6 @@ router.post('/external-data-providers/global', async (req, res, next) => {
       is_active: is_active || false,
       user_id: req.authenticatedUserId,
     };
-    const openFoodFactsCredentials = evaluateOpenFoodFactsProviderCredentials(
-      undefined,
-      providerData
-    );
-    Object.assign(providerData, openFoodFactsCredentials.credentialPatch);
     const result =
       await externalProviderRepository.createGlobalExternalDataProvider(
         providerData
@@ -1054,11 +1047,6 @@ router.put('/external-data-providers/global/:id', async (req, res, next) => {
       base_url,
       is_active,
     };
-    const openFoodFactsCredentials = evaluateOpenFoodFactsProviderCredentials(
-      existingProvider,
-      updateData
-    );
-    Object.assign(updateData, openFoodFactsCredentials.credentialPatch);
     const result =
       await externalProviderRepository.updateGlobalExternalDataProvider(
         id,
@@ -1068,9 +1056,6 @@ router.put('/external-data-providers/global/:id', async (req, res, next) => {
       return res
         .status(404)
         .json({ error: 'Global external data provider not found.' });
-    }
-    if (openFoodFactsCredentials.shouldInvalidateSession) {
-      invalidateOpenFoodFactsSession(req.authenticatedUserId, id);
     }
     await logAdminAction(
       req.authenticatedUserId,
@@ -1123,7 +1108,6 @@ router.delete('/external-data-providers/global/:id', async (req, res, next) => {
     const success =
       await externalProviderRepository.deleteGlobalExternalDataProvider(id);
     if (success) {
-      invalidateOpenFoodFactsSession(req.authenticatedUserId, id);
       await logAdminAction(
         req.authenticatedUserId,
         null,

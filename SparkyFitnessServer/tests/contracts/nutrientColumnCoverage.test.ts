@@ -1,11 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, it, expect } from 'vitest';
-import {
-  FOOD_VARIANT_NUTRIENT_FIELDS,
-  NON_GOAL_NUTRIENT_KEYS,
-} from '@workspace/shared';
-import { PREDEFINED_NUTRIENT_KEYS } from '../../services/nutrientGoalPreferenceService.js';
 
 /**
  * Nutrient column coverage — contract test.
@@ -196,20 +191,10 @@ describe('nutrient column coverage', () => {
     ).toEqual([]);
   });
 
-  // Absorbed from the former tests/nutrientKeyListParity.test.ts, which checked
-  // this one pair of lists and nothing else.
-  it('PREDEFINED_NUTRIENT_KEYS matches FOOD_VARIANT_NUTRIENT_FIELDS minus non-goal nutrients', () => {
-    const expected = new Set(
-      FOOD_VARIANT_NUTRIENT_FIELDS.filter(
-        (key) => !(NON_GOAL_NUTRIENT_KEYS as readonly string[]).includes(key)
-      )
-    );
-    expect(new Set(PREDEFINED_NUTRIENT_KEYS)).toEqual(expected);
-  });
-
-  it('water_ml is never goal-eligible, caffeine and alcohol always are', () => {
-    expect(PREDEFINED_NUTRIENT_KEYS).not.toContain('water_ml');
-    expect(PREDEFINED_NUTRIENT_KEYS).toContain('caffeine_mg');
-    expect(PREDEFINED_NUTRIENT_KEYS).toContain('alcohol_g');
-  });
+  // The former nutrient-goal-preference parity tests (PREDEFINED_NUTRIENT_KEYS
+  // vs FOOD_VARIANT_NUTRIENT_FIELDS) were removed along with
+  // services/nutrientGoalPreferenceService.ts and the whole goal-preference
+  // feature (food/goal domain hard-deleted from this fork). The column-
+  // enumeration contract above still applies to the surviving nutrient lists
+  // (supplement totals, reports), so it is kept.
 });

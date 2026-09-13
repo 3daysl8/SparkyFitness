@@ -11,25 +11,20 @@ import mcpRoutes from '../routes/mcpRoutes.js';
 import { requestLogger } from '../middleware/requestLogger.js';
 import { buildChatbotTools } from '../ai/tools/index.js';
 import { buildDevTools } from '../ai/tools/devTools.js';
-import goalService from '../services/goalService.js';
+import focusService from '../services/focusService.js';
 import userRepository from '../models/userRepository.js';
 
-// buildChatbotTools loads every domain builder; real foodEntryService trips on
-// a deep '@workspace/shared' subpath import at load and isn't exercised here.
-vi.mock('../services/foodEntryService', () => ({ default: {} }));
 vi.mock('../config/logging', () => ({ log: vi.fn() }));
 // Pin the user's timezone so day-defaults are deterministic and no DB is hit.
 vi.mock('../utils/timezoneLoader', () => ({
   loadUserTimezone: vi.fn(async () => 'UTC'),
 }));
-// goalService backs the sparky_get_goal_snapshot tools/call case.
-vi.mock('../services/goalService', () => ({
-  default: { getUserGoals: vi.fn() },
-}));
-vi.mock('../services/nutrientGoalPreferenceService', () => ({
-  default: {
-    getEffectiveGoalTypes: vi.fn().mockResolvedValue({}),
-  },
+// focusService backs the sparky_manage_focus get_today tools/call case, used
+// below as a simple, easily-mockable stand-in for exercising generic MCP
+// dispatch behavior (the food/goal domain's sparky_get_goal_snapshot tool this
+// suite used to lean on was hard-deleted with user_goals/goalService).
+vi.mock('../services/focusService', () => ({
+  default: { getToday: vi.fn() },
 }));
 // Dev tools read the app-pool snapshot and a system client; mock the pool layer
 // so the suite stays DB-free. getPoolStats returns a fixed snapshot we assert on.
@@ -162,38 +157,14 @@ describe('POST /mcp', () => {
   });
 
   it('tools/call dispatches to the registry handler and returns its text', async () => {
-    vi.mocked(goalService.getUserGoals).mockResolvedValue({ calories: 2000 });
-
-    const res = await request(app)
-      .post('/mcp')
-      .set(MCP_HEADERS)
-      .set('Authorization', 'Bearer valid')
-      .send({
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'tools/call',
-        params: { name: 'sparky_get_goal_snapshot', arguments: {} },
-      });
-
-    expect(res.status).toBe(200);
-    // Same text the chatbotToolsGoals golden test asserts for this case.
-    expect(res.body.result.content).toEqual([
-      {
-        type: 'text',
-        text: JSON.stringify({ calories: 2000, goal_directions: {} }),
-      },
-    ]);
-    // Scoped to the authenticated user; tz resolved to UTC for the today default.
-    expect(goalService.getUserGoals).toHaveBeenCalledWith(
-      TEST_USER,
-      todayInZone('UTC'),
-      undefined,
-      true
-    );
-  });
-
-  it('tools/call normalizes null values to undefined in arguments', async () => {
-    vi.mocked(goalService.getUserGoals).mockResolvedValue({ calories: 2000 });
+    vi.mocked(focusService.getToday).mockResolvedValue({
+      date: '2026-06-11',
+      week_start: '2026-06-08',
+      scheduled: [],
+      daily_recurring: [],
+      weekly: null,
+      long_term: [],
+    });
 
     const res = await request(app)
       .post('/mcp')
@@ -204,8 +175,8 @@ describe('POST /mcp', () => {
         id: 2,
         method: 'tools/call',
         params: {
-          name: 'sparky_get_goal_snapshot',
-          arguments: { target_date: null },
+          name: 'sparky_manage_focus',
+          arguments: { action: 'get_today' },
         },
       });
 
@@ -213,14 +184,64 @@ describe('POST /mcp', () => {
     expect(res.body.result.content).toEqual([
       {
         type: 'text',
-        text: JSON.stringify({ calories: 2000, goal_directions: {} }),
+        text: JSON.stringify({
+          date: '2026-06-11',
+          week_start: '2026-06-08',
+          scheduled: [],
+          daily_recurring: [],
+          weekly: null,
+          long_term: [],
+        }),
       },
     ]);
-    expect(goalService.getUserGoals).toHaveBeenCalledWith(
+    // Scoped to the authenticated user; tz resolved to UTC for the today default.
+    expect(focusService.getToday).toHaveBeenCalledWith(
       TEST_USER,
-      todayInZone('UTC'),
-      undefined,
-      true
+      todayInZone('UTC')
+    );
+  });
+
+  it('tools/call normalizes null values to undefined in arguments', async () => {
+    vi.mocked(focusService.getToday).mockResolvedValue({
+      date: '2026-06-11',
+      week_start: '2026-06-08',
+      scheduled: [],
+      daily_recurring: [],
+      weekly: null,
+      long_term: [],
+    });
+
+    const res = await request(app)
+      .post('/mcp')
+      .set(MCP_HEADERS)
+      .set('Authorization', 'Bearer valid')
+      .send({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: {
+          name: 'sparky_manage_focus',
+          arguments: { action: 'get_today', date: null },
+        },
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.result.content).toEqual([
+      {
+        type: 'text',
+        text: JSON.stringify({
+          date: '2026-06-11',
+          week_start: '2026-06-08',
+          scheduled: [],
+          daily_recurring: [],
+          weekly: null,
+          long_term: [],
+        }),
+      },
+    ]);
+    expect(focusService.getToday).toHaveBeenCalledWith(
+      TEST_USER,
+      todayInZone('UTC')
     );
   });
 
@@ -234,11 +255,12 @@ describe('POST /mcp', () => {
         id: 3,
         method: 'tools/call',
         params: {
-          name: 'sparky_manage_food',
+          name: 'sparky_manage_water_containers',
           arguments: {
-            action: 'log_water',
-            amount_ml: null,
-            entry_date: '2026-06-11',
+            action: 'create_water_container',
+            name: 'Bottle',
+            volume: null,
+            unit: 'ml',
           },
         },
       });
@@ -246,14 +268,21 @@ describe('POST /mcp', () => {
     expect(res.status).toBe(200);
     const text = res.body.result.content[0].text;
     expect(text).toContain('Error [VALIDATION]');
-    expect(text).toContain('amount_ml');
+    expect(text).toContain('volume');
     // ERRORS.* strings are flagged so MCP clients can distinguish failures
     // from results without parsing prose.
     expect(res.body.result.isError).toBe(true);
   });
 
   it('does not flag successful tool results as errors', async () => {
-    vi.mocked(goalService.getUserGoals).mockResolvedValue({ calories: 2000 });
+    vi.mocked(focusService.getToday).mockResolvedValue({
+      date: '2026-06-11',
+      week_start: '2026-06-08',
+      scheduled: [],
+      daily_recurring: [],
+      weekly: null,
+      long_term: [],
+    });
 
     const res = await request(app)
       .post('/mcp')
@@ -263,7 +292,10 @@ describe('POST /mcp', () => {
         jsonrpc: '2.0',
         id: 30,
         method: 'tools/call',
-        params: { name: 'sparky_get_goal_snapshot', arguments: {} },
+        params: {
+          name: 'sparky_manage_focus',
+          arguments: { action: 'get_today' },
+        },
       });
 
     expect(res.status).toBe(200);
@@ -277,7 +309,7 @@ describe('POST /mcp', () => {
       .send({ jsonrpc: '2.0', id: 3, method: 'tools/list' });
 
     expect(res.status).toBe(401);
-    expect(goalService.getUserGoals).not.toHaveBeenCalled();
+    expect(focusService.getToday).not.toHaveBeenCalled();
   });
 
   it('logs the incoming request even when auth fails (the chain must log itself — the global logger is mounted below /mcp and never sees it)', async () => {
@@ -294,7 +326,14 @@ describe('POST /mcp', () => {
   });
 
   it('logs status, duration, and the JSON-RPC tool name when the response finishes', async () => {
-    vi.mocked(goalService.getUserGoals).mockResolvedValue({ calories: 2000 });
+    vi.mocked(focusService.getToday).mockResolvedValue({
+      date: '2026-06-11',
+      week_start: '2026-06-08',
+      scheduled: [],
+      daily_recurring: [],
+      weekly: null,
+      long_term: [],
+    });
 
     const res = await request(app)
       .post('/mcp')
@@ -304,14 +343,17 @@ describe('POST /mcp', () => {
         jsonrpc: '2.0',
         id: 9,
         method: 'tools/call',
-        params: { name: 'sparky_get_goal_snapshot', arguments: {} },
+        params: {
+          name: 'sparky_manage_focus',
+          arguments: { action: 'get_today' },
+        },
       });
 
     expect(res.status).toBe(200);
     expect(log).toHaveBeenCalledWith(
       'info',
       expect.stringMatching(
-        /^Request finished: POST \/mcp 200 in \d+ms \[tools\/call sparky_get_goal_snapshot\]$/
+        /^Request finished: POST \/mcp 200 in \d+ms \[tools\/call sparky_manage_focus\]$/
       )
     );
   });
@@ -360,7 +402,7 @@ describe('POST /mcp', () => {
         jsonrpc: '2.0',
         id: 10,
         method: 'tools/call',
-        params: { name: 'sparky_get_goal_snapshot', arguments: {} },
+        params: { name: 'sparky_manage_focus', arguments: {} },
       })
       .catch(() => undefined);
 
@@ -368,7 +410,7 @@ describe('POST /mcp', () => {
       expect(log).toHaveBeenCalledWith(
         'warn',
         expect.stringMatching(
-          /^Request aborted: POST \/mcp after \d+ms \[tools\/call sparky_get_goal_snapshot\]$/
+          /^Request aborted: POST \/mcp after \d+ms \[tools\/call sparky_manage_focus\]$/
         )
       );
     });

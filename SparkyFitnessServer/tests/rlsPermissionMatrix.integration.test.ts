@@ -158,41 +158,32 @@ describe.runIf(RUN)('RLS permission matrix', () => {
   type Domain =
     'owner' | 'diary' | 'checkin' | 'medication' | 'library' | 'custom';
 
+  // Food/nutrition/goals, clinical medication (injections/titration/pens/
+  // symptoms), and cycle/pregnancy/TTC tables were hard-deleted along with
+  // their domains (Ouroboros Life restructure, see
+  // db/migrations/20260913130000_drop_cycle_medication_food_goals_schema.sql
+  // for the authoritative 36-table list) and are no longer RLS-enabled, so
+  // they were removed from this map entirely rather than left stale --
+  // the completeness guard below fails loudly on any map entry for a table
+  // that no longer exists. Mood tracking (mood_entries, user_custom_moods,
+  // user_mood_display_preferences) and health_metric_samples/vitals_entries
+  // were NOT part of that drop and remain classified below; only
+  // health_appointments (unrelated one-off clinical scheduling, not mood)
+  // was actually dropped.
   const DOMAIN: Record<string, Domain> = {
     // owner-only (no delegation)
     api_key: 'owner',
     sparky_chat_history: 'owner',
     user_ignored_updates: 'owner',
     user_oidc_links: 'owner',
-    cycle_daily_entries: 'owner',
-    cycle_settings: 'owner',
-    cycle_test_entries: 'owner',
-    cycles: 'owner',
-    health_appointments: 'owner',
     openfoodfacts_sync_queue: 'owner',
-    pregnancies: 'owner',
-    pregnancy_checklist_state: 'owner',
-    pregnancy_contractions: 'owner',
-    pregnancy_kick_sessions: 'owner',
-    pregnancy_photos: 'owner',
-    user_cycle_display_preferences: 'owner',
     user_mood_display_preferences: 'owner',
     // diary
     exercise_entries: 'diary',
     exercise_preset_entries: 'diary',
-    food_entry_meals: 'diary',
-    food_favorites: 'diary',
-    goal_presets: 'diary',
-    meal_plans: 'diary',
-    user_allergen_preferences: 'diary',
-    user_custom_nutrients: 'diary',
-    user_goals: 'diary',
-    user_nutrient_goal_preferences: 'diary',
-    user_meal_visibilities: 'diary',
     user_water_containers: 'diary',
     water_intake: 'diary',
     water_intake_entries: 'diary',
-    weekly_goal_plans: 'diary',
     // check-in / wellness
     check_in_measurements: 'checkin',
     check_in_photos: 'checkin',
@@ -210,20 +201,11 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     sleep_need_calculations: 'checkin',
     vitals_entries: 'checkin',
     // medication
-    injection_entries: 'medication',
     medication_entries: 'medication',
-    medication_pens: 'medication',
     medication_schedules: 'medication',
-    medication_titration_steps: 'medication',
     medications: 'medication',
-    symptom_entries: 'medication',
-    user_custom_symptom_locations: 'medication',
-    user_custom_symptoms: 'medication',
     // library (read shared, write owner-only)
     exercises: 'library',
-    foods: 'library',
-    meal_plan_templates: 'library',
-    meals: 'library',
     workout_plan_templates: 'library',
     workout_presets: 'library',
     // bespoke / custom policies
@@ -236,17 +218,11 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     exercise_entry_sets: 'custom',
     external_data_providers: 'custom',
     family_access: 'custom',
-    food_entries: 'custom',
-    food_variants: 'custom',
-    meal_foods: 'custom',
-    meal_plan_template_assignments: 'custom',
-    meal_types: 'custom',
     onboarding_data: 'custom',
     onboarding_status: 'custom',
     profiles: 'custom',
     user_dashboard_layouts: 'custom',
     user_medication_display_preferences: 'custom',
-    user_nutrient_display_preferences: 'custom',
     user_preferences: 'custom',
     workout_plan_assignment_sets: 'custom',
     workout_plan_template_assignments: 'custom',
@@ -379,30 +355,6 @@ describe.runIf(RUN)('RLS permission matrix', () => {
       mustContain: string;
     }> = [
       {
-        table: 'food_entries',
-        policy: 'select_policy',
-        col: 'qual',
-        mustContain: 'has_diary_read_access',
-      },
-      {
-        table: 'food_entries',
-        policy: 'insert_policy',
-        col: 'with_check',
-        mustContain: 'has_diary_access',
-      },
-      {
-        table: 'food_variants',
-        policy: 'modify_policy',
-        col: 'with_check',
-        mustContain: 'authenticated_user_id() = f.user_id',
-      },
-      {
-        table: 'meal_foods',
-        policy: 'modify_policy',
-        col: 'with_check',
-        mustContain: 'authenticated_user_id() = m.user_id',
-      },
-      {
         table: 'exercise_entry_sets',
         policy: 'modify_policy',
         col: 'with_check',
@@ -435,12 +387,6 @@ describe.runIf(RUN)('RLS permission matrix', () => {
       },
       {
         table: 'user_dashboard_layouts',
-        policy: 'select_policy',
-        col: 'qual',
-        mustContain: 'has_profile_read_access',
-      },
-      {
-        table: 'user_nutrient_display_preferences',
         policy: 'select_policy',
         col: 'qual',
         mustContain: 'has_profile_read_access',
@@ -483,20 +429,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
         col: 'qual',
         mustContain: 'family_user_id',
       },
-      // System rows (user_id NULL) readable by all, else diary-read.
-      {
-        table: 'meal_types',
-        policy: 'select_policy',
-        col: 'qual',
-        mustContain: 'has_diary_read_access',
-      },
       // Diary-domain assignments gated through the parent template's owner.
-      {
-        table: 'meal_plan_template_assignments',
-        policy: 'owner_policy',
-        col: 'with_check',
-        mustContain: 'has_diary_access',
-      },
       {
         table: 'workout_plan_template_assignments',
         policy: 'owner_policy',
@@ -719,13 +652,16 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     }
 
     // -- diary domain: full CRUD for can_manage_diary, read-only for reports ---
-    describe('goal_presets (diary)', () => {
+    // (goal_presets, the original diary-domain fixture here, was hard-deleted
+    // along with user_goals/goal_presets -- water_intake_entries is a
+    // still-live, equally simple diary-domain table.)
+    describe('water_intake_entries (diary)', () => {
       let id = '';
       beforeAll(async () => {
         const sys = await getSystemClient();
         try {
           const r = await sys.query(
-            "INSERT INTO public.goal_presets (user_id, preset_name) VALUES ($1, 'rls-matrix') RETURNING id",
+            'INSERT INTO public.water_intake_entries (user_id, water_ml) VALUES ($1, 500) RETURNING id',
             [OWNER]
           );
           id = r.rows[0].id;
@@ -736,22 +672,23 @@ describe.runIf(RUN)('RLS permission matrix', () => {
       afterAll(async () => {
         const sys = await getSystemClient();
         try {
-          await sys.query('DELETE FROM public.goal_presets WHERE id = $1', [
-            id,
-          ]);
+          await sys.query(
+            'DELETE FROM public.water_intake_entries WHERE id = $1',
+            [id]
+          );
         } finally {
           sys.release();
         }
       });
       crudSuite({
-        table: 'goal_presets',
+        table: 'water_intake_entries',
         read: ['diary', 'reports'],
         write: ['diary'],
         insert: () => ({
-          sql: "INSERT INTO public.goal_presets (user_id, preset_name) VALUES ($1, 'rls-matrix-w')",
+          sql: 'INSERT INTO public.water_intake_entries (user_id, water_ml) VALUES ($1, 250)',
           params: [OWNER],
         }),
-        touchColumn: 'preset_name',
+        touchColumn: 'water_ml',
         rowId: () => id,
       });
     });
@@ -795,23 +732,21 @@ describe.runIf(RUN)('RLS permission matrix', () => {
       });
     });
 
-    // -- custom/library: delegates read when entitled, only owner writes (F1) -
-    describe('food_variants (custom, owner-only write)', () => {
-      let foodId = '';
-      let variantId = '';
+    // -- library: delegates read when entitled, only owner writes (F1) -------
+    // (food_variants, the original library-domain fixture here, was hard-
+    // deleted along with foods/food_variants -- exercises is the surviving
+    // library-domain table with the same "read shared, write owner-only"
+    // shape, exercised here on a PRIVATE row.)
+    describe('exercises (library, owner-only write)', () => {
+      let id = '';
       beforeAll(async () => {
         const sys = await getSystemClient();
         try {
-          const f = await sys.query(
-            "INSERT INTO public.foods (user_id, name, shared_with_public) VALUES ($1, 'rls-matrix-food', false) RETURNING id",
+          const r = await sys.query(
+            "INSERT INTO public.exercises (user_id, name, shared_with_public) VALUES ($1, 'rls-matrix-exercise', false) RETURNING id",
             [OWNER]
           );
-          foodId = f.rows[0].id;
-          const v = await sys.query(
-            "INSERT INTO public.food_variants (food_id, serving_size, serving_unit) VALUES ($1, 1, 'g') RETURNING id",
-            [foodId]
-          );
-          variantId = v.rows[0].id;
+          id = r.rows[0].id;
         } finally {
           sys.release();
         }
@@ -819,21 +754,21 @@ describe.runIf(RUN)('RLS permission matrix', () => {
       afterAll(async () => {
         const sys = await getSystemClient();
         try {
-          await sys.query('DELETE FROM public.foods WHERE id = $1', [foodId]);
+          await sys.query('DELETE FROM public.exercises WHERE id = $1', [id]);
         } finally {
           sys.release();
         }
       });
       crudSuite({
-        table: 'food_variants',
-        read: ['diary', 'reports', 'foodlib'],
+        table: 'exercises',
+        read: ['diary', 'reports', 'exlib'],
         write: [], // owner-only; no delegate may write
         insert: () => ({
-          sql: "INSERT INTO public.food_variants (food_id, serving_size, serving_unit) VALUES ($1, 2, 'g')",
-          params: [foodId],
+          sql: "INSERT INTO public.exercises (user_id, name) VALUES ($1, 'rls-matrix-exercise-w')",
+          params: [OWNER],
         }),
-        touchColumn: 'serving_size',
-        rowId: () => variantId,
+        touchColumn: 'name',
+        rowId: () => id,
       });
     });
   });

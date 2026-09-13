@@ -16,6 +16,10 @@ vi.mock('../db/poolManager', () => ({
 // list. Nothing enforced that the two stayed in step, and the failure mode is silent: a field
 // added to FOOD_VARIANT_NUTRIENT_FIELDS but not to the copy just stops appearing in trends
 // and in the chatbot's nutrition rows, with no type error and no failing query.
+//
+// The food arm (fe.<field>) was hard-deleted along with food/nutrition tracking (Ouroboros
+// Life restructure) -- this is now supplement-only, reading each field off the
+// medication_entries nutrients_snapshot via models/supplementSql.ts's supplementFixedSubquery.
 describe('getDailyNutritionTotalsRange select list', () => {
   let mockClient: MockDbClient;
   const userId = uuidv4();
@@ -32,10 +36,9 @@ describe('getDailyNutritionTotalsRange select list', () => {
     return String(mockClient.query.mock.calls[0][0]);
   };
 
-  it('selects every shared nutrient field, on both the food and supplement arms', async () => {
+  it('selects every shared nutrient field on the supplement arm', async () => {
     const sql = await sqlOf();
     for (const field of FOOD_VARIANT_NUTRIENT_FIELDS) {
-      expect(sql, `food arm missing ${field}`).toContain(`SUM(fe.${field} *`);
       expect(sql, `supplement arm missing ${field}`).toContain(
         `nutrients_snapshot->>'${field}'`
       );
@@ -52,11 +55,10 @@ describe('getDailyNutritionTotalsRange select list', () => {
     const sql = await sqlOf();
     const pairs = sql
       .split('\n')
-      .filter((line) => /SUM\(fe\.\w+ \*/.test(line))
+      .filter((line) => /nutrients_snapshot->>'\w+'/.test(line))
       .map((line) => [
-        line.match(/SUM\(fe\.(\w+) \*/)?.[1],
-        line.match(/\bas (\w+),?\s*$/i)?.[1],
         line.match(/nutrients_snapshot->>'(\w+)'/)?.[1],
+        line.match(/\bas (\w+),?\s*$/i)?.[1],
       ]);
     expect(pairs).toEqual(
       FOOD_VARIANT_NUTRIENT_FIELDS.map((field) => [
@@ -66,7 +68,6 @@ describe('getDailyNutritionTotalsRange select list', () => {
           : field === 'sugars'
             ? 'sugar'
             : field,
-        field,
       ])
     );
   });
