@@ -15,9 +15,17 @@ import { dayRangeToUtcRange } from '@workspace/shared';
 // naturally repopulates the key on next read since the old parsed calendar
 // is never reused for a different URL).
 const CACHE_TTL_SECONDS = 15 * 60;
+// useClones: false — node-cache's default deep-clone-on-read breaks the RRule
+// wrapper class node-ical attaches to recurring VEVENTs (expandRecurringEvent
+// throws "Invalid calling context" on the cloned copy), which aborts
+// eventsForFeedInRange mid-loop and silently drops the *entire* feed's events
+// for that request, recurring or not — every read after the first cache hit
+// in each 15-minute window. The parsed calendar is never mutated after
+// parsing, so skipping the clone is safe here.
 const feedCache = new NodeCache({
   stdTTL: CACHE_TTL_SECONDS,
   checkperiod: 120,
+  useClones: false,
 });
 
 // A calendar feed URL is user-supplied and fetched server-side on every

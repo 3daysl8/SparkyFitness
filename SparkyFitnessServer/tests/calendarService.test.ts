@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as ical from 'node-ical';
+import NodeCache from 'node-cache';
 import {
   eventsForFeedInRange,
   WORKOUT_TITLE_PATTERN,
@@ -115,6 +116,60 @@ describe('calendarService.eventsForFeedInRange', () => {
       new Date('2026-01-02T00:00:00Z')
     );
     expect(events).toHaveLength(0);
+  });
+});
+
+// Live bug (2026-09-13): node-cache's default useClones:true deep-clones a
+// stored value on every read. That clone strips whatever internal state
+// node-ical's RRule wrapper needs, so a *cached* recurring VEVENT throws
+// "Invalid calling context" the moment expandRecurringEvent touches it — a
+// fresh (never-cached) parse works fine. The exception is uncaught inside
+// eventsForFeedInRange's loop, so it aborts the whole function and
+// Promise.allSettled (in getAgenda) silently drops the entire feed's events,
+// recurring or not — reproducing as "today's event flickers on and off" and
+// "the week view shows nothing," both tied to the 15-minute cache window.
+describe('feedCache clone behavior with recurring events (regression)', () => {
+  async function recurringVevent() {
+    const calendar = await parseFixture();
+    const gym = Object.values(calendar).find(
+      (c) => c && (c as ical.VEvent).summary === 'Gym - Leg Day'
+    ) as ical.VEvent;
+    return gym;
+  }
+
+  const range = {
+    from: new Date('2026-09-07T00:00:00Z'),
+    to: new Date('2026-09-21T00:00:00Z'),
+  };
+
+  it('survives a cache round-trip when useClones is false (the fix)', async () => {
+    const gym = await recurringVevent();
+    const cache = new NodeCache({ useClones: false });
+    cache.set('k', gym);
+    const roundTripped = cache.get<ical.VEvent>('k')!;
+
+    expect(() =>
+      ical.expandRecurringEvent(roundTripped, {
+        ...range,
+        includeOverrides: true,
+        excludeExdates: true,
+      })
+    ).not.toThrow();
+  });
+
+  it('throws on a cache round-trip when useClones is true (node-cache default — guards against reintroducing it)', async () => {
+    const gym = await recurringVevent();
+    const cache = new NodeCache({ useClones: true });
+    cache.set('k', gym);
+    const roundTripped = cache.get<ical.VEvent>('k')!;
+
+    expect(() =>
+      ical.expandRecurringEvent(roundTripped, {
+        ...range,
+        includeOverrides: true,
+        excludeExdates: true,
+      })
+    ).toThrow(/Invalid calling context/);
   });
 });
 
