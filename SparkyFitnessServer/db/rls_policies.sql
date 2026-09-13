@@ -34,18 +34,6 @@ BEGIN
     'exercise_preset_entries',
     'external_data_providers',
     'family_access',
-    'food_entries',
-    'food_entry_meals',
-    'food_favorites',
-    'food_variants',
-    'foods',
-    'goal_presets',
-    'meal_foods',
-    'meal_plan_template_assignments',
-    'meal_plan_templates',
-    'meal_plans',
-    'meals',
-    'meal_types',
     'mood_entries',
     'onboarding_data',
     'onboarding_status',
@@ -55,16 +43,12 @@ BEGIN
     'sparky_chat_history',
     'admin_activity_logs',
     'api_key',
-    'user_goals',
     'user_ignored_updates',
-    'user_meal_visibilities',
-    'user_nutrient_display_preferences',
     'user_oidc_links',
     'user_preferences',
     'user_water_containers',
     'water_intake',
     'water_intake_entries',
-    'weekly_goal_plans',
     'workout_plan_assignment_sets',
     'workout_plan_template_assignments',
     'workout_plan_templates',
@@ -74,9 +58,6 @@ BEGIN
     'sleep_entries',
     'sleep_entry_stages',
     'fasting_logs',
-    'user_custom_nutrients',
-    'user_nutrient_goal_preferences',
-    'user_allergen_preferences',
     'user_dashboard_layouts',
     'sleep_need_calculations',
     'daily_sleep_need',
@@ -84,24 +65,7 @@ BEGIN
     'medications',
     'medication_schedules',
     'medication_entries',
-    'medication_pens',
-    'injection_entries',
-    'medication_titration_steps',
-    'user_custom_symptoms',
-    'symptom_entries',
     'user_medication_display_preferences',
-    'user_custom_symptom_locations',
-    'cycle_settings',
-    'cycle_daily_entries',
-    'cycles',
-    'user_cycle_display_preferences',
-    'cycle_test_entries',
-    'pregnancies',
-    'pregnancy_kick_sessions',
-    'pregnancy_contractions',
-    'pregnancy_photos',
-    'pregnancy_checklist_state',
-    'health_appointments',
     'user_custom_moods',
     'user_mood_display_preferences',
     'focus_domains',
@@ -572,38 +536,20 @@ CREATE POLICY modify_policy ON public.user_preferences FOR ALL TO PUBLIC
 USING (authenticated_user_id() = user_id)
 WITH CHECK (authenticated_user_id() = user_id);
 
-SELECT create_diary_policy('user_goals');
-SELECT create_diary_policy('weekly_goal_plans');
--- user_water_containers now references foods / food_variants / meal_types
--- (linked_food_id, linked_variant_id, linked_meal_type_id -- #2115). No
--- policy change needed: both sides are diary-scoped -- this table is
--- create_diary_policy, and foods below is create_library_policy with
--- can_manage_diary in its permission array, so a delegate with can_manage_diary
--- already has full access to both.
+-- user_water_containers previously referenced the food/meal library (#2115)
+-- via linked_food_id/linked_variant_id/linked_meal_type_id. Those referenced
+-- tables were dropped in 20260913130000_drop_cycle_medication_food_goals_
+-- schema.sql, which CASCADE-dropped the three FK constraints; the
+-- (now-unenforced) linked_* columns are left in place as an application-layer
+-- cleanup item, not an RLS one. This table keeps its own diary policy
+-- regardless of that cleanup.
 SELECT create_diary_policy('user_water_containers');
-SELECT create_diary_policy('user_custom_nutrients');
-SELECT create_diary_policy('user_nutrient_goal_preferences');
-SELECT create_diary_policy('user_allergen_preferences');
--- Starred foods/meals follow the diary context: the favorites routes are mounted
--- behind checkPermissionMiddleware('diary'), and the food-search screen a delegate
--- sees is already scoped to the user they are acting for (recent/frequent entries
--- included). An owner-only policy here would authorize the delegate at the route
--- layer and then hide every row at the RLS layer.
-SELECT create_diary_policy('food_favorites');
-
--- Nutrient display preferences: delegates can read but only owner can rearrange their own columns.
-CREATE POLICY select_policy ON public.user_nutrient_display_preferences FOR SELECT TO PUBLIC USING (has_profile_read_access(user_id));
-CREATE POLICY modify_policy ON public.user_nutrient_display_preferences FOR ALL TO PUBLIC
-USING (authenticated_user_id() = user_id)
-WITH CHECK (authenticated_user_id() = user_id);
 
 -- Dashboard layouts: delegates can read but only owner can rearrange their own dashboard.
 CREATE POLICY select_policy ON public.user_dashboard_layouts FOR SELECT TO PUBLIC USING (has_profile_read_access(user_id));
 CREATE POLICY modify_policy ON public.user_dashboard_layouts FOR ALL TO PUBLIC
 USING (authenticated_user_id() = user_id)
 WITH CHECK (authenticated_user_id() = user_id);
-SELECT create_diary_policy('goal_presets');
-SELECT create_diary_policy('meal_plans');
 SELECT create_checkin_policy('mood_entries');
 
 -- Admin Activity Logs: Only the admin who performed the action or other admins can view
@@ -634,7 +580,6 @@ USING (
 -- The modify policy for exercise_entries is already handled by create_diary_policy('exercise_entries')
 
 SELECT create_diary_policy('exercise_preset_entries');
-SELECT create_diary_policy('food_entry_meals');
 SELECT create_checkin_policy('sleep_entries');
 SELECT create_checkin_policy('sleep_entry_stages');
 SELECT create_diary_policy('water_intake');
@@ -642,9 +587,6 @@ SELECT create_diary_policy('water_intake_entries');
 
 -- Library access tables
 SELECT create_library_policy('exercises', 'shared_with_public', ARRAY['can_view_exercise_library', 'can_manage_diary']);
-SELECT create_library_policy('foods', 'shared_with_public', ARRAY['can_view_food_library', 'can_manage_diary']);
-SELECT create_library_policy('meals', 'is_public', ARRAY['can_view_food_library', 'can_manage_diary']);
-SELECT create_library_policy('meal_plan_templates', 'false', ARRAY['can_view_food_library']);
 SELECT create_library_policy('workout_plan_templates', 'false', ARRAY['can_view_exercise_library']);
 SELECT create_library_policy('workout_presets', 'is_public', ARRAY['can_view_exercise_library','can_manage_diary']);
 
@@ -653,24 +595,6 @@ SELECT create_library_policy('workout_presets', 'is_public', ARRAY['can_view_exe
 -- Do NOT apply create_library_policy or create_diary_policy to medication tables.
 SELECT create_owner_policy('user_medication_display_preferences');
 SELECT create_owner_policy('openfoodfacts_sync_queue');
-
--- Cycle & Pregnancy hub (see migration 20260702180000_add_cycle_tracking_schema.sql).
--- Tier 1 — owner-only. Deliberately stricter than medications: this reproductive
--- health data is NEVER shared or delegated in v1 (no family/caregiver access).
-SELECT create_owner_policy('cycle_settings');
-SELECT create_owner_policy('cycle_daily_entries');
-SELECT create_owner_policy('cycles');
-SELECT create_owner_policy('user_cycle_display_preferences');
-SELECT create_owner_policy('cycle_test_entries');
-
--- Pregnancy mode (see migration 20260702200000_add_pregnancy_schema.sql). Tier 1
--- owner-only. health_appointments is generic but still owner-only in v1.
-SELECT create_owner_policy('pregnancies');
-SELECT create_owner_policy('pregnancy_kick_sessions');
-SELECT create_owner_policy('pregnancy_contractions');
-SELECT create_owner_policy('pregnancy_photos');
-SELECT create_owner_policy('pregnancy_checklist_state');
-SELECT create_owner_policy('health_appointments');
 
 -- User-defined mood tags. Mood is check-in data (mood_entries uses the check-in
 -- policy), and custom check-in definitions like custom_categories are shared with
@@ -768,76 +692,6 @@ CREATE POLICY modify_policy ON public.family_access FOR ALL TO PUBLIC
 USING (authenticated_user_id() = owner_user_id)
 WITH CHECK (authenticated_user_id() = owner_user_id);
 
-CREATE POLICY select_policy ON public.food_entries FOR SELECT TO PUBLIC
-USING (has_diary_read_access(user_id));
-CREATE POLICY insert_policy ON public.food_entries FOR INSERT TO PUBLIC
-WITH CHECK (
-  has_diary_access(user_id) AND (
-    (food_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.foods f WHERE f.id = food_entries.food_id)) OR
-    (meal_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.meals m WHERE m.id = food_entries.meal_id))
-  )
-);
-CREATE POLICY update_policy ON public.food_entries FOR UPDATE TO PUBLIC
-USING (has_diary_access(user_id))
-WITH CHECK (has_diary_access(user_id));
-CREATE POLICY delete_policy ON public.food_entries FOR DELETE TO PUBLIC
-USING (has_diary_access(user_id));
-
-CREATE POLICY select_policy ON public.food_variants FOR SELECT TO PUBLIC
-USING (
-  EXISTS (
-    SELECT 1 FROM public.foods f
-    WHERE f.id = food_variants.food_id
-      AND has_library_access_with_public(f.user_id, f.shared_with_public, ARRAY['can_view_food_library', 'can_manage_diary'])
-  )
-);
--- Food variants are library data: only the owner of the parent food may write
--- them. Delegates (even can_manage_diary) get read-only access via select_policy
--- so they can pick serving sizes while logging, but cannot mutate the library.
-CREATE POLICY modify_policy ON public.food_variants FOR ALL TO PUBLIC
-USING (
-  EXISTS (
-    SELECT 1 FROM public.foods f
-    WHERE f.id = food_variants.food_id
-      AND authenticated_user_id() = f.user_id
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.foods f
-    WHERE f.id = food_variants.food_id
-      AND authenticated_user_id() = f.user_id
-  )
-);
-
--- meal_foods is polymorphic: a row references either a food (item_type='food')
--- or another meal (item_type='meal', a reusable sub-meal). Read access follows
--- the parent meal. Write access requires the caller owns the parent meal AND the
--- referenced ingredient is accessible to them: a food they can view, or a child
--- meal they have library access to (prevents linking a meal you cannot see).
-CREATE POLICY select_policy ON public.meal_foods FOR SELECT TO PUBLIC
-USING (EXISTS (SELECT 1 FROM public.meals m WHERE m.id = meal_foods.meal_id AND has_library_access_with_public(m.user_id, m.is_public, ARRAY['can_view_food_library', 'can_manage_diary'])));
-CREATE POLICY modify_policy ON public.meal_foods FOR ALL TO PUBLIC
-USING (
-  EXISTS (SELECT 1 FROM public.meals m WHERE m.id = meal_foods.meal_id AND authenticated_user_id() = m.user_id)
-)
-WITH CHECK (
-  EXISTS (SELECT 1 FROM public.meals m WHERE m.id = meal_foods.meal_id AND authenticated_user_id() = m.user_id)
-  AND (
-    (meal_foods.food_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.foods f WHERE f.id = meal_foods.food_id))
-    OR
-    (meal_foods.child_meal_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.meals cm WHERE cm.id = meal_foods.child_meal_id AND has_library_access_with_public(cm.user_id, cm.is_public, ARRAY['can_view_food_library', 'can_manage_diary'])))
-  )
-);
-
-CREATE POLICY owner_policy ON public.meal_plan_template_assignments FOR ALL TO PUBLIC
-USING (EXISTS (SELECT 1 FROM public.meal_plan_templates mpt WHERE mpt.id = meal_plan_template_assignments.template_id AND has_diary_access(mpt.user_id)) AND
-       (((item_type = 'food') AND EXISTS (SELECT 1 FROM public.foods f WHERE f.id = meal_plan_template_assignments.food_id)) OR
-        ((item_type = 'meal') AND EXISTS (SELECT 1 FROM public.meals m WHERE m.id = meal_plan_template_assignments.meal_id))))
-WITH CHECK (EXISTS (SELECT 1 FROM public.meal_plan_templates mpt WHERE mpt.id = meal_plan_template_assignments.template_id AND has_diary_access(mpt.user_id)) AND
-           (((item_type = 'food') AND EXISTS (SELECT 1 FROM public.foods f WHERE f.id = meal_plan_template_assignments.food_id)) OR
-            ((item_type = 'meal') AND EXISTS (SELECT 1 FROM public.meals m WHERE m.id = meal_plan_template_assignments.meal_id))));
-
 CREATE POLICY owner_policy ON public.workout_plan_assignment_sets FOR ALL TO PUBLIC
 USING (EXISTS (SELECT 1 FROM public.workout_plan_template_assignments wpta WHERE wpta.id = workout_plan_assignment_sets.assignment_id))
 WITH CHECK (EXISTS (SELECT 1 FROM public.workout_plan_template_assignments wpta WHERE wpta.id = workout_plan_assignment_sets.assignment_id));
@@ -879,13 +733,6 @@ WITH CHECK (EXISTS (
 -- Strictly Private (Tier 1)
 SELECT create_owner_policy('user_ignored_updates');
 
--- Meal types: access if user_id is null (system) or if user has diary access
-CREATE POLICY select_policy ON public.meal_types FOR SELECT TO PUBLIC
-USING (user_id IS NULL OR has_diary_read_access(user_id));
-CREATE POLICY modify_policy ON public.meal_types FOR ALL TO PUBLIC
-USING (user_id = authenticated_user_id())
-WITH CHECK (user_id = authenticated_user_id());
-
 -- Activity details: access if linked exercise entry or preset entry is accessible
 CREATE POLICY select_policy ON public.exercise_entry_activity_details FOR SELECT TO PUBLIC
 USING (
@@ -904,7 +751,6 @@ WITH CHECK (
 
 -- Shared View-Only (Tier 2)
 SELECT create_checkin_policy('fasting_logs');
-SELECT create_diary_policy('user_meal_visibilities');
 SELECT create_checkin_policy('sleep_need_calculations');
 SELECT create_checkin_policy('daily_sleep_need');
 -- Day classification is a sleep/wellness (check-in) feature, used only by the
@@ -923,16 +769,12 @@ CREATE POLICY modify_policy ON public.onboarding_status FOR ALL TO PUBLIC
 USING (authenticated_user_id() = user_id)
 WITH CHECK (authenticated_user_id() = user_id);
 
--- Medications & Symptoms (Tier 3 - Delegate Writable with medications permission)
+-- Medications (Tier 3 - Delegate Writable with medications permission). The
+-- clinical-only pens/injections/titration/symptoms tables were dropped in
+-- 20260913130000_drop_cycle_medication_food_goals_schema.sql.
 SELECT create_medication_policy('medications');
 SELECT create_medication_policy('medication_schedules');
 SELECT create_medication_policy('medication_entries');
-SELECT create_medication_policy('medication_pens');
-SELECT create_medication_policy('injection_entries');
-SELECT create_medication_policy('medication_titration_steps');
-SELECT create_medication_policy('user_custom_symptoms');
-SELECT create_medication_policy('symptom_entries');
-SELECT create_medication_policy('user_custom_symptom_locations');
 
 -- Medications Display Preferences (Tier 2 - Owner-Only Write, Delegate Read)
 CREATE POLICY select_policy ON public.user_medication_display_preferences FOR SELECT TO PUBLIC USING (has_medication_read_access(user_id));
