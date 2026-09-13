@@ -551,12 +551,6 @@ async function ensureUserInitialization(
         'SELECT $1, $2, $3, now(), now() WHERE NOT EXISTS (SELECT 1 FROM profiles WHERE id = $1)',
       [userId, fullName, avatarUrl]
     );
-    // Ensure user_goals exists (the base goal with NULL date)
-    await client.query(
-      'INSERT INTO user_goals (user_id, created_at, updated_at) ' +
-        'SELECT $1, now(), now() WHERE NOT EXISTS (SELECT 1 FROM user_goals WHERE user_id = $1 AND goal_date IS NULL)',
-      [userId]
-    );
     // Ensure onboarding_status exists
     await client.query(
       'INSERT INTO onboarding_status (user_id, onboarding_complete, created_at, updated_at) ' +
