@@ -4,60 +4,117 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**A large restructure is IN PROGRESS, mid-flight, NOT deployed.** Full plan:
-`agent-docs/ouroboros-restructure-plan.md` (copied from the originating session's plan file —
-read it in full before continuing, this section is just a status summary against it). This
-supersedes everything else in this doc as the current priority — do not start on Hermes
-integration, Workout Logging Phase 3/4, or anything else below until this restructure is
-either finished or the user says to pause it.
+**Nothing is mid-flight right now — the app is in a clean, fully-deployed state as of
+2026-09-13.** Both the Ouroboros 5-tab restructure (previous "PICK UP HERE") and a full
+Workouts-tab redesign (this session) are done, tested, pushed to `origin/main`, and deployed
+live on Pi5. The Ouroboros restructure's own step 7 (updating this doc) never actually
+happened before this session picked it back up — if you see stale "mid-flight" framing anywhere
+else in this file below this section, that's why; trust this section over anything under it
+that contradicts it.
 
-**What it is**: collapsing the app from 9+ nav tabs down to exactly 5 — Home, Workouts, Focus,
-Check-in, Settings — by hard-deleting (code + DB tables, not hiding) the food diary/nutrition-
-goals system, clinical GLP-1 medication tracking, and the cycle/pregnancy/TTC suite, while
-keeping a trimmed "Daily Protocols & Supplements" slice of medications. This is a deliberate
-reversal of this doc's own long-standing "hide, don't delete" precedent — confirmed explicitly
-by the user, not an agent assumption. See the plan doc's Context section for the full why.
+**What this session did, in order**:
+1. Confirmed the Ouroboros restructure (frontend cleanup, steps 4-6) had in fact been finished
+   and deployed by a different tool/session in the meantime — local `C:\dev\SparkyFitness` was
+   5 commits behind `origin/main` at the start of this session and had to be pulled first.
+2. Reviewed the existing MCP server (`POST /mcp`, already fully built — see
+   `docs/content/2.features/15.mcp-server.md`) for handing Hermes read access; generated an API
+   key via the Settings UI. **Did not build the actual n8n workflow** — this session had no
+   n8n/Pi5 tool access, only SparkyFitness repo access. The plan for that workflow is unchanged,
+   see item 2 under "Not yet done" below.
+3. **Full Workouts-tab redesign**, planned via 8 phases and built phase-by-phase with
+   typecheck/lint/test verification after each one — see the new Status section immediately
+   below for the durable summary (the interactive plan file itself was local to the operator's
+   machine at `C:\Users\ICPET\.claude\plans\purrfect-wobbling-hammock.md` and will not survive
+   to a new machine/session, per this doc's own recurring lesson about that).
+4. **Found and fixed two real backend bugs**, one of them severe — see the Status section.
+5. Pushed 3 commits to `origin/main`, built both Docker images on Pi5 with `--no-cache`,
+   deployed with `--force-recreate`, and live-verified against the running Pi5 instance
+   (including catching and clearing a stale-service-worker false negative — see the new Known
+   Gotcha entry).
 
-**Status as of commit `1e8d9f30d` (2026-09-13)**:
-- ✅ **Step 1 done & committed** (`3c329a9b8`) — Home's water-goal target decoupled from the
-  soon-to-be-dropped nutrition-goals table onto a plain `user_preferences.water_goal_ml` field.
-- ✅ **Step 2 done & committed** (`84fe867a0`) — DB migration dropping 36 tables (cycle/
-  pregnancy, clinical medications, food/nutrition/goals) + matching `db/rls_policies.sql`
-  edit, in the FK-safe order the plan specifies. **Not yet applied to any running database** —
-  this only runs when the server next starts against Postgres, i.e. at the Pi5 deploy in step 6.
-- ✅ **Step 3 done & committed** (`1e8d9f30d`) — backend routes/services/repositories/AI-tools
-  for the three deleted domains removed; `medicationRoutes.ts`/`medicationTools.ts` trimmed to
-  the surviving supplement surface; `reportService.ts`/`dailySummaryRangeService.ts` rewired to
-  drop food aggregation while keeping supplement/weight/sleep/workout metrics. **Backend fully
-  green**: typecheck, `eslint --max-warnings 0`, and the full test suite (2847 passed) all
-  clean on this commit.
-- ⬜ **Step 4 (frontend cleanup) — NOT STARTED. This is where to pick up next.** Because the
-  backend routes are already gone but the frontend hasn't been touched, **the frontend will
-  NOT typecheck cleanly right now** — it still calls `/diary`, `/goals`, and the removed
-  medication sub-routes. This is expected mid-restructure breakage, not a regression to
-  investigate or fix by restoring backend code. Go straight to the plan doc's Step 4 section.
-- ⬜ **Steps 5-7 not started** (new wiring; Pi5 deploy + live-verify; updating this doc's
-  architecture-decisions section to supersede the old hide-don't-delete entries).
+**Real gap intentionally left unresolved — needs a decision before the Active Program Widget
+is fully trustworthy**: activating a workout plan pre-materializes "completed" diary entries
+for every future day matching an assignment (`exerciseTemplate.ts`'s
+`createExerciseEntriesFromTemplate` — pre-existing behavior, not new this session). The plan
+was to detect and delete that phantom entry when the user presses "Start Workout" on a
+scheduled day, but doing that needs `workout_plan_assignment_id` on the exercise-entry API
+*response* — the backend currently accepts that field on writes but never returns it on reads
+(`exerciseEntryResponseSchema` omits it). The widget and Home card both work correctly for the
+common case right now; this only bites if a user activates a program and then also presses
+"Start Workout" on a day it already auto-scheduled. Fixing it needs either exposing that field
+on the response schema (small, but touches a shared contract) or changing the materialization
+behavior itself (bigger). Flagged in-code in `ActiveProgramWidget.tsx`, not silently skipped.
 
-**Working tree is clean** as of this write-up — every change so far is committed to `main`,
-nothing is stashed or in-progress uncommitted. `git log --oneline -5` should show the three
-commits above on top of `0a73e167d`.
+Also worth knowing before touching anything: the **Known gotchas** section further down (Docker cache/env-reload traps, the PWA stale-cache trap, the build-context trap, the disposable-test-account cleanup command) has bitten every session in this doc at least once — skim it first.
 
-**If picking this up in a different tool/session than the one that did steps 1-3**: that
-session was Claude Code, ran out of usage mid-step-4-kickoff, and left this handover instead
-of finishing. It validated each step manually (read every diff, ran an independent grep/test
-pass) rather than trusting agent self-reports — worth doing the same before trusting anything
-below at face value, per this doc's own repeated lesson that clean builds have hidden real
-bugs here before. The migration in step 2 has NOT been run against any real database yet, so
-there is still time to revise it if step 4/5 work surfaces something the schema got wrong.
+## Status: Workouts tab redesign — deployed and live-verified (commits `71d5914`, `7243449`, `e630365`)
 
-Once this restructure is fully done (through step 7), the pre-existing priority list is:
-Hermes morning-briefing integration, Workout Logging Phase 3 remainder (muscle-group tags +
-Finish summary modal), Phase 4 ("Repeat last session" prefill), and the two pre-existing
-test-suite gaps (`translationKeysCoverage.test.ts`'s ~12 missing keys,
-`WorkoutPlaybackPage.test.tsx`'s i18next module-loading error) as low-priority cleanup.
+Replaced the old flat Workouts page (a 1,000+ row exercise table stacked on top of the presets
+and plans tables) with a segmented **Routines & Programs / History / Exercise Library** layout.
+This also happens to close out the old "Workout Logging Phase 3 remainder" and "Phase 4" items
+from the section further below (muscle-group tags were dropped by choice — see that section for
+why — but the Finish Workout summary modal and "Repeat last session" prefill are both now done,
+in a more general form than originally spec'd).
 
-Also worth knowing before touching anything: the **Known gotchas** section further down (Docker cache/env-reload traps, the PWA stale-cache trap, the disposable-test-account cleanup command) has bitten every session in this doc at least once — skim it first.
+**Routines & Programs**: an Active Program Widget shows the full weekly split for whichever
+program is active, with a one-tap Start Workout for today's assignment; workout presets render
+as a card grid (`WorkoutPresetCard.tsx`) instead of a table, each with Start/Log/Duplicate/Edit/
+Delete; programs moved into a compact "Manage Programs" dialog instead of a permanent table
+(`WorkoutPlansManager.tsx`), since there are usually only a handful.
+
+**History** (genuinely new — `WorkoutsHistoryTab.tsx`, `WorkoutHistorySessionCard.tsx`): a
+paginated logbook of every past session, calling a backend endpoint
+(`GET /v2/exercise-entries/history`) that already existed but had zero frontend consumers before
+this. Each session expands to show exact sets/weights, a PR badge, and a **Repeat Workout**
+button that rebuilds a full playback draft from what was actually performed
+(`createWorkoutPlaybackDraftFromSession` in `utils/workoutPlayback.ts`) — live-verified end to
+end: repeating a session pre-filled all sets with the historical weights/reps/rest times,
+completing them updated volume/rest-timer live, and finishing produced exactly one new session
+in History (no duplicates).
+
+**Exercise Library**: added muscle-group and equipment filters (reusing `BodyMapFilter.tsx` and
+the equipment-chip pattern already used by `ExerciseSearch.tsx`) alongside the existing search/
+category filters, and a new `ExerciseDetailModal.tsx` (muscle focus, image, an Epley-formula
+estimated 1RM computed client-side from the existing ghost-value endpoint, and a 90-day volume
+history chart via the existing-but-previously-frontend-unused
+`GET /exercises/progress/:exerciseId` endpoint). Live-verified: for a logged 85kg×6 best set, the
+modal correctly showed "Est. 1RM: 102 kg" (85 × 1.2, per Epley) and "Best Set: 85 kg × 6".
+
+**Workout playback**: finishing a workout now shows a recap (`WorkoutFinishSummaryModal.tsx` —
+duration, sets, volume, PR count) before returning to the previous screen, instead of saving and
+navigating away silently. The habit-auto-completion on Finish (existing `WORKOUT_HABIT_PATTERN`
+regex match) is unchanged, just runs before the modal opens instead of before an immediate
+navigate.
+
+**Two real backend bugs found and fixed, neither caught by the (fully green) test suite because
+both need a real database to reproduce**:
+1. **No enforcement of a single active workout plan per user** (`workoutPlanTemplateRepository.ts`)
+   — activating a plan never deactivated any other active plan, so two could both carry
+   `is_active = true`, and the active-plan lookup the new widget depends on would arbitrarily
+   pick whichever row Postgres returned first. Fixed: deactivate every other plan for the user
+   inside the same transaction whenever a create/update sets `is_active = true`. New test:
+   `tests/workoutPlanTemplateRepository.activePlan.test.ts`.
+2. **Every new user creation was broken** (`userRepository.ts`'s `ensureUserInitialization`) —
+   it unconditionally inserted into `user_goals`, which the Ouroboros restructure hard-dropped
+   weeks earlier without updating this function. This wasn't demo-mode-specific: regular signup
+   calls the exact same function, so **any fresh account on this database has been failing to
+   sign up since the restructure's DB migration first ran**, not just the public demo. Found
+   only because this session spun up a local dev environment to visually verify the redesign and
+   hit it trying to log in. Fixed by removing the dead insert (`user_goals` has no replacement
+   here, the nutrition-goals feature it backed was deleted along with it).
+
+**Dead code removed**: `ExerciseCard.tsx` and the five components it exclusively imported
+(`EditExerciseEntryDialog`, `ExercisePlaybackModal`, `EditExerciseDatabaseDialog`,
+`LogExerciseEntryDialog`, `ExerciseEntryDisplay`, `ExercisePresetEntryDisplay`) — a
+diary-style exercise view with zero importers anywhere in the app, left over from before the
+Home checklist + live workout playback replaced it. Confirmed zero external importers via a
+dedicated Explore pass before deleting, not assumed.
+
+**Verification**: backend 2,851/2,851 tests + clean typecheck; frontend 977/977 tests + clean
+typecheck + clean lint (both scoped and full-repo runs, after every phase, not just at the end)
++ successful production `vite build` (confirmed a dedicated `WorkoutsPage-*.js` chunk in the
+output). Live-verified on both a local dev Docker stack and the real Pi5 deployment via
+Playwright — not just "the build succeeded," per this doc's own repeated lesson.
 
 ## Status: Calendar / Daily Agenda domain — built, deployed, and live-verified (commit `dcf045b2e`)
 
@@ -174,21 +231,24 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 - **Git identity isn't configured on Kingdom for this repo** — set locally (not `--global`) as `3daysl8` / `3daysl8@gmail.com` if a fresh clone needs it again.
 - Windows checkout has `core.autocrlf=true`, so `git add` always warns about LF→CRLF — harmless, ignore it.
 - **A disposable test account created via real signup (not raw DB writes) is the reliable way to visually verify a deploy** with Playwright/browser tools — the admin password isn't known/stored anywhere. Sign up with a `*@example.invalid` email, verify, then clean up: `docker exec sparkyfitness-db psql -U sparky -d sparkyfitness_db -c "DELETE FROM \"user\" WHERE email = '...';"` (that's `sparky`/`sparkyfitness_db`, not `sparkyfitness`/`sparkyfitness` — check `docker exec sparkyfitness-db env | grep POSTGRES` if unsure) — every FK to `user` is `ON DELETE CASCADE` (confirmed by querying `information_schema.referential_constraints`), so one DELETE cleans up everything with no orphaned rows.
+- **`docker/Docker_deploy_manual_command.md` describes the wrong build for this fork and will produce a failed build if followed literally.** It documents the *upstream* project's multi-arch DockerHub publish flow (`docker buildx build ... -f docker/Dockerfile.backend SparkyFitnessServer --push`), which uses `SparkyFitnessServer` as the build context. This fork's `Dockerfile.backend`/`Dockerfile.frontend` are written for a pnpm-workspace monorepo (they `COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./` and `COPY shared/ shared/` before anything else) and need the **repo root** (`.`, run from `/home/pi1/sparkyfitness-build`) as the build context, not `SparkyFitnessServer`. Using the wrong context fails fast and loudly (`COPY shared/ shared/: "/shared": not found`), so it's not a silent-corruption risk like the cache issues below — just don't trust that doc file's exact invocation. The correct commands: `docker build --no-cache -t sparkyfitness_server:custom -f docker/Dockerfile.backend .` and `docker build --no-cache -t sparkyfitness:custom -f docker/Dockerfile.frontend .`, both from `/home/pi1/sparkyfitness-build`. Matches the dev compose file's own `build: { context: .., dockerfile: docker/Dockerfile.backend.dev }` pattern — check that file first next time instead of the manual-command doc.
 - **The PWA service worker can serve a stale cached JS chunk even in a brand-new Playwright browser context, immediately after a fresh `--force-recreate` deploy** — a feature that's genuinely in the deployed image can still appear "missing" live because the browser is running an old precached bundle. Compare `performance.getEntriesByType('resource')` (filtered to the chunk in question) against what's actually in the freshly built image; if they don't match, unregister service workers (`navigator.serviceWorker.getRegistrations()` → `.unregister()`) and clear caches (`caches.keys()` → `.delete()`) before hard-navigating and trusting anything rendered. This app also has a named-theme cycle (`localStorage['theme']` — `system`/`light`/`dark`/plus at least one branded palette like `whoop`) behind the single header toggle button; don't assume the button's next click lands on plain "dark", set `localStorage.theme` directly and reload if you need a specific one for a screenshot.
 
 ## Not yet done (from the original broader plan — still open)
 
 1. **Wire the in-app AI chatbot to Kingdom's Ollama** (`http://100.68.231.84:11434/v1`, admin-only AI setting, no `ALLOW_PRIVATE_NETWORK_AI` change needed). `OLLAMA_CONTEXT_LENGTH` may need raising on Kingdom for reliable tool-calling.
-2. **Hermes morning-briefing integration** (the biggest remaining piece): a scheduled n8n workflow on Pi5 that has Hermes pull, via the app's own `/mcp` endpoint + a generated API key (`POST /api/identity/user/generate-api-key`):
-   - Today's planned workout — **real gap**: no existing tool/endpoint answers "what's scheduled today" for the workout-plan system (`ai/tools/workoutPlanTools.ts` has no such action); either add a small one or have Hermes fetch the active plan + filter by day-of-week itself.
+2. **Hermes morning-briefing integration** (the biggest remaining piece — API key already generated, see "PICK UP HERE"): a scheduled n8n workflow on Pi5 that has Hermes pull, via the app's own `/mcp` endpoint + that key:
+   - Today's planned workout — **real gap, still open**: no MCP tool answers "what's scheduled today" for the workout-plan system (`ai/tools/workoutPlanTools.ts` has no such action). The underlying data is now trivially available via `GET /workout-plan-templates/active/:date` (already existed) — the Workouts redesign's frontend calls this REST endpoint directly rather than through an MCP tool, so it still doesn't help Hermes on its own. Either add a small `sparky_manage_workout_plans` action wrapping that same query, or have Hermes fetch the endpoint directly with its API key (it's behind the same global API-key auth middleware as the MCP tools, so this works today without any new code).
    - Sleep-logged reminder, supplements-due reminder — both already fully supported by existing tools (`sparky_manage_checkin`, `sparky_manage_medications`), zero new code needed.
    - The new Focus checklist itself — already exposed via `sparky_manage_focus`'s `get_today`, zero new code needed.
-   - **New since the Calendar/Agenda domain**: `GET /api/v2/calendar/agenda?start=YYYY-MM-DD&end=YYYY-MM-DD` returns the merged, structured agenda across every enabled feed for that range — no MCP tool wrapper was built for it (wasn't asked for), but it's a plain REST route under the same global API-key auth middleware as everything else, so a generated key authenticates it exactly like the MCP-registered tools. Worth having Hermes pull `start=end=today` alongside the workout-plan/sleep/meds/focus sources.
+   - `GET /api/v2/calendar/agenda?start=YYYY-MM-DD&end=YYYY-MM-DD` returns the merged, structured agenda across every enabled feed for that range — no MCP tool wrapper was built for it (wasn't asked for), but it's a plain REST route under the same global API-key auth middleware as everything else, so a generated key authenticates it exactly like the MCP-registered tools. Worth having Hermes pull `start=end=today` alongside the workout-plan/sleep/meds/focus sources.
    - Delivery: n8n → Telegram Bot API directly (Hermes has no proactive-send mechanism today) — see the earlier plan file content (superseded, but Track 2's design notes are still valid) for the full mechanics of enabling Hermes' gateway API, timezone handling, etc.
-3. ~~Untested by the user yet~~ — **now tested and confirmed working live** (recurring habit creation, day-of-week exclusion correctly hiding a habit on excluded days, streak counting across a full weekend gap, the Undo action). Found and fixed a real bug in the process (see streak fix above).
-4. **Deferred by choice, not forgotten**: uHabits-style "X times per week, any day" frequency mode (day-of-week exclusion was built instead, per explicit request); quick tap-to-increment for numeric habits (currently opens a small dialog to type a value instead); habit-strength EMA scoring (a simple consecutive-day streak was built instead, deliberately, for a personal single-user tool).
-5. **Minor known edge case, not fixed**: in `FocusPage.tsx`'s recurring-habit day picker, unchecking all 7 weekday buttons stores an empty `recurrence_days_of_week` array, and Postgres's `ANY('{}')` is always false — the habit would silently never appear in the checklist or `get_today` again (still editable/deletable from the Focus page's management list though). Low priority: the default is all-days-checked, so a user has to go out of their way to hit it.
-6. **JS bundle is on the large side** (`vendor-others` ~2.2MB, `vendor-scanners` ~930KB uncompressed) — not broken, but the reason a PWA update after a deploy can take ~30s to finish downloading on a mobile connection before the app becomes usable again (one-time per device per deploy, self-healing via the existing `chunkRecovery.ts` reload mechanism). Worth revisiting with code-splitting if that one-time wait ever actually bothers the user — hasn't been asked for yet.
+3. **Phantom auto-materialized diary entries on program activation** — see "PICK UP HERE" above for the full description and the two possible fixes. Not urgent (only affects the edge case of starting a workout on a day a just-activated program already auto-scheduled), but worth resolving before leaning on the Active Program Widget heavily.
+4. ~~Untested by the user yet~~ — **now tested and confirmed working live** (recurring habit creation, day-of-week exclusion correctly hiding a habit on excluded days, streak counting across a full weekend gap, the Undo action). Found and fixed a real bug in the process (see streak fix above).
+5. **Deferred by choice, not forgotten**: uHabits-style "X times per week, any day" frequency mode (day-of-week exclusion was built instead, per explicit request); quick tap-to-increment for numeric habits (currently opens a small dialog to type a value instead); habit-strength EMA scoring (a simple consecutive-day streak was built instead, deliberately, for a personal single-user tool); muscle-group color tags on exercises (spec'd for the old Workout Logging plan, dropped when the Workouts redesign superseded that plan — never asked for again).
+6. **Minor known edge case, not fixed**: in `FocusPage.tsx`'s recurring-habit day picker, unchecking all 7 weekday buttons stores an empty `recurrence_days_of_week` array, and Postgres's `ANY('{}')` is always false — the habit would silently never appear in the checklist or `get_today` again (still editable/deletable from the Focus page's management list though). Low priority: the default is all-days-checked, so a user has to go out of their way to hit it.
+7. **JS bundle is on the large side** (`vendor-others` ~2.2MB uncompressed) — not broken, but the reason a PWA update after a deploy can take ~30s to finish downloading on a mobile connection before the app becomes usable again (one-time per device per deploy, self-healing via the existing `chunkRecovery.ts` reload mechanism). Worth revisiting with code-splitting if that one-time wait ever actually bothers the user — hasn't been asked for yet.
+8. **Pre-existing test-suite gaps, unrelated to any of the above**: `translationKeysCoverage.test.ts` has intermittently had missing-key failures from various past sessions' new `t()` calls (each session's own new keys get added as part of that session — check this doesn't regress, don't assume it's someone else's problem to fix). `WorkoutPlaybackPage.test.tsx` has previously shown an i18next module-loading error in isolation in at least one past session; it did not reproduce during this session's test runs (13/13 passing, including 2 new tests for the Finish Workout Summary modal) — if it comes back, it's pre-existing and not necessarily caused by whatever you're working on, but verify rather than assume.
 
 ## Quick file map for the Focus domain
 
