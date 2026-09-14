@@ -889,13 +889,19 @@
     },
     "workoutsPage": {
       "tabs": {
-        "routines": "Routines & Programs",
+        "routines": "Programs & Schedule",
         "history": "History",
         "library": "Exercise Library"
-      }
+      },
+      "addTrainingSchedule": "Training Schedule",
+      "createProgram": "Create Program"
     },
     "activeProgramWidget": {
-      "rest": "Rest"
+      "rest": "Rest",
+      "startTodaysWorkout": "Start Today's Workout",
+      "noActivePlan": "No active training schedule.",
+      "manage": "Manage",
+      "manageSchedules": "Manage Schedules"
     },
     "workoutFinishSummary": {
       "title": "Workout Complete!",
@@ -968,7 +974,7 @@
       "notEditableTooltip": "Not editable",
       "editExerciseTooltip": "Edit exercise",
       "deleteExerciseTooltip": "Delete exercise",
-      "workoutPresetsCardTitle": "Workout Presets",
+      "workoutPresetsCardTitle": "My Programs",
       "workoutPlansCardTitle": "Workout Plans",
       "editExerciseDialogTitle": "Edit Exercise",
       "editExerciseDialogDescription": "Edit the details of the selected exercise.",
@@ -3458,8 +3464,10 @@
     "startDateLabel": "Start Date",
     "endDateLabel": "End Date (Optional)",
     "setActiveLabel": "Set as active plan",
-    "noteTitle": "Note:",
-    "noteDescription": "Updating an active plan adjusts upcoming exercise entries. Deleting a plan clears future ones, while previous entries stay in your log.",
+    "duration1Week": "1 Week",
+    "duration4Weeks": "4 Weeks",
+    "durationOngoing": "Ongoing",
+    "durationCustom": "Custom",
     "assignmentsTitle": "Assignments",
     "presetLabel": "Preset:",
     "setsLabel": "sets",

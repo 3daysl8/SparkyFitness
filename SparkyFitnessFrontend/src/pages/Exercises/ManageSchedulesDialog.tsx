@@ -9,14 +9,12 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import {
-  Plus,
   Edit,
   Trash2,
   CalendarDays,
   CheckSquare,
   X,
   MoreHorizontal,
-  ListChecks,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,51 +31,38 @@ import { error } from '@/utils/logging';
 import type { WorkoutPlanTemplate } from '@/types/workout';
 import AddWorkoutPlanDialog from './AddWorkoutPlanDialog';
 import {
-  useCreateWorkoutPlanTemplateMutation,
-  useDeleteWorkoutPlanTemplateMutation,
   useUpdateWorkoutPlanTemplateMutation,
+  useDeleteWorkoutPlanTemplateMutation,
   useWorkoutPlanTemplates,
 } from '@/hooks/Exercises/useWorkoutPlans';
 
-// Programs are lower-cardinality than routines (typically a handful, one
-// active at a time), so unlike WorkoutPresetsManager's card grid this stays
-// a compact "Manage Programs" dialog rather than a permanent full-width
-// section — the Active Program Widget (a later phase) carries the primary
-// visual weight for programs on this tab.
-const WorkoutPlansManager = () => {
+interface ManageSchedulesDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+// Lists every training schedule (active or not) so one can be activated,
+// edited, or retired — the Active Training Schedule card only ever shows
+// the single currently-active one, so this is the only place to reach the
+// others.
+const ManageSchedulesDialog = ({
+  isOpen,
+  onOpenChange,
+}: ManageSchedulesDialogProps) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { loggingLevel } = usePreferences();
 
-  const [isAddPlanDialogOpen, setIsAddPlanDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<WorkoutPlanTemplate | null>(
     null
   );
 
   const { data: plans } = useWorkoutPlanTemplates(user?.id);
-  const { mutateAsync: createWorkoutPlanTemplate } =
-    useCreateWorkoutPlanTemplateMutation();
   const { mutateAsync: updateWorkoutPlanTemplate } =
     useUpdateWorkoutPlanTemplateMutation();
   const { mutateAsync: deleteWorkoutPlanTemplate } =
     useDeleteWorkoutPlanTemplateMutation();
-
-  const handleCreatePlan = async (
-    newPlanData: Omit<
-      WorkoutPlanTemplate,
-      'id' | 'user_id' | 'created_at' | 'updated_at'
-    >
-  ) => {
-    if (!user?.id) return;
-    try {
-      await createWorkoutPlanTemplate({ userId: user.id, data: newPlanData });
-      setIsAddPlanDialogOpen(false);
-    } catch (err) {
-      error(loggingLevel, 'Error creating workout plan:', err);
-    }
-  };
 
   const handleUpdatePlan = async (
     planId: string,
@@ -133,29 +118,15 @@ const WorkoutPlansManager = () => {
   );
 
   return (
-    <div className="flex gap-2">
-      <Button
-        variant="outline"
-        onClick={() => setIsAddPlanDialogOpen(true)}
-        className="shrink-0 gap-2"
-      >
-        <Plus className="h-4 w-4" />
-        {t('workoutPlansManager.addPlanButton', 'Add Plan')}
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() => setIsManageDialogOpen(true)}
-        className="shrink-0 gap-2"
-      >
-        <ListChecks className="h-4 w-4" />
-        {t('workoutPlansManager.managePlansButton', 'Manage Programs')}
-      </Button>
-
-      <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+    <>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {t('workoutPlansManager.managePlansTitle', 'Manage Programs')}
+              {t(
+                'workoutPlansManager.managePlansTitle',
+                'Manage Training Schedules'
+              )}
             </DialogTitle>
           </DialogHeader>
           {!plans || plans.length === 0 ? (
@@ -259,26 +230,18 @@ const WorkoutPlansManager = () => {
       </Dialog>
 
       <AddWorkoutPlanDialog
-        key={`add-${isAddPlanDialogOpen ? 'open' : 'closed'}`}
-        isOpen={isAddPlanDialogOpen}
-        onClose={() => setIsAddPlanDialogOpen(false)}
-        onSave={handleCreatePlan}
-        initialData={null}
-      />
-
-      <AddWorkoutPlanDialog
         key={`edit-${selectedPlan?.id ?? (isEditDialogOpen ? 'open' : 'closed')}`}
         isOpen={isEditDialogOpen}
         onClose={() => {
           setIsEditDialogOpen(false);
           setSelectedPlan(null);
         }}
-        onSave={handleCreatePlan}
+        onSave={() => {}}
         initialData={selectedPlan}
         onUpdate={handleUpdatePlan}
       />
-    </div>
+    </>
   );
 };
 
-export default WorkoutPlansManager;
+export default ManageSchedulesDialog;

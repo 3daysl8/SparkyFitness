@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play } from 'lucide-react';
+import { Play, Settings2 } from 'lucide-react';
 import { dayOfWeek } from '@workspace/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
@@ -15,6 +15,7 @@ import {
   createBlankWorkoutPlaybackDraft,
 } from '@/utils/workoutPlayback';
 import type { WorkoutPlanAssignment } from '@/types/workout';
+import ManageSchedulesDialog from './ManageSchedulesDialog';
 
 const ActiveProgramWidget = () => {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ const ActiveProgramWidget = () => {
   const location = useLocation();
   const today = formatDateToYYYYMMDD(new Date());
   const todayDow = dayOfWeek(today);
+  const [isManageOpen, setIsManageOpen] = useState(false);
 
   const { data: plan, isLoading } = useActiveWorkoutPlan(today, user?.id);
 
@@ -49,11 +51,38 @@ const ActiveProgramWidget = () => {
     startableAssignment?.workout_preset_id
   );
 
-  if (isLoading || !plan) {
-    // No active program: the widget has nothing useful to show. The
-    // "Manage Programs" dialog (WorkoutPlansManager) is where one gets
-    // created/activated.
+  if (isLoading) {
     return null;
+  }
+
+  if (!plan) {
+    // No active schedule — still surface a way in to activate an existing
+    // (inactive) one or create a fresh one, rather than vanishing entirely.
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            {t(
+              'activeProgramWidget.noActivePlan',
+              'No active training schedule.'
+            )}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setIsManageOpen(true)}
+          >
+            <Settings2 className="h-4 w-4" />
+            {t('activeProgramWidget.manageSchedules', 'Manage Schedules')}
+          </Button>
+        </CardContent>
+        <ManageSchedulesDialog
+          isOpen={isManageOpen}
+          onOpenChange={setIsManageOpen}
+        />
+      </Card>
+    );
   }
 
   // NOTE: this does not yet detect/clear the "phantom" auto-materialized
@@ -82,8 +111,17 @@ const ActiveProgramWidget = () => {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold flex items-center justify-between">
-          <span>{plan.plan_name}</span>
+        <CardTitle className="text-base font-semibold flex items-center justify-between gap-2">
+          <span className="truncate">{plan.plan_name}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 shrink-0 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setIsManageOpen(true)}
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+            {t('activeProgramWidget.manage', 'Manage')}
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -131,10 +169,17 @@ const ActiveProgramWidget = () => {
         {todaysAssignments.length > 0 && (
           <Button onClick={handleStart} className="w-full gap-2">
             <Play className="h-4 w-4" />
-            {t('workoutPresetsManager.startWorkout', 'Start Workout')}
+            {t(
+              'activeProgramWidget.startTodaysWorkout',
+              "Start Today's Workout"
+            )}
           </Button>
         )}
       </CardContent>
+      <ManageSchedulesDialog
+        isOpen={isManageOpen}
+        onOpenChange={setIsManageOpen}
+      />
     </Card>
   );
 };

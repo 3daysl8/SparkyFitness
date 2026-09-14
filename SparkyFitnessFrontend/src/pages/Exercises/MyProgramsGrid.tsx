@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, CheckSquare, Play, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkoutPreset } from '@/types/workout';
@@ -30,38 +30,39 @@ import {
 } from '@/utils/workoutPlayback';
 import WorkoutPresetSelector from './WorkoutPresetSelector';
 
-import { useBulkSelection } from '@/hooks/useBulkSelection';
-import BulkActionToolbar from '@/components/BulkActionToolbar';
-import BulkDeleteDialog from '@/components/BulkDeleteDialog';
 import { DataTablePagination } from '@/components/ui/DataTablePagination';
 import {
   ColumnDef,
-  RowSelectionState,
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 // The grid below renders WorkoutPresetCard directly rather than table rows,
-// but still runs through useReactTable so pagination/selection reuse the
-// same proven bookkeeping (and DataTablePagination component) as every other
-// paginated list in this app. No columns are needed since nothing renders a
-// cell through columnDef here.
+// but still runs through useReactTable so pagination reuses the same proven
+// bookkeeping (and DataTablePagination component) as every other paginated
+// list in this app. No columns are needed since nothing renders a cell
+// through columnDef here.
 const NO_COLUMNS: ColumnDef<WorkoutPreset, unknown>[] = [];
 
 // Matches workout_presets.name VARCHAR(255) in the database.
 const MAX_PRESET_NAME_LENGTH = 255;
 
-const WorkoutPresetsManager = () => {
+interface MyProgramsGridProps {
+  isAddOpen: boolean;
+  onAddOpenChange: (open: boolean) => void;
+}
+
+const MyProgramsGrid = ({
+  isAddOpen,
+  onAddOpenChange,
+}: MyProgramsGridProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const isMobile = useIsMobile();
   const { weightUnit } = usePreferences();
 
-  const [isAddPresetDialogOpen, setIsAddPresetDialogOpen] = useState(false);
   const [isStartWorkoutDialogOpen, setIsStartWorkoutDialogOpen] =
     useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -81,7 +82,7 @@ const WorkoutPresetsManager = () => {
     }
   }, [location.state, location.pathname, navigate]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
 
   const { data, isLoading, isFetching } = useWorkoutPresets(
     user?.id,
@@ -107,42 +108,6 @@ const WorkoutPresetsManager = () => {
     }
   }, [data, totalPages, currentPage]);
 
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-
-  const selectedIdsFromTable = React.useMemo(() => {
-    return new Set<string>(Object.keys(rowSelection));
-  }, [rowSelection]);
-
-  const {
-    selectedIds,
-    selectAll,
-    clearSelection,
-    selectedCount,
-    isEditMode,
-    toggleEditMode,
-  } = useBulkSelection(selectedIdsFromTable);
-
-  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-
-  const editablePresetIds = presets
-    .filter((p) => p.user_id === user?.id)
-    .map((p) => p.id.toString());
-
-  const allSelected =
-    editablePresetIds.length > 0 && selectedCount === editablePresetIds.length;
-
-  const handleBulkDeleteConfirm = async () => {
-    try {
-      await Promise.all(Array.from(selectedIds).map((id) => deletePreset(id)));
-    } catch (err) {
-      // Error handling is handled by mutation
-    } finally {
-      clearSelection();
-      setRowSelection({});
-      setShowBulkDeleteDialog(false);
-    }
-  };
-
   const handleCreatePreset = async (
     newPresetData: Omit<
       WorkoutPreset,
@@ -151,7 +116,7 @@ const WorkoutPresetsManager = () => {
   ) => {
     if (!user?.id) return;
     await createPreset({ ...newPresetData, user_id: user.id });
-    setIsAddPresetDialogOpen(false);
+    onAddOpenChange(false);
   };
 
   const handleDuplicatePreset = React.useCallback(
@@ -265,35 +230,25 @@ const WorkoutPresetsManager = () => {
     });
   }, [location.pathname, location.search, navigate]);
 
-  // Pagination/selection bookkeeping only — the grid below renders
-  // WorkoutPresetCard directly from table.getRowModel().rows rather than
-  // through columnDef cells, reusing this proven state machine (and
-  // DataTablePagination) instead of hand-rolling a parallel one.
+  // Pagination bookkeeping only — the grid below renders WorkoutPresetCard
+  // directly from table.getRowModel().rows rather than through columnDef
+  // cells, reusing this proven state machine (and DataTablePagination)
+  // instead of hand-rolling a parallel one.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: presets,
     columns: NO_COLUMNS,
     getRowId: (row) => row.id.toString(),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    onRowSelectionChange: (updater) => {
-      const next =
-        typeof updater === 'function' ? updater(rowSelection) : updater;
-      setRowSelection(next);
-    },
     onPaginationChange: (updater) => {
       const current = { pageIndex: currentPage - 1, pageSize: itemsPerPage };
       const next = typeof updater === 'function' ? updater(current) : updater;
-      if (next.pageSize !== itemsPerPage) {
-        setItemsPerPage(next.pageSize);
-        setCurrentPage(1);
-      } else {
-        setCurrentPage(next.pageIndex + 1);
-      }
+      setCurrentPage(next.pageIndex + 1);
     },
     manualPagination: true,
     pageCount: totalPages,
     state: {
-      rowSelection,
       pagination: { pageIndex: currentPage - 1, pageSize: itemsPerPage },
     },
   });
@@ -301,69 +256,13 @@ const WorkoutPresetsManager = () => {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-xl sm:text-2xl font-bold tracking-tight">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold tracking-tight">
             {t(
               'exercise.databaseManager.workoutPresetsCardTitle',
-              'Workout Presets'
+              'My Programs'
             )}
           </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size={isMobile ? 'icon' : 'default'}
-              onClick={toggleEditMode}
-              className={`shrink-0 ${
-                isEditMode
-                  ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
-                  : ''
-              }`}
-              title={
-                isEditMode
-                  ? t('common.cancel', 'Cancel')
-                  : t('common.select', 'Select')
-              }
-            >
-              {isEditMode ? (
-                isMobile ? (
-                  <X className="w-5 h-5" />
-                ) : (
-                  t('common.cancel', 'Cancel')
-                )
-              ) : isMobile ? (
-                <CheckSquare className="w-5 h-5" />
-              ) : (
-                t('common.select', 'Select')
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size={isMobile ? 'icon' : 'default'}
-              onClick={() => setIsStartWorkoutDialogOpen(true)}
-              className="shrink-0"
-              title={t('workoutPresetsManager.startWorkout', 'Start Workout')}
-            >
-              <Play className={isMobile ? 'w-5 h-5' : 'h-4 w-4 mr-2'} />
-              {!isMobile && (
-                <span>
-                  {t('workoutPresetsManager.startWorkout', 'Start Workout')}
-                </span>
-              )}
-            </Button>
-            <Button
-              onClick={() => setIsAddPresetDialogOpen(true)}
-              size={isMobile ? 'icon' : 'default'}
-              className="shrink-0"
-              title={t('workoutPresetsManager.addPresetButton', 'Add presets')}
-            >
-              <Plus className={isMobile ? 'w-5 h-5' : 'h-4 w-4 mr-2'} />
-              {!isMobile && (
-                <span>
-                  {t('workoutPresetsManager.addPresetButton', 'Add presets')}
-                </span>
-              )}
-            </Button>
-          </div>
         </CardHeader>
         <CardContent>
           {presets.length === 0 && !isLoading ? (
@@ -387,10 +286,7 @@ const WorkoutPresetsManager = () => {
                       key={row.id}
                       preset={preset}
                       isOwned={preset.user_id === user?.id}
-                      isEditMode={isEditMode}
-                      isSelected={row.getIsSelected()}
                       weightUnit={weightUnit}
-                      onToggleSelect={() => row.toggleSelected()}
                       onStart={() => handleStartWorkoutPlayback(preset)}
                       onLogToDiary={() => handleLogPresetToDiary(preset)}
                       onDuplicate={() => handleDuplicatePreset(preset)}
@@ -438,42 +334,9 @@ const WorkoutPresetsManager = () => {
         </DialogContent>
       </Dialog>
 
-      <BulkActionToolbar
-        selectedCount={selectedCount}
-        totalCount={editablePresetIds.length}
-        allSelected={allSelected}
-        onClear={() => {
-          clearSelection();
-          setRowSelection({});
-        }}
-        onDelete={() => setShowBulkDeleteDialog(true)}
-        onSelectAll={(checked) => {
-          if (checked) {
-            selectAll(editablePresetIds);
-            // Sync with table
-            const newSelection: RowSelectionState = {};
-            presets.forEach((p) => {
-              if (p.user_id === user?.id) newSelection[p.id.toString()] = true;
-            });
-            setRowSelection(newSelection);
-          } else {
-            clearSelection();
-            setRowSelection({});
-          }
-        }}
-      />
-
-      <BulkDeleteDialog
-        isOpen={showBulkDeleteDialog}
-        onOpenChange={setShowBulkDeleteDialog}
-        selectedCount={selectedCount}
-        entityName={t('workoutPresetsManager.presets', 'presets')}
-        onConfirm={handleBulkDeleteConfirm}
-      />
-
       <WorkoutPresetForm
-        isOpen={isAddPresetDialogOpen}
-        onClose={() => setIsAddPresetDialogOpen(false)}
+        isOpen={isAddOpen}
+        onClose={() => onAddOpenChange(false)}
         onSave={handleCreatePreset}
       />
 
@@ -494,4 +357,4 @@ const WorkoutPresetsManager = () => {
   );
 };
 
-export default WorkoutPresetsManager;
+export default MyProgramsGrid;

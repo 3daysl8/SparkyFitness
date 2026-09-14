@@ -37,10 +37,13 @@ import {
 } from '@/components/ui/dialog';
 import AddExerciseDialog from './AddExerciseDialog';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { formatDateToYYYYMMDD } from '@/lib/utils';
+import { formatDateToYYYYMMDD, cn } from '@/lib/utils';
+import { addDays } from '@workspace/shared';
 import { DAYS_OF_WEEK } from '@/constants/exercises';
 import { useWorkoutPlanAssignments } from '@/hooks/Exercises/useWorkoutPlanAssignments';
 import { SortableExerciseItem } from './SortableExerciseItem';
+
+type DurationPreset = '1w' | '4w' | 'ongoing' | 'custom';
 
 interface AddWorkoutPlanDialogProps {
   isOpen: boolean;
@@ -92,23 +95,50 @@ const AddWorkoutPlanDialog = ({
 
   const [startDate, setStartDate] = useState(() => {
     if (initialData?.start_date) {
-      return String(initialData.start_date).split('T')[0];
+      return String(initialData.start_date).split('T')[0] ?? '';
     }
     return formatDateToYYYYMMDD(new Date());
   });
 
   const [endDate, setEndDate] = useState(() => {
     if (initialData?.end_date) {
-      return String(initialData.end_date).split('T')[0];
+      return String(initialData.end_date).split('T')[0] ?? '';
     }
-    const date = new Date();
-    date.setDate(date.getDate() + 7);
-    return formatDateToYYYYMMDD(date);
+    return addDays(formatDateToYYYYMMDD(new Date()), 7);
   });
 
   const [isActive, setIsActive] = useState(
     () => initialData?.is_active ?? true
   );
+
+  // Derived, not stored: whichever preset the current start/end dates
+  // happen to match is "selected" — editing the date fields directly falls
+  // through to 'custom' automatically, no separate state to keep in sync.
+  const durationPreset: DurationPreset = !endDate
+    ? 'ongoing'
+    : endDate === addDays(startDate, 7)
+      ? '1w'
+      : endDate === addDays(startDate, 28)
+        ? '4w'
+        : 'custom';
+
+  const durationPills: { id: DurationPreset; label: string }[] = [
+    { id: '1w', label: t('addWorkoutPlanDialog.duration1Week', '1 Week') },
+    { id: '4w', label: t('addWorkoutPlanDialog.duration4Weeks', '4 Weeks') },
+    {
+      id: 'ongoing',
+      label: t('addWorkoutPlanDialog.durationOngoing', 'Ongoing'),
+    },
+    { id: 'custom', label: t('addWorkoutPlanDialog.durationCustom', 'Custom') },
+  ];
+
+  const handleDurationPillClick = (preset: DurationPreset) => {
+    if (preset === '1w') setEndDate(addDays(startDate, 7));
+    else if (preset === '4w') setEndDate(addDays(startDate, 28));
+    else if (preset === 'ongoing') setEndDate('');
+    // 'custom' has no action of its own — it's already reachable by typing
+    // directly into the End Date field below.
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -229,6 +259,24 @@ const AddWorkoutPlanDialog = ({
                 </div>
               </div>
             </div>
+            <div className="flex flex-wrap gap-1.5">
+              {durationPills.map((pill) => (
+                <Button
+                  key={pill.id}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDurationPillClick(pill.id)}
+                  className={cn(
+                    'h-7 rounded-full px-3 text-xs',
+                    durationPreset === pill.id &&
+                      'border-primary bg-primary/10 text-primary'
+                  )}
+                >
+                  {pill.label}
+                </Button>
+              ))}
+            </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="isActive"
@@ -239,18 +287,6 @@ const AddWorkoutPlanDialog = ({
                 {t('addWorkoutPlanDialog.setActiveLabel', 'Set as active plan')}
               </Label>
             </div>
-            <p
-              className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mt-2"
-              role="alert"
-            >
-              <span className="font-bold">
-                {t('addWorkoutPlanDialog.noteTitle', 'Note:')}
-              </span>{' '}
-              {t(
-                'addWorkoutPlanDialog.noteDescription',
-                'Updating an active plan adjusts upcoming exercise entries. Deleting a plan clears future ones, while previous entries stay in your log.'
-              )}
-            </p>
 
             <div className="space-y-4 min-w-0">
               <h4 className="mb-2 text-lg font-medium">

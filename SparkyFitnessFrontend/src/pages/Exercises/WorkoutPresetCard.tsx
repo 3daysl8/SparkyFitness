@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,10 +47,7 @@ function estimateDurationMinutes(preset: WorkoutPreset): number {
 interface WorkoutPresetCardProps {
   preset: WorkoutPreset;
   isOwned: boolean;
-  isEditMode: boolean;
-  isSelected: boolean;
   weightUnit: WeightUnit;
-  onToggleSelect: () => void;
   onStart: () => void;
   onLogToDiary: () => void;
   onDuplicate: () => void;
@@ -62,10 +58,7 @@ interface WorkoutPresetCardProps {
 const WorkoutPresetCard = ({
   preset,
   isOwned,
-  isEditMode,
-  isSelected,
   weightUnit,
-  onToggleSelect,
   onStart,
   onLogToDiary,
   onDuplicate,
@@ -88,31 +81,16 @@ const WorkoutPresetCard = ({
   const estimatedMinutes = estimateDurationMinutes(preset);
 
   return (
-    <Card
-      className={`relative flex flex-col transition-colors ${
-        isSelected ? 'border-blue-500 bg-blue-50/30 dark:bg-blue-900/10' : ''
-      }`}
-    >
+    <Card className="relative flex flex-col transition-colors">
       <CardContent className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-2 min-w-0">
-            {isEditMode && (
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={onToggleSelect}
-                disabled={!isOwned}
-                aria-label={t('common.select', 'Select')}
-                className="mt-1 shrink-0"
-              />
+          <div className="min-w-0">
+            <h3 className="font-semibold text-sm truncate">{preset.name}</h3>
+            {preset.description && (
+              <p className="text-xs text-muted-foreground truncate">
+                {preset.description}
+              </p>
             )}
-            <div className="min-w-0">
-              <h3 className="font-semibold text-sm truncate">{preset.name}</h3>
-              {preset.description && (
-                <p className="text-xs text-muted-foreground truncate">
-                  {preset.description}
-                </p>
-              )}
-            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
