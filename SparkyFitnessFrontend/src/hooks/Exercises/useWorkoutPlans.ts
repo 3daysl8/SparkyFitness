@@ -67,7 +67,11 @@ export const useCreateWorkoutPlanTemplateMutation = () => {
       >;
     }) => createWorkoutPlanTemplate(userId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workoutPlanKeys.lists() });
+      // Invalidates the whole workoutPlanTemplates prefix, not just .lists()
+      // — a new plan can be created active, which the Active Program Widget
+      // reads via workoutPlanKeys.active(date), a sibling key under the same
+      // prefix.
+      queryClient.invalidateQueries({ queryKey: workoutPlanKeys.all });
     },
     meta: {
       successMessage: t(
@@ -95,7 +99,10 @@ export const useUpdateWorkoutPlanTemplateMutation = () => {
       data: Partial<WorkoutPlanTemplate>;
     }) => updateWorkoutPlanTemplate(id, data),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: workoutPlanKeys.lists() });
+      // Covers .lists() and .active(date) too — activating/deactivating a
+      // plan (the common case for this mutation) changes what the Active
+      // Program Widget's active-date query should return.
+      queryClient.invalidateQueries({ queryKey: workoutPlanKeys.all });
       queryClient.invalidateQueries({
         queryKey: workoutPlanKeys.detail(variables.id),
       });
@@ -134,7 +141,9 @@ export const useDeleteWorkoutPlanTemplateMutation = () => {
   return useMutation({
     mutationFn: (id: string) => deleteWorkoutPlanTemplate(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workoutPlanKeys.lists() });
+      // Deleting the active plan should clear it from the Active Program
+      // Widget too, not just the manage-schedules list.
+      queryClient.invalidateQueries({ queryKey: workoutPlanKeys.all });
     },
     meta: {
       successMessage: t(
