@@ -4,25 +4,39 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight right now — the app is in a clean, fully-deployed state as of
-2026-09-14.** Everything below in this section is settled and live; older "what this session
-did" narratives now live under their own dated **Status** sections further down (that's the
-established convention in this doc — this section should only ever describe the *current*
-state, not accumulate history).
+**One thing committed but NOT yet pushed or deployed — do this first if picking up fresh:** the
+upstream "new release available / breaking changes" warning dialog was removed this session
+(commit `585866f9f`, plus this doc update on top of it — both local only, not yet on
+`origin/main`; run `git status -sb` to confirm the exact count before pushing). Isaac asked to
+stop the recurring full-screen "CRITICAL WARNING: THIS RELEASE CONTAINS BREAKING CHANGES!" modal
+that pops up after every upstream release; rather than just dismissing it (which only clears the
+current version in `localStorage` and reappears on the next upstream release), the whole GitHub
+release-check was removed outright — `AppSetup.tsx` no longer fetches it, `NewReleaseDialog.tsx`
+is deleted, and the supporting query/API/key code in `useGeneralQueries.ts` / `api/general.ts` /
+`api/keys/general.ts` is gone too. The unrelated announcement-banner system and the header's
+GitHub star-count badge are untouched — don't confuse the three, they're separate features.
+Clean `tsc -b` / `eslint --max-warnings 0` / `knip` (knip's large pre-existing unused-nutrition-
+code list is expected, see "Architecture decisions" below — nothing from this change is in it).
+**To ship it**: `git push origin main`, then the same Pi5 deploy recipe as the Workouts restructure
+below (`git pull` in `/home/pi1/sparkyfitness-build`, rebuild both images `--no-cache`, `docker
+compose up -d --force-recreate` in `/home/pi1/sparkyfitness/`, `docker builder prune -af`, then
+live-verify — remember the PWA service-worker stale-cache gotcha further down). Frontend-only
+change, no migration this time, but rebuild both images anyway to keep them in sync.
 
-**Since the last handoff, three things happened, all done and deployed:**
+**Everything else is settled and already deployed as of 2026-09-14** — see the dedicated Status
+sections further down for the two features that shipped this session:
 
 1. **To-Do List card redesign — time-based scheduling + a Day/Week view** (commits `7e2458467`,
-   `68a6d3d54`). Optional `due_time` on scheduled focuses, a shared `DayWeekToggle` used by both
-   the To-Do List and Today's Agenda cards, and a pass removing repeated section-header icons
-   (Today's Agenda's calendar icon, Today's Supplements' badge) in favor of a plain title +
-   count/summary baseline. See the dedicated Status section below.
-2. **Workouts tab restructured into "Programs & Schedule"** (commits `c3af4d6b2`, `5e9fa8e2f`) —
-   the Active Program Widget now always renders (with a Manage entry point instead of vanishing
-   when nothing's active), a two-button action bar drives schedule/program creation, and the
-   preset grid dropped bulk-select for one Start button per card. A real, previously-undetected
-   cache-invalidation bug was found and fixed in the process — see the dedicated Status section
-   below, worth reading before touching `useWorkoutPlans.ts`'s mutation hooks again.
+   `68a6d3d54`, deployed). Optional `due_time` on scheduled focuses, a shared `DayWeekToggle` used
+   by both the To-Do List and Today's Agenda cards, and a pass removing repeated section-header
+   icons (Today's Agenda's calendar icon, Today's Supplements' badge) in favor of a plain title +
+   count/summary baseline.
+2. **Workouts tab restructured into "Programs & Schedule"** (commits `c3af4d6b2`, `5e9fa8e2f`,
+   deployed) — the Active Program Widget now always renders (with a Manage entry point instead of
+   vanishing when nothing's active), a two-button action bar drives schedule/program creation, and
+   the preset grid dropped bulk-select for one Start button per card. A real, previously-
+   undetected cache-invalidation bug was found and fixed in the process — worth reading before
+   touching `useWorkoutPlans.ts`'s mutation hooks again.
 3. **Hermes is connected to this app's MCP server, full read/write, all 32 tools** (see
    "Hermes integration" under "Not yet done" below for the full detail, including a correction
    to this doc's own earlier wrong assumption that Hermes was an n8n workflow — it isn't). The
