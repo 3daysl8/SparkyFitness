@@ -5,32 +5,27 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 ## ⚠️ PICK UP HERE
 
 **Nothing is mid-flight right now — the app is in a clean, fully-deployed state as of
-2026-09-13.** Both the Ouroboros 5-tab restructure (previous "PICK UP HERE") and a full
-Workouts-tab redesign (this session) are done, tested, pushed to `origin/main`, and deployed
-live on Pi5. The Ouroboros restructure's own step 7 (updating this doc) never actually
-happened before this session picked it back up — if you see stale "mid-flight" framing anywhere
-else in this file below this section, that's why; trust this section over anything under it
-that contradicts it.
+2026-09-14.** Everything below in this section is settled and live; older "what this session
+did" narratives now live under their own dated **Status** sections further down (that's the
+established convention in this doc — this section should only ever describe the *current*
+state, not accumulate history).
 
-**What this session did, in order**:
-1. Confirmed the Ouroboros restructure (frontend cleanup, steps 4-6) had in fact been finished
-   and deployed by a different tool/session in the meantime — local `C:\dev\SparkyFitness` was
-   5 commits behind `origin/main` at the start of this session and had to be pulled first.
-2. Reviewed the existing MCP server (`POST /mcp`, already fully built — see
-   `docs/content/2.features/15.mcp-server.md`) for handing Hermes read access; generated an API
-   key via the Settings UI. **Did not build the actual n8n workflow** — this session had no
-   n8n/Pi5 tool access, only SparkyFitness repo access. The plan for that workflow is unchanged,
-   see item 2 under "Not yet done" below.
-3. **Full Workouts-tab redesign**, planned via 8 phases and built phase-by-phase with
-   typecheck/lint/test verification after each one — see the new Status section immediately
-   below for the durable summary (the interactive plan file itself was local to the operator's
-   machine at `C:\Users\ICPET\.claude\plans\purrfect-wobbling-hammock.md` and will not survive
-   to a new machine/session, per this doc's own recurring lesson about that).
-4. **Found and fixed two real backend bugs**, one of them severe — see the Status section.
-5. Pushed 3 commits to `origin/main`, built both Docker images on Pi5 with `--no-cache`,
-   deployed with `--force-recreate`, and live-verified against the running Pi5 instance
-   (including catching and clearing a stale-service-worker false negative — see the new Known
-   Gotcha entry).
+**Since the last handoff, two things happened, both done and deployed:**
+
+1. **Hermes is now connected to this app's MCP server, full read/write, all 32 tools** (see
+   "Hermes integration" under "Not yet done" below for the full detail, including a correction
+   to this doc's own earlier wrong assumption that Hermes was an n8n workflow — it isn't). The
+   connection itself is done; the *proactive scheduled briefing* is still not built — that's
+   still open, see the same section.
+2. **A real production bug in the Calendar/Daily-Agenda feature was found and fixed**
+   (commit `103445d04`): the feed cache's default clone-on-read behavior broke recurring-event
+   expansion, silently dropping an *entire feed's* events (not just the recurring ones) on every
+   read except the first one after each 15-minute cache refresh. Surfaced as "today's event
+   flickers on and off" and "the week view is basically always empty." Fixed, tested (2 new
+   regression tests pin the exact failure mode), deployed, and live-verified with 5 consecutive
+   reads returning consistent results. Full writeup in the dedicated Status section below —
+   worth reading if you touch `calendarService.ts` or add another `node-cache` anywhere in this
+   codebase that stores anything beyond plain JSON (class instances don't survive the clone).
 
 **Real gap intentionally left unresolved — needs a decision before the Active Program Widget
 is fully trustworthy**: activating a workout plan pre-materializes "completed" diary entries
@@ -46,6 +41,48 @@ on the response schema (small, but touches a shared contract) or changing the ma
 behavior itself (bigger). Flagged in-code in `ActiveProgramWidget.tsx`, not silently skipped.
 
 Also worth knowing before touching anything: the **Known gotchas** section further down (Docker cache/env-reload traps, the PWA stale-cache trap, the build-context trap, the disposable-test-account cleanup command) has bitten every session in this doc at least once — skim it first.
+
+## Status: Calendar feed cache silently dropping events — fixed and deployed (commit `103445d04`)
+
+Reported by Isaac after connecting a real Google Calendar: "today's event shows up, then
+disappears, then comes back" and "the 7-day [week] feed is not showing." Both turned out to be
+one root cause, diagnosed by testing the live production feed directly (SSH + `docker exec` into
+`sparkyfitness-sparkyfitness-server-1`, fetching the real `.ics` URL, and reproducing the exact
+`eventsForFeedInRange` logic in a throwaway `node -e` script) rather than guessing from the code
+alone — the bug only manifests on a **cache hit**, so testing against a fresh parse alone (which
+is what the existing unit tests in `tests/calendarService.test.ts` did) never caught it.
+
+**Root cause**: `calendarService.ts`'s `NodeCache` (15-minute TTL) defaults to `useClones: true`,
+which deep-clones the parsed `ical.CalendarResponse` on every `.get()`. That clone breaks the
+internal state of the RRule wrapper class `node-ical` attaches to any recurring `VEVENT` —
+confirmed directly: calling `ical.expandRecurringEvent()` on the original parsed object works,
+calling it on the *same object round-tripped through a default `NodeCache`* throws
+`Invalid calling context`. That throw happens inside `eventsForFeedInRange`'s `for` loop, which
+has no try/catch, so it aborts the whole function — and the outer `Promise.allSettled` in
+`getAgenda` catches that as a rejected feed and drops **every event from that feed**, recurring
+or not, not just the one that triggered it.
+
+Net effect: only the very first agenda read after each 15-minute cache refresh returned real
+data (a fresh parse, never cloned); every other read in that window returned nothing. A user
+loading Day view first (warming the cache) and then switching to Week view would hit the broken
+cache-hit path almost every time — matching "the week view is basically always empty" exactly,
+while Day view would occasionally show correctly right after a refresh, matching the flicker.
+
+**Fix**: added `useClones: false` to the `NodeCache` constructor — the parsed calendar is never
+mutated after parsing, so there's no safety reason to clone it. One line. Two regression tests
+added to `tests/calendarService.test.ts` (`feedCache clone behavior with recurring events`) that
+directly reproduce the round-trip: one proves `useClones: false` survives it, one proves the
+`node-cache` *default* (`useClones: true`) still throws — a tripwire if this ever gets
+reintroduced elsewhere. Full backend suite (2853 tests) and `tsc -b` both clean. Deployed via a
+backend-only rebuild (`--no-cache`, repo root as build context, `--force-recreate`) and
+live-verified: 5 consecutive calls each to the Day and Week agenda endpoints all returned
+identical, correct results (previously only call #1 would have).
+
+**General lesson for this codebase**: any `NodeCache` (or similar) storing something other than
+plain JSON — a class instance, anything from a third-party parser library — should default to
+`useClones: false` unless there's a specific mutation-safety reason not to. The `announcementCache`
+precedent this cache's own code comment cites stores plain data and was never at risk; don't
+assume that precedent extends to a richer object type without checking.
 
 ## Status: Workouts tab redesign — deployed and live-verified (commits `71d5914`, `7243449`, `e630365`)
 
