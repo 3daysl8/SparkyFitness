@@ -10,22 +10,43 @@ did" narratives now live under their own dated **Status** sections further down 
 established convention in this doc — this section should only ever describe the *current*
 state, not accumulate history).
 
-**Since the last handoff, two things happened, both done and deployed:**
+**Since the last handoff, three things happened, all done and deployed:**
 
-1. **Hermes is now connected to this app's MCP server, full read/write, all 32 tools** (see
+1. **To-Do List card redesign — time-based scheduling + a Day/Week view** (commits `7e2458467`,
+   `68a6d3d54`). Optional `due_time` on scheduled focuses, a shared `DayWeekToggle` used by both
+   the To-Do List and Today's Agenda cards, and a pass removing repeated section-header icons
+   (Today's Agenda's calendar icon, Today's Supplements' badge) in favor of a plain title +
+   count/summary baseline. See the dedicated Status section below.
+2. **Workouts tab restructured into "Programs & Schedule"** (commits `c3af4d6b2`, `5e9fa8e2f`) —
+   the Active Program Widget now always renders (with a Manage entry point instead of vanishing
+   when nothing's active), a two-button action bar drives schedule/program creation, and the
+   preset grid dropped bulk-select for one Start button per card. A real, previously-undetected
+   cache-invalidation bug was found and fixed in the process — see the dedicated Status section
+   below, worth reading before touching `useWorkoutPlans.ts`'s mutation hooks again.
+3. **Hermes is connected to this app's MCP server, full read/write, all 32 tools** (see
    "Hermes integration" under "Not yet done" below for the full detail, including a correction
    to this doc's own earlier wrong assumption that Hermes was an n8n workflow — it isn't). The
    connection itself is done; the *proactive scheduled briefing* is still not built — that's
    still open, see the same section.
-2. **A real production bug in the Calendar/Daily-Agenda feature was found and fixed**
-   (commit `103445d04`): the feed cache's default clone-on-read behavior broke recurring-event
-   expansion, silently dropping an *entire feed's* events (not just the recurring ones) on every
-   read except the first one after each 15-minute cache refresh. Surfaced as "today's event
-   flickers on and off" and "the week view is basically always empty." Fixed, tested (2 new
-   regression tests pin the exact failure mode), deployed, and live-verified with 5 consecutive
-   reads returning consistent results. Full writeup in the dedicated Status section below —
-   worth reading if you touch `calendarService.ts` or add another `node-cache` anywhere in this
-   codebase that stores anything beyond plain JSON (class instances don't survive the clone).
+
+**New, not-yet-investigated gap surfaced while live-verifying today's deploy** (console error on
+the login page, not from anything in today's changes): `[Better Auth] Error verifying passkey
+SecurityError: The RP ID "100.103.152.66" is invalid for this domain`, seen when loading
+`https://sparkyfitness.tail854f4e.ts.net/login`. Looks like `SPARKY_FITNESS_FRONTEND_URL` (or
+whatever passkey uses as its RP ID) is pinned to the raw IP while the app is actually being
+accessed via the Tailscale hostname — doesn't block password login, only surfaced as a console
+error, not chased down further this session.
+
+**Older fixed bug, still worth knowing**: a real production bug in the Calendar/Daily-Agenda
+feature was found and fixed (commit `103445d04`): the feed cache's default clone-on-read
+behavior broke recurring-event expansion, silently dropping an *entire feed's* events (not just
+the recurring ones) on every read except the first one after each 15-minute cache refresh.
+Surfaced as "today's event flickers on and off" and "the week view is basically always empty."
+Fixed, tested (2 new regression tests pin the exact failure mode), deployed, and live-verified
+with 5 consecutive reads returning consistent results. Full writeup in the dedicated Status
+section below — worth reading if you touch `calendarService.ts` or add another `node-cache`
+anywhere in this codebase that stores anything beyond plain JSON (class instances don't survive
+the clone).
 
 **Real gap intentionally left unresolved — needs a decision before the Active Program Widget
 is fully trustworthy**: activating a workout plan pre-materializes "completed" diary entries
@@ -41,6 +62,71 @@ on the response schema (small, but touches a shared contract) or changing the ma
 behavior itself (bigger). Flagged in-code in `ActiveProgramWidget.tsx`, not silently skipped.
 
 Also worth knowing before touching anything: the **Known gotchas** section further down (Docker cache/env-reload traps, the PWA stale-cache trap, the build-context trap, the disposable-test-account cleanup command) has bitten every session in this doc at least once — skim it first.
+
+## Status: Workouts restructured into "Programs & Schedule" — deployed and live-verified (commits `c3af4d6b2`, `5e9fa8e2f`)
+
+Rebuilt the "Routines & Programs" sub-tab (relabeled "Programs & Schedule") to match Today's
+Agenda's pill-nav pattern: `ActiveProgramWidget` now always renders instead of returning `null`
+with no active plan (a dead end with no recovery path) — an empty state offers a "Manage
+Schedules" button, and the populated state gained a small "Manage" header button alongside the
+renamed "Start Today's Workout" CTA. A new `ProgramsActionBar` (exactly "+ Training Schedule" /
+"+ Create Program") replaced the old per-section add buttons. `WorkoutPresetsManager` was
+rewritten as `MyProgramsGrid` — dropped the bulk-select/checkbox edit mode entirely (each card
+already has its own Start/Edit/Duplicate/Delete via its kebab menu), retitled "My Programs."
+`WorkoutPlansManager` split into `ManageSchedulesDialog` (list/activate/edit/delete) plus a bare
+create-dialog instance owned by the tab. `WorkoutPresetCard` simplified to match. History and
+Exercise Library sub-tabs already matched the ask and were untouched.
+
+`AddWorkoutPlanDialog` gained duration quick-pills (1 Week / 4 Weeks / Ongoing / Custom — derived
+from the actual start/end dates, so a manual date edit falls through to "Custom" automatically,
+no separate state to keep in sync) and dropped the legacy plan-editing warning banner.
+
+**Real bug found and fixed along the way, commit `c3af4d6b2`**: every workout-plan mutation
+(`useCreateWorkoutPlanTemplateMutation`, `useUpdateWorkoutPlanTemplateMutation`,
+`useDeleteWorkoutPlanTemplateMutation` in `useWorkoutPlans.ts`) only invalidated the plans
+*list* query key, never `workoutPlanKeys.active(date)` — so the Active Program Widget went stale
+after creating, activating/deactivating, or deleting a schedule until a hard reload. Caught by
+creating a schedule live in the redesigned UI and watching the just-built "Active Training
+Schedule" card fail to populate. Fixed by invalidating the whole `workoutPlanKeys.all` prefix
+instead of just `.lists()`. Confirmed live: deactivating a plan through `ManageSchedulesDialog`
+now clears the Active Program Widget instantly, no reload.
+
+**Verification**: `tsc -b` and `eslint --max-warnings 0` clean; the preset-manager test suite
+renamed/updated to match (`MyProgramsGrid.test.tsx`, 5/5 passing) plus the full Exercise/Workout
+suite (113/113). Live-verified in the local dev Docker stack — light/dark × desktop/390px mobile,
+full create-schedule → assign-preset → activate → see-it-on-the-card flow — then deployed to Pi5
+(`--no-cache` rebuild of both images, `--force-recreate`, `docker builder prune -af`) and
+confirmed on the real production URL: both containers healthy, the `due_time` migration applied
+to the production DB, and the served bundle's chunk hashes exactly match the freshly built image
+(the PWA service-worker stale-cache gotcha reproduced again here — cleared registrations/caches
+before trusting anything rendered, per the existing Known Gotcha entry below).
+
+## Status: To-Do List card redesign — time-based scheduling + Day/Week view (commits `7e2458467`, `68a6d3d54`)
+
+Added an optional `due_time` to scheduled `focuses` (migration
+`20260914090000_add_focus_due_time.sql` + repo/schema/route support, plus a `period_date` range
+filter on the list-focuses query for the week view) so the dashboard's To-Do List card can show a
+time badge per task and a Day/Week toggle alongside Today's Agenda. Extracted a shared
+`DayWeekToggle` component so both cards render identically instead of drifting apart — Today's
+Agenda's own toggle was migrated onto it too, since the two couldn't otherwise match pixel-for-
+pixel. Pulled `ToDoCard`, `CheckTarget`, and `EmptyState` out of the monolithic
+`HomeChecklist.tsx` into their own files along the way.
+
+**Follow-up pass**: removed repeated section-header icons across the Home dashboard (Today's
+Agenda's `CalendarDays`, Today's Supplements' `Tablets` badge) so every card header reads as a
+plain title + count/summary — the metric tiles (Workout/Water/Sleep) and top nav keep their icons
+as the intended visual anchors, per the stated rationale (icons repeated on every section compete
+with the content inside the cards; metric tiles and nav are a different, icon-centric pattern by
+design).
+
+**Verification**: `tsc -b` and `eslint --max-warnings 0` clean on both passes. Live-verified in
+the local dev Docker stack: added a timed task, an untimed task, and tasks across a week, checked
+the Day view time badge and Week view day-grouping (caught and fixed a locale-dependent day-label
+bug — `toLocaleDateString`'s `{weekday, day}` field order flipped to "14 MON" instead of "MON 14"
+on this container's locale; now built manually to pin the order), confirmed the empty-week
+fallback, and confirmed the header-icon cleanup in both themes. Deployed to Pi5 in the same
+`--force-recreate` deploy as the Workouts restructure above (one deploy covered both) — the
+`due_time` migration was confirmed applied to the production DB as part of that.
 
 ## Status: Calendar feed cache silently dropping events — fixed and deployed (commit `103445d04`)
 
