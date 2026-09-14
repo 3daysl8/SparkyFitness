@@ -28,6 +28,8 @@ export interface Focus {
   unit: string | null;
   parent_focus_id: string | null;
   period_date: string | null;
+  /** Optional time-of-day for a scheduled daily focus, e.g. "07:00" or "07:00:00". */
+  due_time: string | null;
   status: FocusStatus;
   recurrence_days_of_week: number[] | null;
   recurrence_end_date: string | null;
@@ -65,6 +67,7 @@ export interface CreateFocusInput {
   unit?: string | null;
   parent_focus_id?: string | null;
   period_date?: string | null;
+  due_time?: string | null;
   status?: FocusStatus;
   recurrence_days_of_week?: number[] | null;
   recurrence_end_date?: string | null;
@@ -78,6 +81,7 @@ export interface UpdateFocusInput {
   unit?: string | null;
   parent_focus_id?: string | null;
   period_date?: string | null;
+  due_time?: string | null;
   status?: FocusStatus;
   recurrence_days_of_week?: number[] | null;
   recurrence_end_date?: string | null;
@@ -87,6 +91,8 @@ export interface ListFocusOptions {
   timeframe?: FocusTimeframe;
   domain_id?: string;
   status?: FocusStatus;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface UpsertFocusCheckinInput {

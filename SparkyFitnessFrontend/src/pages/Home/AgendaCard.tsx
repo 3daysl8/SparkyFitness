@@ -16,8 +16,7 @@ import {
 } from '@/components/ui/collapsible';
 import { CalendarDays, ChevronDown, Dumbbell, MapPin } from 'lucide-react';
 import type { CalendarEvent } from '@/types/calendar';
-
-type AgendaView = 'day' | 'week';
+import DayWeekToggle, { type DayWeekView } from './DayWeekToggle';
 
 function isUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
@@ -226,7 +225,7 @@ function WeekView({
 export default function AgendaCard({ selectedDate }: { selectedDate: string }) {
   const { t } = useTranslation();
   const { timezone, timeFormat } = usePreferences();
-  const [view, setView] = useState<AgendaView>('day');
+  const [view, setView] = useState<DayWeekView>('day');
   const [isOpen, setIsOpen] = useState(true);
 
   // A rolling 7-day window starting today, not a Monday-anchored calendar
@@ -249,28 +248,8 @@ export default function AgendaCard({ selectedDate }: { selectedDate: string }) {
               {t('agenda.title', "Today's Agenda")}
             </CardTitle>
             <div className="flex items-center gap-1">
-              <div
-                className="flex rounded-full border p-0.5"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  size="sm"
-                  variant={view === 'day' ? 'default' : 'ghost'}
-                  className="h-6 rounded-full px-2.5 text-[11px]"
-                  onClick={() => setView('day')}
-                >
-                  {t('agenda.day', 'Day')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant={view === 'week' ? 'default' : 'ghost'}
-                  className="h-6 rounded-full px-2.5 text-[11px]"
-                  onClick={() => setView('week')}
-                >
-                  {t('agenda.week', 'Week')}
-                </Button>
-              </div>
-              <ChevronDown className="h-4 w-4" />
+              <DayWeekToggle view={view} onChange={setView} />
+              <ChevronDown className="h-4 w-4 text-muted-foreground hover:text-foreground" />
             </div>
           </CardHeader>
         </CollapsibleTrigger>

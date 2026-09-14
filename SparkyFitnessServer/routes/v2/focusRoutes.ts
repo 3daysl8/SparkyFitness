@@ -109,6 +109,8 @@ const listFocuses: RequestHandler = async (req, res, next) => {
       timeframe: query.data.timeframe,
       domainId: query.data.domain_id,
       status: query.data.status,
+      startDate: query.data.startDate,
+      endDate: query.data.endDate,
     });
     res.json(focuses);
   } catch (error) {

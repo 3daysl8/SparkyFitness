@@ -46,10 +46,14 @@ export const useDeleteFocusDomain = () => {
 
 // --- Focuses -----------------------------------------------------------------
 
-export const useFocuses = (opts?: ListFocusOptions) =>
+export const useFocuses = (
+  opts?: ListFocusOptions,
+  queryOpts?: { enabled?: boolean }
+) =>
   useQuery({
     queryKey: focusKeys.list(opts),
     queryFn: () => focusService.listFocuses(opts),
+    enabled: queryOpts?.enabled,
     meta: { errorMessage: 'Failed to load focuses.' },
   });
 

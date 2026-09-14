@@ -56,7 +56,6 @@ import { toast } from '@/hooks/use-toast';
 import {
   useFocusDomains,
   useCreateFocus,
-  useUpdateFocus,
   useUpsertFocusCheckin,
   useDeleteFocusCheckin,
   useTodayFocusSnapshot,
@@ -76,7 +75,7 @@ import {
   useCreateMedicationEntryMutation,
   useDeleteMedicationEntryMutation,
 } from '@/hooks/useMedications';
-import type { Focus, RecurringFocus } from '@/types/focus';
+import type { RecurringFocus } from '@/types/focus';
 import type { MedicationDetail, MedicationEntry } from '@/types/medications';
 import type { ExerciseSessionResponse } from '@workspace/shared';
 import {
@@ -90,6 +89,9 @@ import { formatWeight } from '@/utils/numberFormatting';
 import { entryMatchesDue } from '@/utils/medicationUtils';
 import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
 import AgendaCard from '@/pages/Home/AgendaCard';
+import ToDoCard from '@/pages/Home/ToDoCard';
+import CheckTarget from '@/pages/Home/CheckTarget';
+import EmptyState from '@/pages/Home/EmptyState';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -590,45 +592,6 @@ function MetricCards({ selectedDate }: { selectedDate: string }) {
   );
 }
 
-function CheckTarget({ done }: { done: boolean }) {
-  return (
-    <span
-      className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-        done
-          ? 'border-primary bg-primary text-primary-foreground'
-          : 'border-muted-foreground/30 text-transparent'
-      )}
-    >
-      <Check
-        key={String(done)}
-        className={cn('h-4 w-4', done && 'animate-check-pop')}
-      />
-    </span>
-  );
-}
-
-function ToDoRow({
-  focus,
-  onToggle,
-}: {
-  focus: Focus;
-  onToggle: (focus: Focus) => void;
-}) {
-  const done = focus.status === 'completed';
-  return (
-    <button
-      onClick={() => onToggle(focus)}
-      className="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-muted/50"
-    >
-      <CheckTarget done={done} />
-      <span className={done ? 'text-muted-foreground line-through' : ''}>
-        {focus.statement}
-      </span>
-    </button>
-  );
-}
-
 function HabitRow({
   habit,
   domainColor,
@@ -948,33 +911,6 @@ function SupplementsSnapshotCard({ selectedDate }: { selectedDate: string }) {
   );
 }
 
-function EmptyState({
-  emoji,
-  title,
-  hint,
-  actionLabel,
-  onAction,
-}: {
-  emoji: string;
-  title: string;
-  hint?: string;
-  actionLabel: string;
-  onAction: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-6 text-center">
-      <span className="text-2xl" aria-hidden="true">
-        {emoji}
-      </span>
-      <p className="text-sm font-medium">{title}</p>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      <Button size="sm" variant="outline" onClick={onAction} className="mt-1">
-        <Plus className="mr-1 h-3.5 w-3.5" /> {actionLabel}
-      </Button>
-    </div>
-  );
-}
-
 export default function HomeChecklist() {
   const { t } = useTranslation();
   const { timezone } = usePreferences();
@@ -989,18 +925,12 @@ export default function HomeChecklist() {
 
   const { data: snapshot, isLoading } = useTodayFocusSnapshot(selectedDate);
   const createFocus = useCreateFocus();
-  const updateFocus = useUpdateFocus();
   const upsertCheckin = useUpsertFocusCheckin();
   const deleteCheckin = useDeleteFocusCheckin();
 
-  const [isTodoOpen, setIsTodoOpen] = useState(true);
   const [isHabitsOpen, setIsHabitsOpen] = useState(true);
   const [numericHabit, setNumericHabit] = useState<RecurringFocus | null>(null);
   const [numericValue, setNumericValue] = useState('');
-
-  const [isAddTodoOpen, setIsAddTodoOpen] = useState(false);
-  const [todoStatement, setTodoStatement] = useState('');
-  const [todoDate, setTodoDate] = useState(selectedDate);
 
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
   const [habitStatement, setHabitStatement] = useState('');
@@ -1008,21 +938,6 @@ export default function HomeChecklist() {
     new Set([0, 1, 2, 3, 4, 5, 6])
   );
   const [habitEndDate, setHabitEndDate] = useState('');
-
-  const handleToggleTodo = async (focus: Focus) => {
-    try {
-      await updateFocus.mutateAsync({
-        id: focus.id,
-        body: { status: focus.status === 'completed' ? 'active' : 'completed' },
-      });
-    } catch {
-      toast({
-        title: t('common.error', 'Error'),
-        description: 'Failed to update.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleToggleHabit = async (habit: RecurringFocus) => {
     try {
@@ -1090,30 +1005,6 @@ export default function HomeChecklist() {
     }
   };
 
-  const openAddTodo = () => {
-    setTodoStatement('');
-    setTodoDate(selectedDate);
-    setIsAddTodoOpen(true);
-  };
-
-  const handleCreateTodo = async () => {
-    if (!todoStatement.trim()) return;
-    try {
-      await createFocus.mutateAsync({
-        timeframe: 'daily',
-        statement: todoStatement.trim(),
-        period_date: todoDate,
-      });
-      setIsAddTodoOpen(false);
-    } catch {
-      toast({
-        title: t('common.error', 'Error'),
-        description: 'Failed to create to-do.',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const openAddHabit = () => {
     setHabitStatement('');
     setHabitDays(new Set([0, 1, 2, 3, 4, 5, 6]));
@@ -1151,52 +1042,7 @@ export default function HomeChecklist() {
 
       {isLoading && <p>{t('common.loading', 'Loading...')}</p>}
 
-      <Collapsible open={isTodoOpen} onOpenChange={setIsTodoOpen}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="flex cursor-pointer flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                {t('focus.todoList', 'To-Do List')}
-                <Badge variant="secondary">
-                  {snapshot?.scheduled.length ?? 0}
-                </Badge>
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openAddTodo();
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-                <ChevronDown className="h-4 w-4" />
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="space-y-2">
-              {(snapshot?.scheduled.length ?? 0) === 0 && (
-                <EmptyState
-                  emoji="🎉"
-                  title={t('focus.allCaughtUp', 'All caught up for today!')}
-                  actionLabel={t('focus.addTask', 'Add Task')}
-                  onAction={openAddTodo}
-                />
-              )}
-              {snapshot?.scheduled.map((focus) => (
-                <ToDoRow
-                  key={focus.id}
-                  focus={focus}
-                  onToggle={handleToggleTodo}
-                />
-              ))}
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+      <ToDoCard selectedDate={selectedDate} />
 
       <Collapsible open={isHabitsOpen} onOpenChange={setIsHabitsOpen}>
         <Card>
@@ -1271,46 +1117,6 @@ export default function HomeChecklist() {
               onClick={handleSaveNumeric}
               disabled={upsertCheckin.isPending}
             >
-              {t('common.save', 'Save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAddTodoOpen} onOpenChange={setIsAddTodoOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('focus.addTodo', 'Add To-Do')}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="home-todo-statement">
-                {t('focus.statement', 'Statement')}
-              </Label>
-              <Textarea
-                id="home-todo-statement"
-                value={todoStatement}
-                onChange={(e) => setTodoStatement(e.target.value)}
-                placeholder={t(
-                  'focus.statementPlaceholder',
-                  'e.g. Finish the client proposal'
-                )}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="home-todo-date">
-                {t('focus.scheduleDate', 'Date')}
-              </Label>
-              <Input
-                id="home-todo-date"
-                type="date"
-                value={todoDate}
-                onChange={(e) => setTodoDate(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleCreateTodo} disabled={createFocus.isPending}>
               {t('common.save', 'Save')}
             </Button>
           </DialogFooter>

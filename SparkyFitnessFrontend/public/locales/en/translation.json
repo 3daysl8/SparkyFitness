@@ -644,6 +644,8 @@
     "reflection": "Reflection (optional)",
     "todoList": "To-Do List",
     "noneScheduled": "Nothing scheduled for this day.",
+    "noTasksThisWeek": "Nothing scheduled this week.",
+    "scheduleTime": "Time (optional)",
     "dailyHabits": "Daily Habits",
     "noneRecurring": "No habits due on this day.",
     "addHabitHint": "Add one to start building a streak.",

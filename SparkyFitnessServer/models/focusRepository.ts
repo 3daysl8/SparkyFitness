@@ -10,7 +10,7 @@ const DOMAIN_COLS =
   'id, user_id, name, color, icon, sort_order, created_at, updated_at';
 
 const FOCUS_COLS = `id, user_id, domain_id, timeframe, statement, target_type,
-  target_value, unit, parent_focus_id, period_date, status,
+  target_value, unit, parent_focus_id, period_date, due_time, status,
   recurrence_days_of_week, recurrence_end_date, created_at, updated_at`;
 
 const CHECKIN_COLS = `id, user_id, focus_id, checkin_date, progress_value,
@@ -100,7 +100,13 @@ async function deleteDomain(userId: string, id: string): Promise<boolean> {
 
 async function listFocuses(
   userId: string,
-  filters: { timeframe?: string; domainId?: string; status?: string }
+  filters: {
+    timeframe?: string;
+    domainId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }
 ) {
   const client = await getClient(userId);
   try {
@@ -117,6 +123,14 @@ async function listFocuses(
     if (filters.status) {
       params.push(filters.status);
       conditions.push(`status = $${params.length}`);
+    }
+    if (filters.startDate) {
+      params.push(filters.startDate);
+      conditions.push(`period_date >= $${params.length}`);
+    }
+    if (filters.endDate) {
+      params.push(filters.endDate);
+      conditions.push(`period_date <= $${params.length}`);
     }
     const result = await client.query(
       `SELECT ${FOCUS_COLS} FROM focuses WHERE ${conditions.join(' AND ')}
@@ -148,9 +162,9 @@ async function createFocus(userId: string, data: CreateFocusBody) {
     const result = await client.query(
       `INSERT INTO focuses (
          user_id, domain_id, timeframe, statement, target_type, target_value,
-         unit, parent_focus_id, period_date, status,
+         unit, parent_focus_id, period_date, due_time, status,
          recurrence_days_of_week, recurrence_end_date)
-       VALUES ($1, $2, $3, $4, COALESCE($5, 'none'), $6, $7, $8, $9, COALESCE($10, 'active'), $11, $12)
+       VALUES ($1, $2, $3, $4, COALESCE($5, 'none'), $6, $7, $8, $9, $10, COALESCE($11, 'active'), $12, $13)
        RETURNING ${FOCUS_COLS}`,
       [
         userId,
@@ -162,6 +176,7 @@ async function createFocus(userId: string, data: CreateFocusBody) {
         data.unit ?? null,
         data.parent_focus_id ?? null,
         data.period_date ?? null,
+        data.due_time ?? null,
         data.status ?? null,
         data.recurrence_days_of_week ?? null,
         data.recurrence_end_date ?? null,
@@ -187,6 +202,7 @@ async function updateFocus(userId: string, id: string, data: UpdateFocusBody) {
         'unit',
         'parent_focus_id',
         'period_date',
+        'due_time',
         'status',
         'recurrence_days_of_week',
         'recurrence_end_date',
@@ -357,7 +373,8 @@ async function getTodaySnapshot(
     const [scheduled, recurring, weekly, longTerm] = await Promise.all([
       client.query(
         `SELECT ${FOCUS_COLS} FROM focuses
-         WHERE user_id = $1 AND timeframe = 'daily' AND status = 'active' AND period_date = $2`,
+         WHERE user_id = $1 AND timeframe = 'daily' AND status = 'active' AND period_date = $2
+         ORDER BY due_time ASC NULLS LAST, created_at ASC`,
         [userId, date]
       ),
       client.query(

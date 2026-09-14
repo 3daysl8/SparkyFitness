@@ -5,6 +5,12 @@ const optionalNullableString = z.string().nullable().optional();
 const dayString = z
   .string()
   .refine((v) => isDayString(v), { message: 'Expected YYYY-MM-DD' });
+// 24h time-of-day, e.g. "07:00" or "07:00:00" (matches a Postgres TIME column).
+const timeOfDayString = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, {
+    message: 'Expected HH:MM or HH:MM:SS (24h)',
+  });
 
 const TIMEFRAMES = ['daily', 'weekly', 'long_term'] as const;
 const TARGET_TYPES = ['none', 'numeric', 'boolean'] as const;
@@ -40,6 +46,7 @@ export const CreateFocusBodySchema = z
     unit: optionalNullableString,
     parent_focus_id: z.string().uuid().nullable().optional(),
     period_date: dayString.nullable().optional(),
+    due_time: timeOfDayString.nullable().optional(),
     status: z.enum(STATUSES).optional(),
     recurrence_days_of_week: recurrenceDaysOfWeekSchema,
     recurrence_end_date: dayString.nullable().optional(),
@@ -57,6 +64,7 @@ export const UpdateFocusBodySchema = z
     unit: optionalNullableString,
     parent_focus_id: z.string().uuid().nullable().optional(),
     period_date: dayString.nullable().optional(),
+    due_time: timeOfDayString.nullable().optional(),
     status: z.enum(STATUSES).optional(),
     recurrence_days_of_week: recurrenceDaysOfWeekSchema,
     recurrence_end_date: dayString.nullable().optional(),
@@ -70,6 +78,11 @@ export const ListFocusQuerySchema = z
     timeframe: z.enum(TIMEFRAMES).optional(),
     domain_id: z.string().uuid().optional(),
     status: z.enum(STATUSES).optional(),
+    // Range filter on period_date, for the To-Do List card's Week view (an
+    // unfiltered NULL period_date, i.e. a recurring habit, never matches a
+    // range and is naturally excluded).
+    startDate: dayString.optional(),
+    endDate: dayString.optional(),
   })
   .loose();
 
