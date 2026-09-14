@@ -2,21 +2,14 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Clock,
-  Pill,
-  Tablets,
-  CheckCircle2,
-  X,
+  Check,
   RotateCcw,
-  Calendar,
   Pencil,
   Trash2,
-  Activity,
-  Trophy,
-  Flame,
-  type LucideIcon,
+  CheckCircle2,
+  Plus,
 } from 'lucide-react';
 import {
-  addDays,
   getDueDosesForDate,
   dayToUtcRange,
   localDateTimeToUtc,
@@ -24,6 +17,7 @@ import {
   formatDose,
   type SharedScheduleRule,
 } from '@workspace/shared';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,13 +44,12 @@ import {
   useUpdateMedicationEntryMutation,
   useDeleteMedicationEntryMutation,
 } from '@/hooks/useMedications';
-import { visibleDoseCards, type MedSubtype } from './medicationUtils';
 import type {
   MedicationDetail,
   MedicationEntry,
   MedicationSchedule,
 } from '@/types/medications';
-import { MedTypeIcon } from './AddMedicationDialog';
+import AddMedicationDialog, { MedTypeIcon } from './AddMedicationDialog';
 import MedicationLogCalendar from './MedicationLogCalendar';
 
 export interface DueDose {
@@ -69,29 +62,48 @@ export interface TodayMedicationsProps {
   today: string;
   meds: MedicationDetail[];
   entries: MedicationEntry[];
-  recentEntries: MedicationEntry[];
   loadingMeds: boolean;
   loadingEntries: boolean;
   onSelectDate: (date: string) => void;
-  subtype?: MedSubtype;
 }
+
+type StackGroupKey = 'morning' | 'afternoon' | 'evening' | 'asNeeded';
+
+interface StackRow {
+  key: string;
+  name: string;
+  doseLabel: string | null;
+  notes: string | null;
+  timeLabel: string | null;
+  timeOfDay: string | null;
+  isPrn: boolean;
+  entry: MedicationEntry | undefined;
+  take: () => void;
+}
+
+// Buckets a row by its schedule time. PRN items and anything without a fixed
+// time (schedule_type_id 'prn' or a null time_of_day) fall into "As Needed" —
+// there is no clock time to group them by.
+const bucketForRow = (row: StackRow): StackGroupKey => {
+  if (row.isPrn || !row.timeOfDay) return 'asNeeded';
+  const hour = parseInt(row.timeOfDay.split(':')[0] ?? '', 10);
+  if (Number.isNaN(hour)) return 'asNeeded';
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+};
 
 export default function TodayMedications({
   selectedDate,
   today,
   meds,
   entries,
-  recentEntries,
   loadingMeds,
   loadingEntries,
   onSelectDate,
-  subtype = 'all',
 }: TodayMedicationsProps) {
   const { t } = useTranslation();
   const { timezone, formatTime, timeFormat } = usePreferences();
-
-  // Notes state for logging
-  const [logNotes, setLogNotes] = useState<Record<string, string>>({});
 
   // Edit-time dialog state (correct the "when" of an already-logged dose)
   const [editingEntry, setEditingEntry] = useState<MedicationEntry | null>(
@@ -128,305 +140,6 @@ export default function TodayMedications({
     });
   }, [meds, dueDoses]);
 
-  // Split the ALREADY subtype-filtered lists for the two Log cards.
-  const medicationDues = useMemo(
-    () => dueDoses.filter((d) => !d.medication.is_supplement),
-    [dueDoses]
-  );
-  const supplementDues = useMemo(
-    () => dueDoses.filter((d) => Boolean(d.medication.is_supplement)),
-    [dueDoses]
-  );
-  const medicationPrns = useMemo(
-    () => prnMeds.filter((m) => !m.is_supplement),
-    [prnMeds]
-  );
-  const supplementPrns = useMemo(
-    () => prnMeds.filter((m) => Boolean(m.is_supplement)),
-    [prnMeds]
-  );
-
-  const { medications: showMedicationCard, supplements: showSupplementCard } =
-    visibleDoseCards(
-      subtype,
-      supplementDues.length > 0 || supplementPrns.length > 0
-    );
-
-  const renderDoseCard = ({
-    title,
-    description,
-    emptyDueText,
-    emptyPrnText,
-    loadingPrnText,
-    Icon,
-    accentBg,
-    accentFg,
-    dues,
-    prns,
-  }: {
-    title: string;
-    description: string;
-    emptyDueText: string;
-    emptyPrnText: string;
-    loadingPrnText: string;
-    Icon: LucideIcon;
-    accentBg: string;
-    accentFg: string;
-    dues: typeof dueDoses;
-    prns: typeof prnMeds;
-  }) => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <span
-            className={`inline-flex h-6 w-6 items-center justify-center rounded-full ${accentBg}`}
-          >
-            <Icon className={`h-3.5 w-3.5 ${accentFg}`} />
-          </span>
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Due Today Group */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
-            <Clock className="h-3.5 w-3.5" />{' '}
-            {t('medications.today.dueToday', 'Due today')}
-          </h3>
-
-          {loadingMeds && (
-            <p className="text-sm text-muted-foreground">
-              {t('medications.today.loadingChecklist', 'Loading checklist…')}
-            </p>
-          )}
-          {!loadingMeds && dues.length === 0 && (
-            <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-dashed text-center">
-              {emptyDueText}
-            </div>
-          )}
-          {!loadingMeds &&
-            dues.map((due, idx) => {
-              const entry = entries.find((e) => entryMatchesDue(e, due));
-              const isLogged =
-                entry &&
-                (entry.status === 'taken' || entry.status === 'skipped');
-              const isSnoozed = entry && entry.status === 'snoozed';
-              const doseLabel = formatDose(due.medication, due.schedule);
-
-              return (
-                <div
-                  key={`${due.medication.id}-${due.schedule.id}-${idx}`}
-                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg transition-all ${
-                    isLogged
-                      ? 'bg-muted/30 border-muted text-muted-foreground'
-                      : isSnoozed
-                        ? 'border-amber-200 bg-amber-50/20'
-                        : 'bg-card border-border hover:shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 shrink-0">
-                      {isLogged && entry.status === 'taken' ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : isLogged && entry.status === 'skipped' ? (
-                        <X className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <MedTypeIcon
-                          typeId={due.medication.type_id}
-                          className="h-5 w-5"
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p
-                          className={`font-semibold text-sm ${isLogged ? 'line-through' : ''}`}
-                        >
-                          {due.medication.display_name || due.medication.name}
-                        </p>
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] px-1.5 py-0 border-blue-200 text-blue-700 bg-blue-50/50 dark:border-blue-900 dark:text-blue-300 dark:bg-blue-950/30"
-                        >
-                          {t('medications.today.scheduled', 'Scheduled')}
-                        </Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-x-2 text-xs text-muted-foreground mt-0.5">
-                        {doseLabel != null && (
-                          <>
-                            <span>{doseLabel}</span>
-                            <span>•</span>
-                          </>
-                        )}
-                        <span className="flex items-center gap-1 font-medium text-primary">
-                          <Clock className="h-3 w-3" />
-                          {due.schedule.time_of_day
-                            ? formatTimeOfDayString(
-                                due.schedule.time_of_day,
-                                timeFormat
-                              )
-                            : t('medications.schedule.anyTime', 'Any time')}
-                        </span>
-                      </div>
-                      {!isLogged && (
-                        <Input
-                          placeholder={t(
-                            'medications.today.addNote',
-                            'Add note...'
-                          )}
-                          value={logNotes[due.schedule.id] || ''}
-                          onChange={(e) =>
-                            setLogNotes((prev) => ({
-                              ...prev,
-                              [due.schedule.id]: e.target.value,
-                            }))
-                          }
-                          className="h-7 text-xs mt-2 max-w-[200px]"
-                        />
-                      )}
-                      {isLogged && entry?.notes && (
-                        <p className="text-xs text-muted-foreground italic mt-1.5">
-                          {t('medications.today.note', 'Note:')} {entry.notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 mt-3 sm:mt-0 shrink-0">
-                    {isLogged && entry ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-xs hover:bg-destructive/10 hover:text-destructive flex items-center gap-1"
-                        onClick={() => handleUndoEntry(entry)}
-                        disabled={isPending}
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />{' '}
-                        {t('medications.today.undo', 'Undo')}
-                      </Button>
-                    ) : (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs text-amber-600 border-amber-200 hover:bg-amber-50"
-                          onClick={() => handleLogScheduled(due, 'snoozed')}
-                          disabled={isPending || isSnoozed}
-                        >
-                          {isSnoozed
-                            ? t('medications.today.snoozed', 'Snoozed')
-                            : t('medications.today.snooze', 'Snooze')}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs text-muted-foreground hover:bg-muted"
-                          onClick={() => handleLogScheduled(due, 'skipped')}
-                          disabled={isPending}
-                        >
-                          {t('medications.today.skip', 'Skip')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => handleLogScheduled(due, 'taken')}
-                          disabled={isPending}
-                        >
-                          {t('medications.today.take', 'Take')}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-
-        {/* As Needed Group */}
-        <div className="space-y-3 pt-4 border-t border-border">
-          <div>
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
-              <Pill className="h-3.5 w-3.5" />{' '}
-              {t('medications.today.asNeeded', 'As needed')}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {t(
-                'medications.today.asNeededHint',
-                'Tap to log a dose now (no fixed schedule or not due today).'
-              )}
-            </p>
-          </div>
-
-          {loadingMeds && (
-            <p className="text-sm text-muted-foreground">{loadingPrnText}</p>
-          )}
-          {!loadingMeds && prns.length === 0 && (
-            <p className="text-sm text-muted-foreground py-2 text-center bg-muted/10 rounded-lg border border-dashed">
-              {emptyPrnText}
-            </p>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {prns.map((med) => {
-              const prnSched = med.schedules?.find(
-                (s) => s.schedule_type_id === 'prn'
-              );
-              const schedId = prnSched?.id || med.id;
-              return (
-                <div
-                  key={med.id}
-                  className="flex flex-col p-3 border rounded-lg bg-card border-border hover:shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <MedTypeIcon
-                        typeId={med.type_id}
-                        className="h-4.5 w-4.5 shrink-0"
-                      />
-                      <div className="text-left truncate">
-                        <p className="font-semibold text-xs truncate">
-                          {med.display_name || med.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {formatDose(med) ?? med.type_id}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge
-                      variant="secondary"
-                      className="text-[9px] px-1.5 py-0 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-950 shrink-0"
-                    >
-                      PRN
-                    </Badge>
-                  </div>
-                  <Input
-                    placeholder={t('medications.today.addNote', 'Add note...')}
-                    value={logNotes[schedId] || ''}
-                    onChange={(e) =>
-                      setLogNotes((prev) => ({
-                        ...prev,
-                        [schedId]: e.target.value,
-                      }))
-                    }
-                    className="h-7 text-xs mt-2"
-                  />
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white mt-2 w-full"
-                    onClick={() => handleLogPrn(med)}
-                    disabled={isPending}
-                  >
-                    {t('medications.today.logIntake', 'Log Intake')}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   const completedDosesCount = useMemo(() => {
     return dueDoses.filter((due) =>
       entries.some(
@@ -436,118 +149,6 @@ export default function TodayMedications({
       )
     ).length;
   }, [dueDoses, entries]);
-
-  const progressPercentage = useMemo(() => {
-    return dueDoses.length > 0
-      ? Math.round((completedDosesCount / dueDoses.length) * 100)
-      : 100;
-  }, [completedDosesCount, dueDoses.length]);
-
-  // True 14-day adherence: evaluate each day's scheduled doses vs. what was taken.
-  const adherence14 = useMemo(() => {
-    let due = 0;
-    let taken = 0;
-    let perfectDays = 0;
-    const days: {
-      date: string;
-      due: number;
-      taken: number;
-      prnTaken: number;
-      pct: number;
-    }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const d = addDays(selectedDate, -i);
-      const dayDue = getDueDosesForDate(meds, d, timezone);
-      let dayTaken = 0;
-      for (const dd of dayDue) {
-        const hit = recentEntries.some(
-          (e) =>
-            entryMatchesDue(e, dd) &&
-            e.entry_date === d &&
-            (e.status === 'taken' || e.status === 'prn_taken')
-        );
-        if (hit) dayTaken++;
-      }
-      const dayPrnTaken = recentEntries.filter(
-        (e) => e.entry_date === d && e.status === 'prn_taken'
-      ).length;
-      // Effective completion: scheduled taken + PRN activity (capped at due count)
-      const effectiveTaken =
-        dayDue.length > 0
-          ? Math.min(dayDue.length, dayTaken + dayPrnTaken)
-          : dayPrnTaken;
-      const effectivePct =
-        dayDue.length > 0
-          ? Math.round((effectiveTaken / dayDue.length) * 100)
-          : dayPrnTaken > 0
-            ? 100
-            : -1;
-      days.push({
-        date: d,
-        due: dayDue.length,
-        taken: dayTaken,
-        prnTaken: dayPrnTaken,
-        pct: effectivePct,
-      });
-      if (dayDue.length > 0) {
-        due += dayDue.length;
-        taken += effectiveTaken;
-        if (effectiveTaken >= dayDue.length) perfectDays++;
-      } else if (dayPrnTaken > 0) {
-        due += 1;
-        taken += 1;
-        perfectDays++;
-      }
-    }
-    // Current streak of perfect days (walk back from newest).
-    let streak = 0;
-    let startIndex = days.length - 1;
-    const todayDay = days[startIndex];
-    if (todayDay) {
-      const todayHasSkips = recentEntries.some(
-        (e) => e.entry_date === todayDay.date && e.status === 'skipped'
-      );
-      const todayIsComplete =
-        todayDay.due > 0
-          ? todayDay.taken === todayDay.due
-          : todayDay.prnTaken > 0;
-
-      if (!todayIsComplete && !todayHasSkips) {
-        startIndex = days.length - 2; // start from yesterday
-      }
-    }
-
-    for (let k = startIndex; k >= 0; k--) {
-      const day = days[k];
-      if (!day) continue;
-
-      const hasSkips = recentEntries.some(
-        (e) => e.entry_date === day.date && e.status === 'skipped'
-      );
-
-      if (day.due > 0) {
-        if (day.taken === day.due && !hasSkips) {
-          streak++;
-        } else {
-          break;
-        }
-      } else if (day.prnTaken > 0) {
-        if (!hasSkips) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-    }
-    return {
-      due,
-      taken,
-      perfectDays,
-      days,
-      streak,
-      pct: due > 0 ? Math.round((taken / due) * 100) : 100,
-    };
-  }, [meds, selectedDate, recentEntries, timezone]);
 
   const handleLogScheduled = (
     due: DueDose,
@@ -568,63 +169,93 @@ export default function TodayMedications({
       }
     }
 
-    const notesVal = logNotes[due.schedule.id]?.trim() || null;
     const takenAt =
       selectedDate === today
         ? new Date().toISOString()
         : `${selectedDate}T12:00:00.000Z`;
-    const clearNote = () =>
-      setLogNotes((prev) => {
-        const copy = { ...prev };
-        delete copy[due.schedule.id];
-        return copy;
-      });
 
-    createEntryMutation.mutate(
-      {
-        medication_id: due.medication.id,
-        schedule_id: due.schedule.id,
-        status,
-        taken_at: takenAt,
-        scheduled_for: scheduledFor,
-        entry_date: selectedDate,
-        notes: notesVal,
-      },
-      { onSuccess: clearNote }
-    );
+    createEntryMutation.mutate({
+      medication_id: due.medication.id,
+      schedule_id: due.schedule.id,
+      status,
+      taken_at: takenAt,
+      scheduled_for: scheduledFor,
+      entry_date: selectedDate,
+      notes: null,
+    });
   };
 
   const handleLogPrn = (med: MedicationDetail) => {
     const prnSched = med.schedules?.find((s) => s.schedule_type_id === 'prn');
-    const schedId = prnSched?.id || med.id;
-    const notesVal = logNotes[schedId]?.trim() || null;
     const takenAt =
       selectedDate === today
         ? new Date().toISOString()
         : `${selectedDate}T12:00:00.000Z`;
-    const clearNote = () =>
-      setLogNotes((prev) => {
-        const copy = { ...prev };
-        delete copy[schedId];
-        return copy;
-      });
 
-    createEntryMutation.mutate(
-      {
-        medication_id: med.id,
-        schedule_id: prnSched?.id || null,
-        status: 'prn_taken',
-        taken_at: takenAt,
-        entry_date: selectedDate,
-        notes: notesVal,
-      },
-      { onSuccess: clearNote }
-    );
+    createEntryMutation.mutate({
+      medication_id: med.id,
+      schedule_id: prnSched?.id || null,
+      status: 'prn_taken',
+      taken_at: takenAt,
+      entry_date: selectedDate,
+      notes: null,
+    });
   };
 
   const handleUndoEntry = (entry: MedicationEntry) => {
     deleteEntryMutation.mutate(entry.id);
   };
+
+  const stackRows: StackRow[] = [];
+
+  dueDoses.forEach((due, idx) => {
+    const entry = entries.find((e) => entryMatchesDue(e, due));
+    stackRows.push({
+      key: `due-${due.medication.id}-${due.schedule.id}-${idx}`,
+      name: due.medication.display_name || due.medication.name,
+      doseLabel: formatDose(due.medication, due.schedule),
+      notes: due.medication.notes,
+      timeLabel: due.schedule.time_of_day
+        ? formatTimeOfDayString(due.schedule.time_of_day, timeFormat)
+        : null,
+      timeOfDay: due.schedule.time_of_day ?? null,
+      isPrn: false,
+      entry,
+      take: () => handleLogScheduled(due, 'taken'),
+    });
+  });
+
+  prnMeds.forEach((med) => {
+    const entry = entries.find(
+      (e) => e.medication_id === med.id && e.status === 'prn_taken'
+    );
+    stackRows.push({
+      key: `prn-${med.id}`,
+      name: med.display_name || med.name,
+      doseLabel: formatDose(med),
+      notes: med.notes,
+      timeLabel: null,
+      timeOfDay: null,
+      isPrn: true,
+      entry,
+      take: () => handleLogPrn(med),
+    });
+  });
+
+  const groupedRows: Record<StackGroupKey, StackRow[]> = {
+    morning: [],
+    afternoon: [],
+    evening: [],
+    asNeeded: [],
+  };
+  stackRows.forEach((row) => groupedRows[bucketForRow(row)].push(row));
+
+  const stackGroupOrder: { key: StackGroupKey; label: string }[] = [
+    { key: 'morning', label: t('medications.today.morning', 'Morning') },
+    { key: 'afternoon', label: t('medications.today.afternoon', 'Afternoon') },
+    { key: 'evening', label: t('medications.today.evening', 'Evening') },
+    { key: 'asNeeded', label: t('medications.today.asNeeded', 'As Needed') },
+  ];
 
   const openEditEntry = (entry: MedicationEntry) => {
     setEditingEntry(entry);
@@ -662,295 +293,169 @@ export default function TodayMedications({
     }
   };
 
-  const ringColor = useMemo(() => {
-    return adherence14.pct >= 90
-      ? '#22c55e'
-      : adherence14.pct >= 70
-        ? '#f59e0b'
-        : '#ef4444';
-  }, [adherence14.pct]);
-
-  const tiles = useMemo(() => {
-    return [
-      {
-        label:
-          selectedDate === today
-            ? t('medications.today.dosesToday', 'Doses today')
-            : t('medications.today.doses', 'Doses'),
-        value: `${completedDosesCount}/${dueDoses.length}`,
-        Icon: Pill,
-        grad: 'from-emerald-50 to-white dark:from-emerald-950/40 dark:to-transparent',
-        chip: 'bg-emerald-100 dark:bg-emerald-900/50',
-        num: 'text-emerald-600 dark:text-emerald-400',
-      },
-      {
-        label: t('medications.today.adherence14', '14-day adherence'),
-        value: `${adherence14.pct}%`,
-        Icon: CheckCircle2,
-        grad: 'from-blue-50 to-white dark:from-blue-950/40 dark:to-transparent',
-        chip: 'bg-blue-100 dark:bg-blue-900/50',
-        num: 'text-blue-600 dark:text-blue-400',
-      },
-      {
-        label: t('medications.today.perfectDays', 'Perfect days (14d)'),
-        value: String(adherence14.perfectDays),
-        Icon: Trophy,
-        grad: 'from-amber-50 to-white dark:from-amber-950/40 dark:to-transparent',
-        chip: 'bg-amber-100 dark:bg-amber-900/50',
-        num: 'text-amber-600 dark:text-amber-400',
-      },
-    ];
-  }, [
-    selectedDate,
-    today,
-    completedDosesCount,
-    dueDoses.length,
-    adherence14.pct,
-    adherence14.perfectDays,
-    t,
-  ]);
-
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:items-start">
         <div className="space-y-6">
-          {/* Today stats + 14-day adherence ring */}
+          {/* Today's Stack: unified checklist of everything due or as-needed today */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/50">
-                  <Activity className="h-3.5 w-3.5 text-indigo-500" />
-                </span>
-                {t('medications.today.adherenceTitle', 'Adherence overview')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-0">
-              <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-between">
-                <div className="grid w-full grid-cols-3 gap-3">
-                  {tiles.map((tile) => (
-                    <div
-                      key={tile.label}
-                      className={`rounded-xl border bg-gradient-to-br ${tile.grad} p-3`}
-                    >
-                      <div
-                        className={`mb-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full ${tile.chip}`}
-                      >
-                        <tile.Icon className="h-4.5 w-4.5" />
-                      </div>
-                      <p
-                        className={`text-2xl font-bold leading-none tabular-nums ${tile.num}`}
-                      >
-                        {tile.value}
-                      </p>
-                      <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-                        {tile.label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <div className="relative h-24 w-24 shrink-0">
-                  <svg viewBox="0 0 36 36" className="h-24 w-24 -rotate-90">
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r="15.9155"
-                      fill="none"
-                      className="stroke-muted"
-                      strokeWidth="3"
-                    />
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r="15.9155"
-                      fill="none"
-                      stroke={ringColor}
-                      strokeWidth="3"
-                      strokeDasharray={`${adherence14.pct}, 100`}
-                      strokeLinecap="round"
-                      style={{ transition: 'stroke-dasharray 0.6s ease' }}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span
-                      className="text-lg font-bold tabular-nums"
-                      style={{ color: ringColor }}
-                    >
-                      {adherence14.pct}%
-                    </span>
-                    <span className="text-[9px] text-muted-foreground">
-                      {t('medications.today.ring14Day', '14-day')}
-                    </span>
-                  </div>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="text-base font-semibold">
+                  {t('medications.today.stackTitle', "Today's Stack")}
+                </CardTitle>
+                {dueDoses.length > 0 && (
+                  <Badge variant="secondary">
+                    {t(
+                      'medications.today.takenBadge',
+                      '{{done}}/{{total}} Taken',
+                      {
+                        done: completedDosesCount,
+                        total: dueDoses.length,
+                      }
+                    )}
+                  </Badge>
+                )}
               </div>
-
-              {/* 14-day adherence strip + streak */}
-              <div>
-                <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{t('medications.today.last14', 'Last 14 days')}</span>
-                  {adherence14.streak > 0 && (
-                    <span className="flex items-center gap-1 font-semibold text-orange-500">
-                      <Flame className="h-3.5 w-3.5 fill-orange-500/20" />{' '}
-                      {t('medications.today.streak', '{{count}}-day streak', {
-                        count: adherence14.streak,
-                      })}
+              <AddMedicationDialog
+                defaultIsSupplement
+                trigger={
+                  <Button size="sm" className="gap-1.5">
+                    <Plus className="h-4 w-4" />
+                    <span className="text-xs font-semibold">
+                      {t('medications.cabinet.addSupplement', 'Add Supplement')}
                     </span>
+                  </Button>
+                }
+              />
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {loadingMeds && (
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    'medications.today.loadingChecklist',
+                    'Loading checklist…'
+                  )}
+                </p>
+              )}
+              {!loadingMeds && stackRows.length === 0 && (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  {t(
+                    'medications.today.emptyStack',
+                    'Nothing scheduled. Add a supplement to build your daily stack.'
                   )}
                 </div>
-                <div className="flex h-10 items-end gap-1">
-                  {adherence14.days.map((d, i) => {
-                    const noScheduled = d.due === 0;
-                    const hasPrn = d.prnTaken > 0;
-                    const idle = noScheduled && !hasPrn;
-
-                    const color = idle
-                      ? 'bg-muted'
-                      : d.pct === 100
-                        ? 'bg-green-500'
-                        : d.pct >= 50
-                          ? 'bg-amber-500'
-                          : d.pct > 0
-                            ? 'bg-orange-500'
-                            : 'bg-red-500';
-
-                    const tooltip = noScheduled
-                      ? hasPrn
-                        ? `${d.date}: ${d.prnTaken} PRN dose${d.prnTaken > 1 ? 's' : ''}`
-                        : `${d.date}: no doses`
-                      : `${d.date}: ${d.taken}/${d.due} taken${d.prnTaken > 0 ? ` + ${d.prnTaken} PRN` : ''}`;
-
-                    const height = idle
-                      ? 18
-                      : noScheduled && hasPrn
-                        ? Math.min(100, 40 + d.prnTaken * 20)
-                        : Math.max(14, d.pct);
-
-                    return (
-                      <div
-                        key={i}
-                        title={tooltip}
-                        className={`flex-1 rounded-sm transition-all hover:opacity-80 ${color} ${idle ? 'opacity-40' : ''}`}
-                        style={{
-                          height: `${height}%`,
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Progress Banner */}
-          <Card className="bg-gradient-to-r from-blue-500/10 to-teal-500/10 border border-blue-500/20 shadow-sm">
-            <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-blue-500" />{' '}
-                  {selectedDate === today
-                    ? t('medications.today.checklistToday', "Today's Checklist")
-                    : t(
-                        'medications.today.checklistMed',
-                        'Medication Checklist'
-                      )}
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  {dueDoses.length === 0
-                    ? selectedDate === today
-                      ? t(
-                          'medications.today.noScheduledToday',
-                          'No scheduled doses for today.'
-                        )
-                      : t(
-                          'medications.today.noScheduledDay',
-                          'No scheduled doses for this day.'
-                        )
-                    : selectedDate === today
-                      ? t('medications.today.loggedToday', {
-                          completed: completedDosesCount,
-                          total: dueDoses.length,
-                          defaultValue: `${completedDosesCount} of ${dueDoses.length} doses logged today.`,
-                        })
-                      : t('medications.today.loggedDay', {
-                          completed: completedDosesCount,
-                          total: dueDoses.length,
-                          defaultValue: `${completedDosesCount} of ${dueDoses.length} doses logged for this day.`,
-                        })}
-                </CardDescription>
-              </div>
-              {dueDoses.length > 0 && (
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <div className="w-full bg-muted rounded-full h-2.5 max-w-[200px] overflow-hidden">
-                    <div
-                      className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
-                      style={{ width: `${progressPercentage}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm font-semibold">
-                    {progressPercentage}%
-                  </span>
-                </div>
               )}
+              {!loadingMeds &&
+                stackGroupOrder.map((group) => {
+                  const rows = groupedRows[group.key];
+                  if (rows.length === 0) return null;
+                  return (
+                    <div key={group.key} className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {group.label}
+                      </h3>
+                      <div className="space-y-2">
+                        {rows.map((row) => {
+                          const isDone = !!row.entry;
+                          return (
+                            <div
+                              key={row.key}
+                              className={cn(
+                                'flex items-center gap-3 rounded-lg border p-3 transition-colors',
+                                isDone
+                                  ? 'border-muted bg-muted/30'
+                                  : 'border-border bg-card hover:shadow-sm'
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  isDone && row.entry
+                                    ? handleUndoEntry(row.entry)
+                                    : row.take()
+                                }
+                                disabled={isPending}
+                                aria-label={
+                                  isDone
+                                    ? t('medications.today.undo', 'Undo')
+                                    : t('medications.today.take', 'Take')
+                                }
+                                className={cn(
+                                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors',
+                                  isDone
+                                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                                    : 'border-muted-foreground/30 text-transparent hover:border-emerald-400'
+                                )}
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className={cn(
+                                    'text-sm font-medium',
+                                    isDone &&
+                                      'text-muted-foreground line-through opacity-70'
+                                  )}
+                                >
+                                  {row.name}
+                                </p>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                                  {row.doseLabel && (
+                                    <span>{row.doseLabel}</span>
+                                  )}
+                                  {row.doseLabel && row.notes && <span>·</span>}
+                                  {row.notes && (
+                                    <span className="italic">{row.notes}</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                {row.timeLabel ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1 text-[10px] font-medium"
+                                  >
+                                    <Clock className="h-3 w-3" />
+                                    {row.timeLabel}
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[10px]"
+                                  >
+                                    {t(
+                                      'medications.schedule.anyTime',
+                                      'Any time'
+                                    )}
+                                  </Badge>
+                                )}
+                                {isDone && row.entry && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-1.5 text-[11px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() =>
+                                      row.entry && handleUndoEntry(row.entry)
+                                    }
+                                    disabled={isPending}
+                                  >
+                                    <RotateCcw className="h-3 w-3 mr-1" />
+                                    {t('medications.today.undo', 'Undo')}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
             </CardContent>
           </Card>
-
-          {/* Today's Medications */}
-          {showMedicationCard &&
-            renderDoseCard({
-              title: t(
-                'medications.today.medicationsTitle',
-                "Today's medications"
-              ),
-              description: t(
-                'medications.today.medicationsDescription',
-                'Track scheduled doses and log as-needed medications'
-              ),
-              emptyDueText: t(
-                'medications.today.noMedicationDoses',
-                'No scheduled doses today — log any medication as-needed below.'
-              ),
-              emptyPrnText: t(
-                'medications.today.noPrnMedications',
-                'No as-needed or non-scheduled medications configured.'
-              ),
-              loadingPrnText: t(
-                'medications.today.loadingMedications',
-                'Loading active medications…'
-              ),
-              Icon: Pill,
-              accentBg: 'bg-blue-100 dark:bg-blue-900/50',
-              accentFg: 'text-blue-500',
-              dues: medicationDues,
-              prns: medicationPrns,
-            })}
-          {showSupplementCard &&
-            renderDoseCard({
-              title: t(
-                'medications.today.supplementsTitle',
-                "Today's supplements"
-              ),
-              description: t(
-                'medications.today.supplementsDescription',
-                'Track scheduled doses and log as-needed supplements'
-              ),
-              emptyDueText: t(
-                'medications.today.noSupplementDoses',
-                'No scheduled doses today — log any supplement as-needed below.'
-              ),
-              emptyPrnText: t(
-                'medications.today.noPrnSupplements',
-                'No as-needed or non-scheduled supplements configured.'
-              ),
-              loadingPrnText: t(
-                'medications.today.loadingSupplements',
-                'Loading active supplements…'
-              ),
-              Icon: Tablets,
-              accentBg: 'bg-emerald-100 dark:bg-emerald-900/50',
-              accentFg: 'text-emerald-500',
-              dues: supplementDues,
-              prns: supplementPrns,
-            })}
         </div>
 
         <div className="space-y-6">
@@ -958,7 +463,6 @@ export default function TodayMedications({
             medications={meds}
             selectedDate={selectedDate}
             onSelectDate={onSelectDate}
-            subtype={subtype}
           />
           {/* Today Activity Log Column */}
           <div>

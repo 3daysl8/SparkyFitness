@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useTranslation } from 'react-i18next';
 import { UnitInput } from '@/components/ui/UnitInput';
@@ -18,7 +24,8 @@ import {
   MAX_MEASURED_BMR_KCAL,
 } from '@workspace/shared';
 import { CheckInPlaceholders } from '@/types/checkin';
-import { History } from 'lucide-react';
+import { History, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   healthMetricLabel,
   healthMetricUnitLabel,
@@ -136,6 +143,7 @@ export const CheckInForm: React.FC<CheckInFormProps> = ({
     measurementUnit: defaultMeasurementUnit,
   } = usePreferences();
   const { t } = useTranslation();
+  const [isBodyMeasurementsOpen, setIsBodyMeasurementsOpen] = useState(false);
 
   return (
     <Card>
@@ -143,8 +151,9 @@ export const CheckInForm: React.FC<CheckInFormProps> = ({
         <CardTitle>{t('checkIn.dailyCheckIn', 'Daily Check-In')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Daily Core: the metrics logged most days, always visible. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <Label htmlFor="weight">{t('checkIn.weight', 'Weight')}</Label>
@@ -166,96 +175,6 @@ export const CheckInForm: React.FC<CheckInFormProps> = ({
               />
             </div>
 
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <Label htmlFor="height">{t('checkIn.height', 'Height')}</Label>
-                <UseLastButton
-                  value={height}
-                  lastValue={placeholders.height}
-                  onAdopt={setHeight}
-                />
-              </div>
-              <UnitInput
-                id="height"
-                type="height"
-                unit={defaultMeasurementUnit}
-                value={height}
-                placeholderValue={placeholders.height}
-                onChange={(val) =>
-                  setHeight(val !== null ? val.toString() : '')
-                }
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="steps">{t('checkIn.steps', 'Steps')}</Label>
-              <Input
-                id="steps"
-                type="number"
-                value={steps}
-                onChange={(e) => {
-                  setSteps(e.target.value);
-                }}
-                placeholder={t('checkIn.enterDailySteps', 'Enter daily steps')}
-              />
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <Label htmlFor="neck">{t('checkIn.neck', 'Neck')}</Label>
-                <UseLastButton
-                  value={neck}
-                  lastValue={placeholders.neck}
-                  onAdopt={setNeck}
-                />
-              </div>
-              <UnitInput
-                id="neck"
-                type="measurement"
-                unit={defaultMeasurementUnit}
-                value={neck}
-                placeholderValue={placeholders.neck}
-                onChange={(val) => setNeck(val !== null ? val.toString() : '')}
-              />
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <Label htmlFor="waist">{t('checkIn.waist', 'Waist')}</Label>
-                <UseLastButton
-                  value={waist}
-                  lastValue={placeholders.waist}
-                  onAdopt={setWaist}
-                />
-              </div>
-              <UnitInput
-                id="waist"
-                type="measurement"
-                unit={defaultMeasurementUnit}
-                value={waist}
-                placeholderValue={placeholders.waist}
-                onChange={(val) => setWaist(val !== null ? val.toString() : '')}
-              />
-            </div>
-
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <Label htmlFor="hips">{t('checkIn.hips', 'Hips')}</Label>
-                <UseLastButton
-                  value={hips}
-                  lastValue={placeholders.hips}
-                  onAdopt={setHips}
-                />
-              </div>
-              <UnitInput
-                id="hips"
-                type="measurement"
-                unit={defaultMeasurementUnit}
-                value={hips}
-                placeholderValue={placeholders.hips}
-                onChange={(val) => setHips(val !== null ? val.toString() : '')}
-              />
-            </div>
             <div>
               <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <Label htmlFor="bodyFat" className="whitespace-nowrap">
@@ -322,179 +241,332 @@ export const CheckInForm: React.FC<CheckInFormProps> = ({
               </div>
             </div>
 
-            {/* Smart Scale Composition Metrics. Masses go through UnitInput so
-                they follow the user's weight-unit preference like weight does;
-                state stays metric (kg). BMI is intentionally not a field here —
-                it is derived from weight and height at the point of use. */}
             <div>
-              <Label htmlFor="muscleMass">
-                {t('checkIn.muscleMass', 'Muscle Mass')}
-              </Label>
-              <UnitInput
-                id="muscleMass"
-                type="weight"
-                unit={defaultWeightUnit}
-                value={muscleMassKg}
-                onChange={(val) =>
-                  setMuscleMassKg(val !== null ? val.toString() : '')
-                }
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="boneMass">
-                {t('checkIn.boneMass', 'Bone Mass')}
-              </Label>
-              <UnitInput
-                id="boneMass"
-                type="weight"
-                unit={defaultWeightUnit}
-                value={boneMassKg}
-                onChange={(val) =>
-                  setBoneMassKg(val !== null ? val.toString() : '')
-                }
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="bodyWater">
-                {t('checkIn.bodyWater', 'Body Water %')}
-              </Label>
+              <Label htmlFor="steps">{t('checkIn.steps', 'Steps')}</Label>
               <Input
-                id="bodyWater"
+                id="steps"
                 type="number"
-                step="0.1"
-                value={bodyWaterPercentage}
-                onChange={(e) => setBodyWaterPercentage(e.target.value)}
-                placeholder="0.0"
+                value={steps}
+                onChange={(e) => {
+                  setSteps(e.target.value);
+                }}
+                placeholder={t('checkIn.enterDailySteps', 'Enter daily steps')}
               />
             </div>
+          </div>
 
-            <div>
-              <Label htmlFor="bmr">{t('checkIn.bmr', 'BMR (kcal)')}</Label>
-              <Input
-                id="bmr"
-                type="number"
-                min={MIN_MEASURED_BMR_KCAL}
-                max={MAX_MEASURED_BMR_KCAL}
-                step="1"
-                value={bmr}
-                onChange={(e) => setBmr(e.target.value)}
-                placeholder={
-                  placeholders.bmr ? placeholders.bmr.toString() : 'e.g. 1650'
-                }
-              />
-            </div>
-            {/* Custom Categories */}
-
-            {/* Custom Categories */}
-            {customCategories.map((category) => {
-              const categoryLabel = healthMetricLabel(
-                category.name,
-                category.display_name,
-                t
-              );
-              const isConvertible = shouldConvertCustomMeasurement(
-                category.measurement_type
-              );
-              const unitToUse = isConvertible
-                ? category.measurement_type === 'kg' ||
-                  category.measurement_type === 'lbs' ||
-                  category.measurement_type === 'st_lbs'
-                  ? defaultWeightUnit
-                  : defaultMeasurementUnit
-                : category.measurement_type;
-              const displayUnit = healthMetricUnitLabel(unitToUse, t);
-              const currentValue = customValues[category.id] || '';
-              // Previous value for this category, offered only while the field
-              // is empty. The server returns manual values only, so a health
-              // sample can never be adopted here.
-              const previousValue = customPlaceholders[category.id] ?? null;
-              const offerPrevious =
-                currentValue === '' && previousValue !== null;
-              const adoptPrevious = () =>
-                setCustomValues((prev) => ({
-                  ...prev,
-                  [category.id]: String(previousValue),
-                }));
-
-              return (
-                <div key={category.id}>
-                  <div className="mb-1 flex items-center justify-between">
-                    <Label htmlFor={`custom-${category.id}`}>
-                      {categoryLabel} ({displayUnit})
-                    </Label>
-                    <UseLastButton
-                      value={currentValue}
-                      lastValue={offerPrevious ? previousValue : null}
-                      onAdopt={adoptPrevious}
+          {/* Body Measurements & Composition: periodic metrics, collapsed by default. */}
+          <Collapsible
+            open={isBodyMeasurementsOpen}
+            onOpenChange={setIsBodyMeasurementsOpen}
+          >
+            <div className="rounded-lg border">
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-auto w-full justify-between gap-3 rounded-lg px-4 py-3 text-left font-normal hover:bg-muted/50"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">
+                      {t(
+                        'checkIn.bodyMeasurementsTitle',
+                        'Body Measurements & Composition'
+                      )}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                      {t(
+                        'checkIn.bodyMeasurementsSubtitle',
+                        'Neck, waist, hips, muscle mass, bone mass (Update weekly or monthly)'
+                      )}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                      isBodyMeasurementsOpen && 'rotate-180'
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t px-4 py-4">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <Label htmlFor="height">
+                        {t('checkIn.height', 'Height')}
+                      </Label>
+                      <UseLastButton
+                        value={height}
+                        lastValue={placeholders.height}
+                        onAdopt={setHeight}
+                      />
+                    </div>
+                    <UnitInput
+                      id="height"
+                      type="height"
+                      unit={defaultMeasurementUnit}
+                      value={height}
+                      placeholderValue={placeholders.height}
+                      onChange={(val) =>
+                        setHeight(val !== null ? val.toString() : '')
+                      }
                     />
                   </div>
-                  {isConvertible && category.data_type === 'numeric' ? (
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <Label htmlFor="neck">{t('checkIn.neck', 'Neck')}</Label>
+                      <UseLastButton
+                        value={neck}
+                        lastValue={placeholders.neck}
+                        onAdopt={setNeck}
+                      />
+                    </div>
                     <UnitInput
-                      id={`custom-${category.id}`}
-                      type={
-                        category.measurement_type === 'kg' ||
+                      id="neck"
+                      type="measurement"
+                      unit={defaultMeasurementUnit}
+                      value={neck}
+                      placeholderValue={placeholders.neck}
+                      onChange={(val) =>
+                        setNeck(val !== null ? val.toString() : '')
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <Label htmlFor="waist">
+                        {t('checkIn.waist', 'Waist')}
+                      </Label>
+                      <UseLastButton
+                        value={waist}
+                        lastValue={placeholders.waist}
+                        onAdopt={setWaist}
+                      />
+                    </div>
+                    <UnitInput
+                      id="waist"
+                      type="measurement"
+                      unit={defaultMeasurementUnit}
+                      value={waist}
+                      placeholderValue={placeholders.waist}
+                      onChange={(val) =>
+                        setWaist(val !== null ? val.toString() : '')
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <Label htmlFor="hips">{t('checkIn.hips', 'Hips')}</Label>
+                      <UseLastButton
+                        value={hips}
+                        lastValue={placeholders.hips}
+                        onAdopt={setHips}
+                      />
+                    </div>
+                    <UnitInput
+                      id="hips"
+                      type="measurement"
+                      unit={defaultMeasurementUnit}
+                      value={hips}
+                      placeholderValue={placeholders.hips}
+                      onChange={(val) =>
+                        setHips(val !== null ? val.toString() : '')
+                      }
+                    />
+                  </div>
+
+                  {/* Smart Scale Composition Metrics. Masses go through UnitInput so
+                      they follow the user's weight-unit preference like weight does;
+                      state stays metric (kg). BMI is intentionally not a field here —
+                      it is derived from weight and height at the point of use. */}
+                  <div>
+                    <Label htmlFor="muscleMass">
+                      {t('checkIn.muscleMass', 'Muscle Mass')}
+                    </Label>
+                    <UnitInput
+                      id="muscleMass"
+                      type="weight"
+                      unit={defaultWeightUnit}
+                      value={muscleMassKg}
+                      onChange={(val) =>
+                        setMuscleMassKg(val !== null ? val.toString() : '')
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="boneMass">
+                      {t('checkIn.boneMass', 'Bone Mass')}
+                    </Label>
+                    <UnitInput
+                      id="boneMass"
+                      type="weight"
+                      unit={defaultWeightUnit}
+                      value={boneMassKg}
+                      onChange={(val) =>
+                        setBoneMassKg(val !== null ? val.toString() : '')
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="bodyWater">
+                      {t('checkIn.bodyWater', 'Body Water %')}
+                    </Label>
+                    <Input
+                      id="bodyWater"
+                      type="number"
+                      step="0.1"
+                      value={bodyWaterPercentage}
+                      onChange={(e) => setBodyWaterPercentage(e.target.value)}
+                      placeholder="0.0"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="bmr">
+                      {t('checkIn.bmr', 'BMR (kcal)')}
+                    </Label>
+                    <Input
+                      id="bmr"
+                      type="number"
+                      min={MIN_MEASURED_BMR_KCAL}
+                      max={MAX_MEASURED_BMR_KCAL}
+                      step="1"
+                      value={bmr}
+                      onChange={(e) => setBmr(e.target.value)}
+                      placeholder={
+                        placeholders.bmr
+                          ? placeholders.bmr.toString()
+                          : 'e.g. 1650'
+                      }
+                    />
+                  </div>
+
+                  {/* Custom Categories */}
+                  {customCategories.map((category) => {
+                    const categoryLabel = healthMetricLabel(
+                      category.name,
+                      category.display_name,
+                      t
+                    );
+                    const isConvertible = shouldConvertCustomMeasurement(
+                      category.measurement_type
+                    );
+                    const unitToUse = isConvertible
+                      ? category.measurement_type === 'kg' ||
                         category.measurement_type === 'lbs' ||
                         category.measurement_type === 'st_lbs'
-                          ? 'weight'
-                          : 'measurement'
-                      }
-                      unit={unitToUse}
-                      value={currentValue}
-                      placeholderValue={
-                        offerPrevious ? Number(previousValue) : null
-                      }
-                      onChange={(val) => {
-                        setCustomValues((prev) => ({
-                          ...prev,
-                          [category.id]: val !== null ? val.toString() : '',
-                        }));
-                      }}
-                    />
-                  ) : (
-                    <Input
-                      id={`custom-${category.id}`}
-                      type={
-                        category.data_type === 'numeric' ? 'number' : 'text'
-                      }
-                      step={
-                        category.data_type === 'numeric' ? '0.01' : undefined
-                      }
-                      value={currentValue}
-                      onChange={(e) => {
-                        setCustomValues((prev) => ({
-                          ...prev,
-                          [category.id]: e.target.value,
-                        }));
-                      }}
-                      placeholder={
-                        offerPrevious
-                          ? String(previousValue)
-                          : t('checkIn.enterCustomCategory', {
-                              categoryName: categoryLabel.toLowerCase(),
-                              defaultValue: `Enter ${categoryLabel.toLowerCase()}`,
-                            })
-                      }
-                    />
-                  )}
-                  <Input
-                    id={`custom-notes-${category.id}`}
-                    type="text"
-                    value={customNotes[category.id] || ''}
-                    onChange={(e) => {
-                      setCustomNotes((prev) => ({
+                        ? defaultWeightUnit
+                        : defaultMeasurementUnit
+                      : category.measurement_type;
+                    const displayUnit = healthMetricUnitLabel(unitToUse, t);
+                    const currentValue = customValues[category.id] || '';
+                    // Previous value for this category, offered only while the field
+                    // is empty. The server returns manual values only, so a health
+                    // sample can never be adopted here.
+                    const previousValue =
+                      customPlaceholders[category.id] ?? null;
+                    const offerPrevious =
+                      currentValue === '' && previousValue !== null;
+                    const adoptPrevious = () =>
+                      setCustomValues((prev) => ({
                         ...prev,
-                        [category.id]: e.target.value,
+                        [category.id]: String(previousValue),
                       }));
-                    }}
-                    placeholder={t('checkIn.notesOptional', 'Notes (optional)')}
-                    className="mt-2"
-                  />
+
+                    return (
+                      <div key={category.id}>
+                        <div className="mb-1 flex items-center justify-between">
+                          <Label htmlFor={`custom-${category.id}`}>
+                            {categoryLabel} ({displayUnit})
+                          </Label>
+                          <UseLastButton
+                            value={currentValue}
+                            lastValue={offerPrevious ? previousValue : null}
+                            onAdopt={adoptPrevious}
+                          />
+                        </div>
+                        {isConvertible && category.data_type === 'numeric' ? (
+                          <UnitInput
+                            id={`custom-${category.id}`}
+                            type={
+                              category.measurement_type === 'kg' ||
+                              category.measurement_type === 'lbs' ||
+                              category.measurement_type === 'st_lbs'
+                                ? 'weight'
+                                : 'measurement'
+                            }
+                            unit={unitToUse}
+                            value={currentValue}
+                            placeholderValue={
+                              offerPrevious ? Number(previousValue) : null
+                            }
+                            onChange={(val) => {
+                              setCustomValues((prev) => ({
+                                ...prev,
+                                [category.id]:
+                                  val !== null ? val.toString() : '',
+                              }));
+                            }}
+                          />
+                        ) : (
+                          <Input
+                            id={`custom-${category.id}`}
+                            type={
+                              category.data_type === 'numeric'
+                                ? 'number'
+                                : 'text'
+                            }
+                            step={
+                              category.data_type === 'numeric'
+                                ? '0.01'
+                                : undefined
+                            }
+                            value={currentValue}
+                            onChange={(e) => {
+                              setCustomValues((prev) => ({
+                                ...prev,
+                                [category.id]: e.target.value,
+                              }));
+                            }}
+                            placeholder={
+                              offerPrevious
+                                ? String(previousValue)
+                                : t('checkIn.enterCustomCategory', {
+                                    categoryName: categoryLabel.toLowerCase(),
+                                    defaultValue: `Enter ${categoryLabel.toLowerCase()}`,
+                                  })
+                            }
+                          />
+                        )}
+                        <Input
+                          id={`custom-notes-${category.id}`}
+                          type="text"
+                          value={customNotes[category.id] || ''}
+                          onChange={(e) => {
+                            setCustomNotes((prev) => ({
+                              ...prev,
+                              [category.id]: e.target.value,
+                            }));
+                          }}
+                          placeholder={t(
+                            'checkIn.notesOptional',
+                            'Notes (optional)'
+                          )}
+                          className="mt-2"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           <div className="flex justify-center">
             <Button type="submit" disabled={loading} size="sm">

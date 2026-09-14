@@ -11,11 +11,9 @@ import {
   Info,
   Pill,
   Tablets,
-  Plus,
 } from 'lucide-react';
 import {
   todayInZone,
-  addDays,
   getDueDosesForDate,
   formatDose,
   formatStrengthPerUnit,
@@ -37,33 +35,15 @@ import {
 import { usePreferences } from '@/contexts/PreferencesContext';
 import type { MedicationDetail } from '@/types/medications';
 import AddMedicationDialog, { MedTypeIcon } from './AddMedicationDialog';
-import {
-  countMedicationNutrients,
-  filterEntriesBySubtype,
-  filterMedsBySubtype,
-  type MedSubtype,
-} from './medicationUtils';
+import { countMedicationNutrients } from './medicationUtils';
 import ScheduleManager from './ScheduleManager';
 import TodayMedications from './TodayMedications';
-import MedicationDisclaimer from './MedicationDisclaimer';
 import { formatScheduleDescription } from './medicationUtils';
 
 export default function Medications() {
   const { t } = useTranslation();
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [activeTab, setActiveTab] = useState<'today' | 'cabinet'>('today');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const [subtype, setSubtype] = useState<MedSubtype>(() => {
-    const stored = localStorage.getItem('medications.subtypeFilter');
-    return stored === 'meds' || stored === 'supplements' || stored === 'all'
-      ? stored
-      : 'all';
-  });
-  const setSubtypeFilter = (next: MedSubtype) => {
-    setSubtype(next);
-    localStorage.setItem('medications.subtypeFilter', next);
-  };
 
   const [searchParams, setSearchParams] = useSearchParams();
   const dateParam = searchParams.get('date');
@@ -86,11 +66,6 @@ export default function Medications() {
     }
   }, [dateParam, today, selectedDate]);
 
-  const thirtyDaysAgo = useMemo(
-    () => addDays(selectedDate, -30),
-    [selectedDate]
-  );
-
   // Queries
   const { data: meds = [], isLoading: loadingMeds } = useMedications({
     activeOnly: false,
@@ -102,45 +77,11 @@ export default function Medications() {
       toDate: selectedDate,
     });
 
-  const { data: recentEntries = [] } = useMedicationEntries({
-    fromDate: thirtyDaysAgo,
-    toDate: selectedDate,
-  });
-
-  const visibleMeds = useMemo(
-    () => filterMedsBySubtype(meds as MedicationDetail[], subtype),
-    [meds, subtype]
-  );
+  const visibleMeds = meds as MedicationDetail[];
 
   const dueTodayCount = useMemo(() => {
     return getDueDosesForDate(visibleMeds, selectedDate, timezone).length;
   }, [visibleMeds, selectedDate, timezone]);
-
-  const visibleMedIds = useMemo(
-    () => new Set(visibleMeds.map((m) => m.id)),
-    [visibleMeds]
-  );
-  const visibleEntries = useMemo(
-    () => filterEntriesBySubtype(entries, visibleMedIds, subtype),
-    [entries, visibleMedIds, subtype]
-  );
-  const visibleRecentEntries = useMemo(
-    () => filterEntriesBySubtype(recentEntries, visibleMedIds, subtype),
-    [recentEntries, visibleMedIds, subtype]
-  );
-
-  const [autoDefaulted, setAutoDefaulted] = useState(false);
-  useEffect(() => {
-    if (autoDefaulted || loadingMeds) return;
-    setAutoDefaulted(true);
-    if (
-      localStorage.getItem('medications.subtypeFilter') === null &&
-      meds.length > 0 &&
-      meds.every((m) => m.is_supplement)
-    ) {
-      setSubtype('supplements');
-    }
-  }, [autoDefaulted, loadingMeds, meds]);
 
   // Mutations
   const removeMedMutation = useDeleteMedicationMutation();
@@ -149,15 +90,6 @@ export default function Medications() {
     removeMedMutation.mutate(id, { onSuccess: () => setSelectedId(null) });
 
   const selected = visibleMeds.find((m) => m.id === selectedId) ?? null;
-
-  const hasExistingData = meds.length > 0;
-  const stillLoading = loadingMeds;
-
-  if (!stillLoading && !hasExistingData && !disclaimerAccepted) {
-    return (
-      <MedicationDisclaimer onAccept={() => setDisclaimerAccepted(true)} />
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -195,30 +127,6 @@ export default function Medications() {
               {t('medications.tabs.cabinet', 'Cabinet')}
             </span>
           </Button>
-          <span className="mx-2 text-muted-foreground/30 hidden sm:inline">
-            |
-          </span>
-          <AddMedicationDialog
-            trigger={
-              <Button size="sm" className="rounded-full h-9 gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="text-xs font-semibold">
-                  {t('medications.cabinet.addMed', 'Add medication')}
-                </span>
-              </Button>
-            }
-          />
-          <AddMedicationDialog
-            defaultIsSupplement
-            trigger={
-              <Button size="sm" className="rounded-full h-9 gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="text-xs font-semibold">
-                  {t('medications.cabinet.addSupplement', 'Add supplement')}
-                </span>
-              </Button>
-            }
-          />
         </div>
 
         {/* Vertical Divider (Desktop Only) */}
@@ -234,44 +142,14 @@ export default function Medications() {
         </div>
       </div>
 
-      {/* Subtype filter */}
-      <div className="-mt-2 flex flex-wrap items-center justify-center gap-1 lg:justify-start">
-        {(
-          [
-            ['all', t('medications.subtype.all', 'All')],
-            ['meds', t('medications.subtype.meds', 'Meds')],
-            [
-              'supplements',
-              t('medications.subtype.supplements', 'Supplements'),
-            ],
-          ] as [MedSubtype, string][]
-        ).map(([value, label]) => (
-          <Button
-            key={value}
-            variant={subtype === value ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setSubtypeFilter(value)}
-            className={`rounded-full px-4 h-8 transition-all ${
-              subtype === value
-                ? 'bg-slate-200/60 dark:bg-muted shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <span className="text-xs font-semibold">{label}</span>
-          </Button>
-        ))}
-      </div>
-
       {activeTab === 'today' && (
         <TodayMedications
           selectedDate={selectedDate}
           today={today}
           meds={visibleMeds}
-          entries={visibleEntries}
-          recentEntries={visibleRecentEntries}
+          entries={entries}
           loadingMeds={loadingMeds}
           loadingEntries={loadingEntries}
-          subtype={subtype}
           onSelectDate={(d) => setSearchParams({ date: d })}
         />
       )}
@@ -337,20 +215,10 @@ export default function Medications() {
               {visibleMeds.length === 0 && (
                 <Card>
                   <CardContent className="p-6 text-center text-sm text-muted-foreground">
-                    {subtype === 'supplements'
-                      ? t(
-                          'medications.cabinet.emptySupplements',
-                          'No supplements yet. Add your first one to get started.'
-                        )
-                      : subtype === 'meds'
-                        ? t(
-                            'medications.cabinet.emptyMeds',
-                            'No medications yet. Add your first one to get started.'
-                          )
-                        : t(
-                            'medications.cabinet.empty',
-                            'No medications or supplements yet. Add your first one to get started.'
-                          )}
+                    {t(
+                      'medications.cabinet.empty',
+                      'No medications or supplements yet. Add your first one to get started.'
+                    )}
                   </CardContent>
                 </Card>
               )}

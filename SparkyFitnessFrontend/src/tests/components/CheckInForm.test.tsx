@@ -69,9 +69,20 @@ const defaultProps = {
   weight: '',
 };
 
+// Height, circumferences, composition and custom categories live inside the
+// "Body Measurements & Composition" section, which is collapsed by default
+// (and unmounted from the DOM while collapsed) — tests that need those
+// fields must open it first.
+const openBodyMeasurements = () => {
+  fireEvent.click(
+    screen.getByRole('button', { name: /Body Measurements & Composition/ })
+  );
+};
+
 describe('CheckInForm', () => {
   it('renders the height input with the current height value', () => {
     render(<CheckInForm {...defaultProps} />);
+    openBodyMeasurements();
 
     const heightInput = screen.getByLabelText('Height');
 
@@ -171,6 +182,7 @@ describe('CheckInForm', () => {
           customPlaceholders={{ 'cat-1': '97.5' }}
         />
       );
+      openBodyMeasurements();
 
       const field = screen.getByLabelText('Chest (cm)');
       expect(field).toHaveAttribute('placeholder', '97.5');
@@ -188,6 +200,7 @@ describe('CheckInForm', () => {
           setCustomValues={setCustomValues}
         />
       );
+      openBodyMeasurements();
 
       fireEvent.click(screen.getByRole('button', { name: 'Use last' }));
 
@@ -203,6 +216,7 @@ describe('CheckInForm', () => {
           customPlaceholders={{ 'cat-1': '97.5' }}
         />
       );
+      openBodyMeasurements();
 
       expect(screen.getByLabelText('Chest (cm)')).toHaveValue(99);
       expect(
@@ -219,6 +233,7 @@ describe('CheckInForm', () => {
           customPlaceholders={{ 'cat-2': 'felt strong' }}
         />
       );
+      openBodyMeasurements();
 
       const field = container.querySelector('#custom-cat-2');
       expect(field).toHaveAttribute('placeholder', 'felt strong');
@@ -233,6 +248,7 @@ describe('CheckInForm', () => {
           customPlaceholders={{}}
         />
       );
+      openBodyMeasurements();
 
       // With nothing loaded the field falls back to its generic prompt, so no
       // number appears where a previous value would be.
