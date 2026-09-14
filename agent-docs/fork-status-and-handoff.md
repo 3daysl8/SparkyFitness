@@ -4,10 +4,9 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**One thing committed but NOT yet pushed or deployed — do this first if picking up fresh:** the
+**One thing on GitHub but NOT yet deployed to Pi5 — do this first if picking up fresh:** the
 upstream "new release available / breaking changes" warning dialog was removed this session
-(commit `585866f9f`, plus this doc update on top of it — both local only, not yet on
-`origin/main`; run `git status -sb` to confirm the exact count before pushing). Isaac asked to
+(commit `585866f9f`, pushed to `origin/main` at `32070d1ae`). Isaac asked to
 stop the recurring full-screen "CRITICAL WARNING: THIS RELEASE CONTAINS BREAKING CHANGES!" modal
 that pops up after every upstream release; rather than just dismissing it (which only clears the
 current version in `localStorage` and reappears on the next upstream release), the whole GitHub
@@ -17,11 +16,11 @@ is deleted, and the supporting query/API/key code in `useGeneralQueries.ts` / `a
 GitHub star-count badge are untouched — don't confuse the three, they're separate features.
 Clean `tsc -b` / `eslint --max-warnings 0` / `knip` (knip's large pre-existing unused-nutrition-
 code list is expected, see "Architecture decisions" below — nothing from this change is in it).
-**To ship it**: `git push origin main`, then the same Pi5 deploy recipe as the Workouts restructure
-below (`git pull` in `/home/pi1/sparkyfitness-build`, rebuild both images `--no-cache`, `docker
-compose up -d --force-recreate` in `/home/pi1/sparkyfitness/`, `docker builder prune -af`, then
-live-verify — remember the PWA service-worker stale-cache gotcha further down). Frontend-only
-change, no migration this time, but rebuild both images anyway to keep them in sync.
+**To ship it**: the same Pi5 deploy recipe as the Workouts restructure below (`git pull` in
+`/home/pi1/sparkyfitness-build`, rebuild both images `--no-cache`, `docker compose up -d
+--force-recreate` in `/home/pi1/sparkyfitness/`, `docker builder prune -af`, then live-verify —
+remember the PWA service-worker stale-cache gotcha further down). Frontend-only change, no
+migration this time, but rebuild both images anyway to keep them in sync.
 
 **Everything else is settled and already deployed as of 2026-09-14** — see the dedicated Status
 sections further down for the two features that shipped this session:
