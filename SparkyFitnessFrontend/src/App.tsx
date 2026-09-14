@@ -15,7 +15,6 @@ import {
 } from '@/contexts/ActiveUserContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import DraggableChatbotButton from '@/components/DraggableChatbotButton';
-import NewReleaseDialog, { ReleaseInfo } from '@/components/NewReleaseDialog';
 import AnnouncementDialog, {
   AnnouncementInfo,
 } from '@/components/AnnouncementDialog';
@@ -124,18 +123,11 @@ export const ComponentFallback = () => {
   return <></>;
 };
 const Root = () => {
-  const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null>(null);
-  const [showNewReleaseDialog, setShowNewReleaseDialog] = useState(false);
   const [announcement, setAnnouncement] = useState<AnnouncementInfo | null>(
     null
   );
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
   const navigate = useNavigate();
-
-  const handleDismissRelease = (version: string) => {
-    localStorage.setItem('dismissedReleaseVersion', version);
-    setShowNewReleaseDialog(false);
-  };
 
   const handleDismissAnnouncement = (id: string) => {
     localStorage.setItem('dismissedAnnouncementId', id);
@@ -158,8 +150,6 @@ const Root = () => {
               <WaterContainerProvider>
                 <LanguageHandler />
                 <AppSetup
-                  setLatestRelease={setLatestRelease}
-                  setShowNewReleaseDialog={setShowNewReleaseDialog}
                   setAnnouncement={setAnnouncement}
                   setShowAnnouncementDialog={setShowAnnouncementDialog}
                 />
@@ -184,29 +174,6 @@ const Root = () => {
                   }}
                 >
                   <DraggableChatbotButton />
-                </ErrorBoundary>
-                <ErrorBoundary
-                  fallback={<ComponentFallback />}
-                  onError={(error, { componentStack }) => {
-                    logError(
-                      getUserLoggingLevel(),
-                      'DraggableChatbotButton failed:',
-                      error,
-                      componentStack
-                    );
-                  }}
-                >
-                  <NewReleaseDialog
-                    key={
-                      showNewReleaseDialog
-                        ? latestRelease?.version || 'open'
-                        : 'closed'
-                    }
-                    isOpen={showNewReleaseDialog}
-                    onClose={() => setShowNewReleaseDialog(false)}
-                    releaseInfo={latestRelease}
-                    onDismissForVersion={handleDismissRelease}
-                  />
                 </ErrorBoundary>
                 <ErrorBoundary
                   fallback={<ComponentFallback />}

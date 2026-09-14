@@ -1,8 +1,4 @@
-import {
-  getGitHubRepo,
-  getLatestGithubRelease,
-  getLatestAnnouncement,
-} from '@/api/general';
+import { getGitHubRepo, getLatestAnnouncement } from '@/api/general';
 import { generalKeys } from '@/api/keys/general';
 import { useQuery } from '@tanstack/react-query';
 
@@ -41,24 +37,13 @@ export const useGitHubStarsQuery = (owner: string, repo: string) => {
   });
 };
 
-interface UseLatestReleaseOptions {
+interface UseAnnouncementOptions {
   enabled: boolean;
 }
 
-export const useLatestReleaseQuery = ({
-  enabled = true,
-}: UseLatestReleaseOptions) => {
-  return useQuery({
-    queryKey: generalKeys.githubVersion,
-    queryFn: getLatestGithubRelease,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled,
-  });
-};
-
 export const useAnnouncementQuery = ({
   enabled = true,
-}: UseLatestReleaseOptions) => {
+}: UseAnnouncementOptions) => {
   return useQuery({
     queryKey: generalKeys.announcement,
     queryFn: getLatestAnnouncement,

@@ -2,21 +2,10 @@ import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { info } from '@/utils/logging';
-import {
-  useLatestReleaseQuery,
-  useAnnouncementQuery,
-} from '@/hooks/useGeneralQueries';
-import { ReleaseInfo } from './NewReleaseDialog';
+import { useAnnouncementQuery } from '@/hooks/useGeneralQueries';
 import { AnnouncementInfo } from './AnnouncementDialog';
 
-export interface LatestReleaseResponse {
-  version: string;
-  isNewVersionAvailable: boolean;
-}
-
 interface AppSetupProps {
-  setLatestRelease: React.Dispatch<React.SetStateAction<ReleaseInfo | null>>;
-  setShowNewReleaseDialog: (show: boolean) => void;
   setAnnouncement: React.Dispatch<
     React.SetStateAction<AnnouncementInfo | null>
   >;
@@ -24,17 +13,11 @@ interface AppSetupProps {
 }
 
 const AppSetup = ({
-  setLatestRelease,
-  setShowNewReleaseDialog,
   setAnnouncement,
   setShowAnnouncementDialog,
 }: AppSetupProps): null => {
   const { user, loading } = useAuth();
   const { loggingLevel } = usePreferences();
-
-  const { data: releaseData, isSuccess } = useLatestReleaseQuery({
-    enabled: !loading && !!user,
-  });
 
   const { data: announcementData, isSuccess: isAnnouncementSuccess } =
     useAnnouncementQuery({
@@ -46,22 +29,6 @@ const AppSetup = ({
       user: !!user,
       loading,
     });
-
-    if (!loading && user && isSuccess && releaseData) {
-      info(loggingLevel, 'Latest GitHub release data fetched:', releaseData);
-
-      setLatestRelease(releaseData);
-
-      const dismissedVersion = localStorage.getItem('dismissedReleaseVersion');
-
-      if (
-        releaseData.isNewVersionAvailable &&
-        dismissedVersion !== releaseData.version
-      ) {
-        info(loggingLevel, 'Showing new release dialog.');
-        setShowNewReleaseDialog(true);
-      }
-    }
 
     if (!loading && user && isAnnouncementSuccess && announcementData) {
       info(loggingLevel, '[ANNOUNCEMENT CHECK]', {
@@ -95,13 +62,9 @@ const AppSetup = ({
   }, [
     user,
     loading,
-    isSuccess,
-    releaseData,
     isAnnouncementSuccess,
     announcementData,
     loggingLevel,
-    setLatestRelease,
-    setShowNewReleaseDialog,
     setAnnouncement,
     setShowAnnouncementDialog,
   ]);

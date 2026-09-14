@@ -1,4 +1,3 @@
-import { ReleaseInfo } from '@/components/NewReleaseDialog';
 import { apiCall } from './api';
 export interface GitHubRepoResponse {
   stargazers_count: number;
@@ -20,15 +19,6 @@ export const getGitHubRepo = async (
   }
 
   return response.json() as Promise<GitHubRepoResponse>;
-};
-export interface LatestReleaseResponse {
-  version: string;
-  isNewVersionAvailable: boolean;
-}
-export const getLatestGithubRelease = async (): Promise<ReleaseInfo> => {
-  return apiCall('/version/latest-github', {
-    method: 'GET',
-  });
 };
 
 export interface AnnouncementInfo {
