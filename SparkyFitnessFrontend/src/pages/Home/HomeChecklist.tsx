@@ -506,8 +506,18 @@ function WaterCard({
     });
   };
 
+  const cardClassName =
+    'flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors';
+
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-border p-3 text-center transition-colors">
+    <div
+      className={cn(
+        cardClassName,
+        pct > 0
+          ? 'border-metric-water/30 bg-metric-water/10'
+          : 'border-dashed border-metric-water/40 bg-metric-water/5 hover:bg-metric-water/10'
+      )}
+    >
       <CircularProgress
         value={pct}
         size={52}
@@ -523,7 +533,7 @@ function WaterCard({
       <Button
         size="sm"
         variant="secondary"
-        className="h-6 gap-1 rounded-full px-2 text-[11px]"
+        className="h-6 gap-1 rounded-full px-2.5 text-[11px] bg-metric-water/15 text-foreground hover:bg-metric-water/25 border border-metric-water/20"
         onClick={handleQuickAdd}
         disabled={!userId || isPending}
       >
@@ -762,7 +772,7 @@ function SupplementsSnapshotCard({ selectedDate }: { selectedDate: string }) {
 
   return (
     <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-50/20 via-card to-card">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
+      <CardHeader className="flex flex-row items-center justify-between p-4 pb-3">
         <div>
           <CardTitle className="text-base font-semibold tracking-tight">
             {t('medications.today.supplementsTitle', "Today's Supplements")}
@@ -783,7 +793,7 @@ function SupplementsSnapshotCard({ selectedDate }: { selectedDate: string }) {
           <ExternalLink className="h-3.5 w-3.5" />
         </Button>
       </CardHeader>
-      <CardContent className="space-y-2 text-sm pt-0">
+      <CardContent className="space-y-2 text-sm p-4 pt-0">
         {loadingMeds || loadingEntries ? (
           <p className="text-xs text-muted-foreground">
             {t('common.loading', 'Loading...')}
@@ -1043,10 +1053,13 @@ export default function HomeChecklist() {
       <Collapsible open={isHabitsOpen} onOpenChange={setIsHabitsOpen}>
         <Card>
           <CollapsibleTrigger asChild>
-            <CardHeader className="flex cursor-pointer flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="flex cursor-pointer flex-row items-center justify-between p-4 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
                 {t('focus.dailyHabits', 'Daily Habits')}
-                <Badge variant="secondary">
+                <Badge
+                  variant="secondary"
+                  className="rounded-full px-2 py-0.5 text-xs font-medium"
+                >
                   {snapshot?.daily_recurring.length ?? 0}
                 </Badge>
               </CardTitle>
@@ -1054,6 +1067,7 @@ export default function HomeChecklist() {
                 <Button
                   size="icon"
                   variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation();
                     openAddHabit();
@@ -1061,12 +1075,12 @@ export default function HomeChecklist() {
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </div>
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 p-4 pt-0">
               {(snapshot?.daily_recurring.length ?? 0) === 0 && (
                 <EmptyState
                   emoji="✨"
