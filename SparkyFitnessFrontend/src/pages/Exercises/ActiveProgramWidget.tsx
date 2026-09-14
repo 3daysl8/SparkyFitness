@@ -63,7 +63,7 @@ const ActiveProgramWidget = () => {
         <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
           <p className="text-sm text-muted-foreground">
             {t(
-              'activeProgramWidget.noActivePlan',
+              'exercise.activeProgramWidget.noActivePlan',
               'No active training schedule.'
             )}
           </p>
@@ -74,7 +74,10 @@ const ActiveProgramWidget = () => {
             onClick={() => setIsManageOpen(true)}
           >
             <Settings2 className="h-4 w-4" />
-            {t('activeProgramWidget.manageSchedules', 'Manage Schedules')}
+            {t(
+              'exercise.activeProgramWidget.manageSchedules',
+              'Manage Schedules'
+            )}
           </Button>
         </CardContent>
         <ManageSchedulesDialog
@@ -120,7 +123,7 @@ const ActiveProgramWidget = () => {
             onClick={() => setIsManageOpen(true)}
           >
             <Settings2 className="h-3.5 w-3.5" />
-            {t('activeProgramWidget.manage', 'Manage')}
+            {t('exercise.activeProgramWidget.manage', 'Manage')}
           </Button>
         </CardTitle>
       </CardHeader>
@@ -170,7 +173,7 @@ const ActiveProgramWidget = () => {
           <Button onClick={handleStart} className="w-full gap-2">
             <Play className="h-4 w-4" />
             {t(
-              'activeProgramWidget.startTodaysWorkout',
+              'exercise.activeProgramWidget.startTodaysWorkout',
               "Start Today's Workout"
             )}
           </Button>
