@@ -4,39 +4,57 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**One thing on GitHub but NOT yet deployed to Pi5 — do this first if picking up fresh:** the
-upstream "new release available / breaking changes" warning dialog was removed this session
-(commit `585866f9f`, pushed to `origin/main` at `32070d1ae`). Isaac asked to
-stop the recurring full-screen "CRITICAL WARNING: THIS RELEASE CONTAINS BREAKING CHANGES!" modal
-that pops up after every upstream release; rather than just dismissing it (which only clears the
-current version in `localStorage` and reappears on the next upstream release), the whole GitHub
-release-check was removed outright — `AppSetup.tsx` no longer fetches it, `NewReleaseDialog.tsx`
-is deleted, and the supporting query/API/key code in `useGeneralQueries.ts` / `api/general.ts` /
-`api/keys/general.ts` is gone too. The unrelated announcement-banner system and the header's
-GitHub star-count badge are untouched — don't confuse the three, they're separate features.
-Clean `tsc -b` / `eslint --max-warnings 0` / `knip` (knip's large pre-existing unused-nutrition-
-code list is expected, see "Architecture decisions" below — nothing from this change is in it).
-**To ship it**: the same Pi5 deploy recipe as the Workouts restructure below (`git pull` in
-`/home/pi1/sparkyfitness-build`, rebuild both images `--no-cache`, `docker compose up -d
---force-recreate` in `/home/pi1/sparkyfitness/`, `docker builder prune -af`, then live-verify —
-remember the PWA service-worker stale-cache gotcha further down). Frontend-only change, no
-migration this time, but rebuild both images anyway to keep them in sync.
+**Nothing is mid-flight right now — the app is in a clean, fully-deployed state as of
+2026-09-14 (frontend rebuilt/deployed twice today; backend unchanged since its own deploy
+earlier the same day).**
 
-**Everything else is settled and already deployed as of 2026-09-14** — see the dedicated Status
-sections further down for the two features that shipped this session:
+**Process note, worth knowing before starting concurrent work**: this session discovered that
+`C:\dev\SparkyFitness` on Kingdom is a single shared working directory — a *different* concurrent
+session (also Isaac, also Claude) committed `32070d1ae` ("two-tier check-in form, frictionless
+daily stack" — `CheckInForm.tsx` split into an always-visible Daily Core + collapsible Body
+Measurements section, and the Medications page's Adherence/filter/cards replaced with a single
+"Today's Stack" grouped checklist) directly onto the same local `main` branch this session was
+using, and it rode along on this session's next `git push` without any merge conflict or warning.
+If two sessions are ever active on this repo at once, check `git log` for unexpected commits
+before pushing or deploying — don't assume everything on your local branch is something you wrote.
+That commit was verified before deploying (full frontend suite: `tsc -b` / `eslint
+--max-warnings 0` / 971/971 tests, all clean) but not authored or design-reviewed by this session
+— if it needs a fuller write-up, that's for whichever session built it.
+
+**Also caught during that same pre-deploy verification, and fixed** (commit `dd4ee4e06`): four
+`t()` keys added earlier today for the Workouts restructure (`activeProgramWidget.manage`,
+`.manageSchedules`, `.noActivePlan`, `.startTodaysWorkout` in `ActiveProgramWidget.tsx`) were
+missing the `exercise.` prefix every other key in that file uses — they silently fell back to
+their inline default string (identical English text, so invisible in the browser) instead of
+resolving through `translation.json`, breaking localization for any non-English locale. Only
+caught by the full `pnpm test` run (`translationKeysCoverage.test.ts`); a scoped `--testPathPatterns`
+run (used throughout the Workouts work) doesn't touch that file. **Lesson: run the full frontend
+test suite at least once before deploying, not just a scoped pattern match on the files you
+touched** — this bug shipped invisibly through several rounds of scoped verification.
+
+**Three things shipped and deployed this session, on top of the ongoing Hermes/phantom-diary
+items below** — see the dedicated Status sections further down for the first two:
 
 1. **To-Do List card redesign — time-based scheduling + a Day/Week view** (commits `7e2458467`,
-   `68a6d3d54`, deployed). Optional `due_time` on scheduled focuses, a shared `DayWeekToggle` used
-   by both the To-Do List and Today's Agenda cards, and a pass removing repeated section-header
-   icons (Today's Agenda's calendar icon, Today's Supplements' badge) in favor of a plain title +
+   `68a6d3d54`). Optional `due_time` on scheduled focuses, a shared `DayWeekToggle` used by both
+   the To-Do List and Today's Agenda cards, and a pass removing repeated section-header icons
+   (Today's Agenda's calendar icon, Today's Supplements' badge) in favor of a plain title +
    count/summary baseline.
 2. **Workouts tab restructured into "Programs & Schedule"** (commits `c3af4d6b2`, `5e9fa8e2f`,
-   deployed) — the Active Program Widget now always renders (with a Manage entry point instead of
-   vanishing when nothing's active), a two-button action bar drives schedule/program creation, and
-   the preset grid dropped bulk-select for one Start button per card. A real, previously-
+   `dd4ee4e06`) — the Active Program Widget now always renders (with a Manage entry point instead
+   of vanishing when nothing's active), a two-button action bar drives schedule/program creation,
+   and the preset grid dropped bulk-select for one Start button per card. A real, previously-
    undetected cache-invalidation bug was found and fixed in the process — worth reading before
    touching `useWorkoutPlans.ts`'s mutation hooks again.
-3. **Hermes is connected to this app's MCP server, full read/write, all 32 tools** (see
+3. **The upstream "new release / breaking changes" warning dialog was removed** (commit
+   `585866f9f`) — Isaac asked to stop the recurring full-screen modal that pops up after every
+   upstream release; rather than just dismissing it (which only clears the current version in
+   `localStorage` and reappears on the next upstream release), the whole GitHub release-check was
+   removed outright — `AppSetup.tsx` no longer fetches it, `NewReleaseDialog.tsx` is deleted, and
+   the supporting query/API/key code in `useGeneralQueries.ts` / `api/general.ts` /
+   `api/keys/general.ts` is gone too. The unrelated announcement-banner system and the header's
+   GitHub star-count badge are untouched — don't confuse the three, they're separate features.
+4. **Hermes is connected to this app's MCP server, full read/write, all 32 tools** (see
    "Hermes integration" under "Not yet done" below for the full detail, including a correction
    to this doc's own earlier wrong assumption that Hermes was an n8n workflow — it isn't). The
    connection itself is done; the *proactive scheduled briefing* is still not built — that's
