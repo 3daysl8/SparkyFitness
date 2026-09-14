@@ -14,7 +14,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { CalendarDays, ChevronDown, Dumbbell, MapPin } from 'lucide-react';
+import { ChevronDown, Dumbbell, MapPin } from 'lucide-react';
 import type { CalendarEvent } from '@/types/calendar';
 import DayWeekToggle, { type DayWeekView } from './DayWeekToggle';
 
@@ -243,8 +243,7 @@ export default function AgendaCard({ selectedDate }: { selectedDate: string }) {
       <Card>
         <CollapsibleTrigger asChild>
           <CardHeader className="flex cursor-pointer flex-row items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base font-semibold tracking-tight">
               {t('agenda.title', "Today's Agenda")}
             </CardTitle>
             <div className="flex items-center gap-1">

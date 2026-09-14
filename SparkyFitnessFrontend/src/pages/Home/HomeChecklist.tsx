@@ -48,7 +48,6 @@ import {
   Droplet,
   Moon,
   Plus,
-  Tablets,
   RotateCcw,
   ExternalLink,
 } from 'lucide-react';
@@ -765,10 +764,7 @@ function SupplementsSnapshotCard({ selectedDate }: { selectedDate: string }) {
     <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-50/20 via-card to-card">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <div>
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60">
-              <Tablets className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            </span>
+          <CardTitle className="text-base font-semibold tracking-tight">
             {t('medications.today.supplementsTitle', "Today's Supplements")}
           </CardTitle>
           <CardDescription className="text-xs mt-0.5">
