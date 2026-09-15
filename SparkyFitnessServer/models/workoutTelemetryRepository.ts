@@ -1,5 +1,4 @@
 import { getClient } from '../db/poolManager.js';
-// @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
 import format from 'pg-format';
 /**
  * Minimal shape of a pg client, so the _WithClient variants below can join a

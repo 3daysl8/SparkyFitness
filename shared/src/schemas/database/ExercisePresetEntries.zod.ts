@@ -25,6 +25,7 @@ export const exercisePresetEntriesSchema = z.object({
   source: z.string(),
   client_request_id: z.string().nullable(),
   client_request_fingerprint: z.string().nullable(),
+  workout_type: z.string().nullable(),
 });
 
 export const exercisePresetEntriesInitializerSchema = z.object({
@@ -41,6 +42,7 @@ export const exercisePresetEntriesInitializerSchema = z.object({
   source: z.string().optional(),
   client_request_id: z.string().optional().nullable(),
   client_request_fingerprint: z.string().optional().nullable(),
+  workout_type: z.string().optional().nullable(),
 });
 
 export const exercisePresetEntriesMutatorSchema = z.object({
@@ -57,6 +59,7 @@ export const exercisePresetEntriesMutatorSchema = z.object({
   source: z.string().optional(),
   client_request_id: z.string().optional().nullable(),
   client_request_fingerprint: z.string().optional().nullable(),
+  workout_type: z.string().optional().nullable(),
 });
 
 export type ExercisePresetEntries = z.infer<typeof exercisePresetEntriesSchema>;
