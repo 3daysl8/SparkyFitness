@@ -136,7 +136,7 @@ export const ProfileInformation = () => {
             <p className="text-xs text-muted-foreground">
               {t(
                 'settings.profileInformation.signOutDescription',
-                'Sign out of Ouroboros Life on this device.'
+                'Sign out of Ouros Life on this device.'
               )}
             </p>
           </div>

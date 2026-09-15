@@ -114,11 +114,11 @@ const ResetPassword = () => {
           <div className="flex items-center justify-center mb-4">
             <img
               src="/images/logo.webp"
-              alt="Ouroboros Life Logo"
+              alt="Ouros Life Logo"
               className="h-10 w-10 mr-2"
             />
             <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-300">
-              Ouroboros Life
+              Ouros Life
             </CardTitle>
           </div>
           <CardDescription>Set your new password.</CardDescription>

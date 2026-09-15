@@ -12,7 +12,7 @@ import {
   triggerChunkRecoveryReload,
 } from '@/utils/chunkRecovery';
 
-const UPDATE_TITLE = 'Updating Ouroboros Life...';
+const UPDATE_TITLE = 'Updating Ouros Life...';
 const UPDATE_MESSAGE = 'Loading the latest version.';
 
 const useChunkRecoveryReload = (routeError: unknown) => {

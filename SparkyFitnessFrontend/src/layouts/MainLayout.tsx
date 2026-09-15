@@ -269,7 +269,7 @@ const MainLayout: React.FC = () => {
           <div className="flex items-center gap-2">
             <BrandMark size={36} />
             <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-slate-300">
-              Ouroboros Life
+              Ouros Life
             </h1>
             {!isMobile && (
               <>

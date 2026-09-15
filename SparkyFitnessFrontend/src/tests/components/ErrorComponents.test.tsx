@@ -58,7 +58,7 @@ describe('ErrorComponents', () => {
 
     render(<RouteErrorBoundary />);
 
-    expect(screen.getByText('Updating Ouroboros Life...')).toBeInTheDocument();
+    expect(screen.getByText('Updating Ouros Life...')).toBeInTheDocument();
     expect(screen.queryByText('Reload Page')).not.toBeInTheDocument();
 
     await waitFor(() => {
@@ -107,7 +107,7 @@ describe('ErrorComponents', () => {
     });
 
     expect(
-      screen.queryByText('Updating Ouroboros Life...')
+      screen.queryByText('Updating Ouros Life...')
     ).not.toBeInTheDocument();
     expect(mockReload).not.toHaveBeenCalled();
 

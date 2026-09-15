@@ -20,7 +20,7 @@ export function BrandMark({
       height={size}
       viewBox="0 0 48 48"
       role="img"
-      aria-label="Ouroboros Life"
+      aria-label="Ouros Life"
       className={className}
     >
       <defs>
