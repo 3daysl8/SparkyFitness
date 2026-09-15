@@ -4,9 +4,9 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Committed locally but NOT pushed or deployed yet, 2026-09-15** (commit `8201df73d` on
-`main`): `sparky_manage_workout_plans` gained two new MCP actions so Hermes can now change
-day-by-day workout scheduling itself instead of only reading it —
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`b1740da32` on `main`):
+`sparky_manage_workout_plans` gained two new MCP actions so Hermes can now change day-by-day
+workout scheduling itself instead of only reading it —
 
 - `set_day_assignment` (plan_id, day_of_week, + exactly one of preset_id/preset_name or
   exercise_id/exercise_name) — assigns a saved preset or a single exercise to a day,
@@ -36,11 +36,29 @@ Full backend suite (2860/2860, up from 2853 — 9 new tests) + `tsc -b` + `eslin
 `ai/tools/schemas/workoutPlans.ts`, `ai/tools/exerciseTools.ts` (one-line export),
 `tests/chatbotToolsWorkoutPlans.test.ts`.
 
-**Still open**: not pushed to GitHub, not deployed to Pi5, and the Hermes MCP tool list on Pi5
-won't see these two new actions until a backend rebuild+redeploy happens there (this was only
-built/tested against the local dev stack on Kingdom). Also still untouched: the proactive
-Hermes morning-briefing automation, the phantom-diary-entries decision, and the passkey RP ID
-console error — all still open from the previous handoff, see "Not yet done" below.
+Pushed and deployed: backend image rebuilt `--no-cache` on Pi5 from the repo-root build
+context, `docker compose up -d --force-recreate sparkyfitness-server`, confirmed healthy
+(`{"status":"UP"}` from inside the container) and `docker builder prune -af` run after. Hermes'
+`sparkyfitness` MCP connection already shows `✓ enabled` for "all" tools (`hermes mcp list` on
+Pi5) — MCP clients re-fetch `tools/list` per session, so no reconfiguration needed for it to see
+the two new actions on next use. Not exercised through a real end-to-end Hermes call against
+production data (deliberately — didn't want to mutate Isaac's actual workout plans without
+asking); the dev-DB live-verification above plus the byte-identical `--no-cache` build is the
+verification for this deploy.
+
+**Hit the shared-repo gotcha again while pushing this** (see the Process note directly below,
+from a few sessions ago) — `git push` was rejected because a different concurrent session had
+already pushed `bcfd41530` ("harmonize dashboard water card tint and standardize section header
+typography," `AgendaCard.tsx`/`HomeChecklist.tsx`, frontend-only) straight to `origin/main`.
+Confirmed it touched disjoint files from this session's backend-only change, `git pull --rebase`
+onto it cleanly, re-ran `tsc -b` + the scoped test suite post-rebase, then pushed. That frontend
+commit was NOT part of this session's work and has not been deployed by this session — it's
+sitting on `main` unreleased as of this write-up; whichever session made it should confirm
+whether it's already been deployed separately or still needs one.
+
+**Still open, untouched this session**: the proactive Hermes morning-briefing automation, the
+phantom-diary-entries decision, and the passkey RP ID console error — all still open from the
+previous handoff, see "Not yet done" below.
 
 **Process note, worth knowing before starting concurrent work**: this session discovered that
 `C:\dev\SparkyFitness` on Kingdom is a single shared working directory — a *different* concurrent
