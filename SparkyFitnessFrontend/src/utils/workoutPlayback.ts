@@ -1050,7 +1050,15 @@ export function buildPresetSessionCreateRequestFromDraft(
     .filter((exercise): exercise is NonNullable<typeof exercise> => !!exercise);
 
   return {
-    client_request_id: draft.client_request_id,
+    // generateClientId falls back to a non-UUID when Web Crypto is missing;
+    // the server requires a UUID, so send no key rather than fail the save.
+    client_request_id:
+      draft.client_request_id &&
+      /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(
+        draft.client_request_id
+      )
+        ? draft.client_request_id
+        : undefined,
     workout_preset_id: toWorkoutPresetId(draft.preset_id),
     name: draft.name,
     description: draft.description,

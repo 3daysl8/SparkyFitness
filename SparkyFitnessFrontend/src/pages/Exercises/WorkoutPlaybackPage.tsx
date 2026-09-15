@@ -846,11 +846,10 @@ const WorkoutPlaybackPage = () => {
           'exercise.workoutPlaybackDialog.implausibleSaveAnyway',
           'Save anyway'
         )}
-        secondaryActionLabel={t(
+        cancelLabel={t(
           'exercise.workoutPlaybackDialog.implausibleReview',
           'Review'
         )}
-        onSecondaryAction={() => setPlausibilityWarnings(null)}
       />
 
       <WorkoutPlaybackFloatingRestTimer

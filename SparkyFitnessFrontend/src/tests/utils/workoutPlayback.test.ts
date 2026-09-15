@@ -543,6 +543,15 @@ describe('workoutPlayback utils', () => {
     expect(blankPayload.client_request_id).toBe(blankDraft.client_request_id);
   });
 
+  it('omits a non-UUID client_request_id instead of sending one the server rejects', () => {
+    const draft = createBlankWorkoutPlaybackDraft('2026-04-27');
+    const payload = buildPresetSessionCreateRequestFromDraft(
+      { ...draft, client_request_id: 'temp-lx2k9-abc123' },
+      'UTC'
+    );
+    expect(payload.client_request_id).toBeUndefined();
+  });
+
   it('warns about implausible durations using the exercise modality', () => {
     const draft = createWorkoutPlaybackDraftFromPreset(
       createPresetFixture(),

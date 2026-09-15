@@ -19,6 +19,7 @@ interface ConfirmationDialogProps {
   warning?: React.ReactNode;
   variant?: 'default' | 'destructive';
   confirmLabel?: string;
+  cancelLabel?: string;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
 }
@@ -32,6 +33,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   warning,
   variant = 'default',
   confirmLabel,
+  cancelLabel,
   secondaryActionLabel,
   onSecondaryAction,
 }) => {
@@ -51,7 +53,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {cancelLabel || 'Cancel'}
           </Button>
           {secondaryActionLabel && onSecondaryAction && (
             <Button variant="secondary" onClick={onSecondaryAction}>
