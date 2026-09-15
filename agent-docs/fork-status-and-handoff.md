@@ -4,7 +4,74 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`6d94d3f98` on `main`):
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`8038c264a` on `main`):
+**Phase 2 of the workout-mapping plan** (full plan:
+`C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
+merged, and live. New `planned_workouts` table + CRUD domain
+(`models/plannedWorkoutRepository.ts`, `services/plannedWorkoutService.ts`,
+`routes/v2/plannedWorkoutRoutes.ts` — list/day-view/get/create/patch/move/start/skip/complete/
+delete, all diary-tier). A session created with `planned_workout_id` completes its plan
+automatically (`exercisePresetEntryRepository.linkPlannedWorkoutWithClient`, in the same
+transaction as the session insert).
+
+**The actual fix**: `workoutPlanTemplateService.ts` no longer eagerly materializes real
+`exercise_entries`/`exercise_preset_entries` for up to a year of a template's future on every
+activation, nor unconditionally deletes and recreates every future entry (including ones already
+completed today) on every edit — that whole code path (`models/exerciseTemplate.ts`) is deleted.
+It now calls `plannedWorkoutService.syncTemplatePlannedWorkouts`, which upserts a 28-day rolling
+window of `planned_workouts` rows (lazily extended to 90 days on demand) and — this is the
+guarantee that matters — only ever refreshes or removes a row still `planned`, unmodified, and
+undismissed. A completed, started, user-edited, or dismissed row survives every future resync
+completely untouched, even when the assignment that generated it is edited or removed entirely.
+The regeneration key is `(template_id, generated_for_date, slot)`, where `slot` is an
+assignment's position within its own day-of-week group — **not** its database id, since editing
+any part of a template replaces every one of its assignment rows with new ids
+(`workoutPlanTemplateRepository.updateWorkoutPlanTemplate`); anchoring to id would have broken
+regeneration identity on every edit.
+
+Verified: backend `tsc -b` + full vitest (2980 passing), the real-database integration suite
+`plannedWorkoutSync.integration.test.ts` (4/4, added to the CI migration job) proving the safety
+guarantee directly against Postgres — **it caught a genuine bug during development**: the cleanup
+DELETE compared bare `slot` values across different dates instead of the `(date, slot)` pair,
+since `slot` is only unique per day-of-week, not globally; a mocked unit test would never have
+caught this. `schemaParity` (also caught a real gap: the migration's new `workout_type` columns on
+`exercise_preset_entries`/`exercises`/`workout_presets` were missing from their shared zod
+schemas), `rlsPermissionMatrix` (178/178 — also fixed two **pre-existing** gaps found along the
+way: `focus_domains`/`focuses`/`focus_checkins`/`calendar_feeds` were never registered in the
+test's `DOMAIN` map, and the `exercises` library-tier fixture's INSERT never set the NOT NULL
+`source` column), `exerciseEntryStats`, `workoutSessionIntegrity` all unaffected. Frontend `tsc -b`
++ jest (989 passing; one `AIServiceSettings.test.tsx` failure during the full-suite run reproduced
+as a pre-existing test-isolation flake — passed alone and on a full-suite re-run, not caused by
+this backend-only phase). Live-verified against the local dev stack: created a training plan with
+a Monday assignment through the real "Training Schedule" UI, confirmed exactly one
+`planned_workouts` row generated and **zero** phantom `exercise_preset_entries` rows (the bug,
+directly disproven); edited the plan to add a Wednesday assignment, confirmed the Monday row kept
+its exact same id (refreshed, not deleted-and-recreated) and Wednesday was added; deleted the plan
+and confirmed full cleanup. Then live-verified again against **production** post-deploy with the
+pre-existing disposable test account — existing "Push Pull Legs" template still loads with zero
+console errors.
+
+**New gotcha, not yet in the Known Gotchas list below**: `shared/` package changes require a
+`docker compose build --no-cache` of the **dev** images before dev-stack testing (see the Phase-1
+entry below for the mechanism) — this phase touched `shared/` again (new `PlannedWorkouts*.zod.ts`,
+`WORKOUT_TYPES`, three existing DB schemas gaining `workout_type`) and needed the same rebuild.
+Also: a Postgres partial unique index's uniqueness only holds across the *combination* of its
+indexed columns, not each column independently — a cleanup query that checks a multi-column
+uniqueness key one column at a time (as this phase's first draft of the regeneration cleanup did,
+comparing `slot` alone) will silently mis-delete rows whenever two different key-combinations share
+a value in just one column. Worth remembering for any future `(a, b, c)`-keyed partial-unique
+table's cleanup/dedup logic.
+
+**Not done yet, deliberately deferred**: Phase 6's data-repair script (dry-run report,
+approval-gated apply, JSON backup + restore script) for the 5 known-bad production phantom rows
+(Bodyweight Squat HD, 13/20/27 Sep + 4/11 Oct) is real, safety-critical work involving Isaac's
+actual data — it was not rushed into this same session. Stopping future phantom generation does
+not touch those existing rows either way; they're unaffected by this deploy. See "Not yet done"
+item 0 below for the full repair-category breakdown when that work starts.
+
+---
+
+**Previous entry, also shipped this same day (`6d94d3f98` on `main`):**
 **Phase 1 of the workout-mapping fix** (full plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`,
 6 phases total) is complete, merged, and live. Fixed: duplicate sessions from a double-tap
 Finish or a coach retry, empty session shells that still counted as workouts, calorie values
@@ -588,11 +655,14 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 - **`docker/Docker_deploy_manual_command.md` describes the wrong build for this fork and will produce a failed build if followed literally.** It documents the *upstream* project's multi-arch DockerHub publish flow (`docker buildx build ... -f docker/Dockerfile.backend SparkyFitnessServer --push`), which uses `SparkyFitnessServer` as the build context. This fork's `Dockerfile.backend`/`Dockerfile.frontend` are written for a pnpm-workspace monorepo (they `COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./` and `COPY shared/ shared/` before anything else) and need the **repo root** (`.`, run from `/home/pi1/sparkyfitness-build`) as the build context, not `SparkyFitnessServer`. Using the wrong context fails fast and loudly (`COPY shared/ shared/: "/shared": not found`), so it's not a silent-corruption risk like the cache issues below — just don't trust that doc file's exact invocation. The correct commands: `docker build --no-cache -t sparkyfitness_server:custom -f docker/Dockerfile.backend .` and `docker build --no-cache -t sparkyfitness:custom -f docker/Dockerfile.frontend .`, both from `/home/pi1/sparkyfitness-build`. Matches the dev compose file's own `build: { context: .., dockerfile: docker/Dockerfile.backend.dev }` pattern — check that file first next time instead of the manual-command doc.
 - **A raw HTTP client hitting `/mcp` without both `Accept: application/json` and `Accept: text/event-stream` gets a `406 Not Acceptable`** ("Client must accept both application/json and text/event-stream") before auth is even checked — this is the MCP StreamableHTTP transport spec's own requirement, enforced by the SDK, not a bug in this app. Hit this connecting Hermes (2026-09-13): its native HTTP MCP client sends a plain `Accept: */*` and 406s every time, which looks exactly like an auth failure (it fails right after the "does this need auth" step) but isn't — confirmed by curling the same endpoint with the correct dual `Accept` header and the same key, which worked immediately. If a future client 406s here, check its `Accept` header before assuming the key is bad; the `mcp-remote` npm bridge (already documented above in the MCP setup docs) sends it correctly and is the fallback for any client that doesn't.
 - **The PWA service worker can serve a stale cached JS chunk even in a brand-new Playwright browser context, immediately after a fresh `--force-recreate` deploy** — a feature that's genuinely in the deployed image can still appear "missing" live because the browser is running an old precached bundle. Compare `performance.getEntriesByType('resource')` (filtered to the chunk in question) against what's actually in the freshly built image; if they don't match, unregister service workers (`navigator.serviceWorker.getRegistrations()` → `.unregister()`) and clear caches (`caches.keys()` → `.delete()`) before hard-navigating and trusting anything rendered. This app also has a named-theme cycle (`localStorage['theme']` — `system`/`light`/`dark`/plus at least one branded palette like `whoop`) behind the single header toggle button; don't assume the button's next click lands on plain "dark", set `localStorage.theme` directly and reload if you need a specific one for a screenshot.
-- **The dev Docker stack's `shared/` package is baked into the image at build time, not bind-mounted** (`docker/docker-compose.dev.yml` only mounts `SparkyFitnessServer/`/`SparkyFitnessFrontend/`) — a `docker restart` after editing `shared/` is not enough. The backend starts and then crashes with `SyntaxError: The requested module '@workspace/shared' does not provide an export named '...'`; the frontend throws the same thing from Vite (`/@fs/app/shared/src/index.ts does not provide an export named ...`) even after its own `.vite` cache is cleared and the container restarted, because the *image's* copy of `shared/` is what's stale, not a runtime cache. Fix: `docker compose --env-file .env -f docker/docker-compose.dev.yml build --no-cache <service>` (`sparkyfitness-server` and/or `sparkyfitness-frontend`) then `up -d --force-recreate <service>` — for both, if `shared/` changed. Also: running `docker compose build` from inside `docker/` (instead of the repo root) silently drops the `../.env` variable interpolation and fails with `required variable ... is missing a value` even though the file exists at the expected relative path — pass `--env-file .env` explicitly and/or run from the repo root to be safe. Hit this 2026-09-15: the Phase 1 contract commit had added new `shared/` exports well before this session started, and the dev containers had apparently been running against a stale image (and therefore silently broken for anything touching those exports) since then, undetected until this session tried to boot them.
+- **The dev Docker stack's `shared/` package is baked into the image at build time, not bind-mounted** (`docker/docker-compose.dev.yml` only mounts `SparkyFitnessServer/`/`SparkyFitnessFrontend/`) — a `docker restart` after editing `shared/` is not enough. The backend starts and then crashes with `SyntaxError: The requested module '@workspace/shared' does not provide an export named '...'`; the frontend throws the same thing from Vite (`/@fs/app/shared/src/index.ts does not provide an export named ...`) even after its own `.vite` cache is cleared and the container restarted, because the *image's* copy of `shared/` is what's stale, not a runtime cache. Fix: `docker compose --env-file .env -f docker/docker-compose.dev.yml build --no-cache <service>` (`sparkyfitness-server` and/or `sparkyfitness-frontend`) then `up -d --force-recreate <service>` — for both, if `shared/` changed. Also: running `docker compose build` from inside `docker/` (instead of the repo root) silently drops the `../.env` variable interpolation and fails with `required variable ... is missing a value` even though the file exists at the expected relative path — pass `--env-file .env` explicitly and/or run from the repo root to be safe. Hit this 2026-09-15 across two Phase-1-and-2-era `shared/` changes; check this first if the **dev** stack throws a missing-shared-export error after only editing `shared/`.
+- **A multi-column partial unique index's uniqueness only holds across the *combination* of its indexed columns, not each column independently** — a cleanup/dedup query that checks such a key one column at a time will silently mis-delete or mis-spare rows whenever two different key-combinations happen to share a value in just one column. Hit this 2026-09-15 building `planned_workouts`' `(template_id, generated_for_date, slot)` regeneration key: `slot` is only unique *per day-of-week* (each day's assignments are independently 0-indexed), so a first-draft cleanup DELETE comparing bare `slot` values across different dates treated every day's "slot 0" as the same slot and wrongly spared (or deleted) the wrong day's row. The real-database integration test caught this immediately; a mocked unit test never would have. Fix: compare the full column tuple, e.g. `NOT EXISTS (SELECT 1 FROM unnest($dates::date[], $slots::smallint[]) AS d(date, slot) WHERE d.date = tbl.col_a AND d.slot = tbl.col_b)` rather than `NOT (col_b = ANY($slots))`. Worth remembering for any future multi-column-keyed partial-unique table.
+- **A TypeScript package with no bundled `.d.ts` and no `noImplicitAny` diagnostic on an *existing* import site can still be genuinely untyped** — `pg-format` (used by several repository files for bulk `INSERT ... VALUES %L`) has no types at all, but only newly-added files importing it surfaced `TS7016`; existing files turned out to each carry their own `// @ts-expect-error TS(7016)` comment suppressing it, which isn't obvious from a quick grep for the import line alone. Added a proper ambient declaration (`types/pg-format.d.ts`, matching the existing `types/garmin-fitsdk.d.ts` precedent for untyped packages) instead of another suppression — this made the old per-file `@ts-expect-error` comments stale (`TS2578: Unused '@ts-expect-error' directive`), so they all had to come out together. If tsc ever flags an unused `@ts-expect-error` on an import line, check whether a *different* file just added a real ambient type for that module.
+- **Spreading a value with an unresolvable type (e.g. from a dynamic `import()` of a non-literal, variable path) into an object literal silently widens the *entire* literal's inferred type**, not just that one spread's contribution — `models/exerciseRepository.ts` did `const { default: x } = await import(somePathVariable); export default { ...a, ...b, ...x, ... }`, and because `x` was untypeable (TS can't statically resolve a variable-path dynamic import), the whole merged default export object's type collapsed toward permissive/untyped for every key, not just `x`'s. This silently masked a real type-safety gap in an unrelated test file (`exerciseSourceScoping.test.ts` called `.mockResolvedValueOnce` directly on a property with no compile-time indication it needed `vi.mocked()` or a suppression comment, because the whole object was too loosely typed to catch it) until the dead spread was removed for an unrelated reason (deleting `exerciseTemplate.ts`, whose exports `x` was pulling in). If removing a spread from a merged default-export object suddenly produces type errors in files that never imported that spread's source directly, check whether the removed spread was the thing quietly keeping the *whole* merged type loose.
 
 ## Not yet done (from the original broader plan — still open)
 
-0. **Workout-mapping fix, Phases 2–6** (plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`) — Phase 1 (session integrity) is done, see "PICK UP HERE" above. Phase 2 is next: a new `planned_workouts` table, the planning UI/dashboard, an MCP planned-workout tool, weekly-goal tracking (3 strength + 2 cardio ≥20 min, any intentional strength session counts, `first_day_of_week = 0`), and stopping `workoutPlanTemplateService.ts`'s phantom auto-materialization of diary entries on program activation (item 3 below is the symptom of this same root cause). Phase 6 is the approval-gated repair script for the known-bad production rows listed above — dry-run report first, apply only with Isaac's explicit sign-off, never silently.
+0. **Workout-mapping fix, Phases 3–6** (plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`) — Phases 1 (session integrity) and 2 (planned-workout domain + phantom-generation fix) are done, see "PICK UP HERE" above. Phase 3 is next: date/timezone alignment and the planning UI/dashboard (frontend) — a `PlannedWorkoutsList`/`AddPlannedWorkoutDialog` under Workouts, `todayInZone` instead of device dates, week order from `first_day_of_week` preference, planned-vs-completed counts on the Home `WorkoutCard`, missed-workout Move/Skip prompts. Phase 4 is the MCP `sparky_manage_planned_workouts` tool. Phase 5 is weekly-goal tracking (3 strength + 2 cardio ≥20 min, any intentional strength session counts, Isaac's `first_day_of_week = 0`). Phase 6 is the approval-gated repair script for the known-bad production rows listed above (still present, untouched by Phase 2 — stopping future phantom generation doesn't retroactively fix existing rows) — dry-run report first, apply only with Isaac's explicit sign-off, never silently; this is real, safety-critical work (JSON backup + restore script) that deserves its own focused session rather than being appended to another phase's.
 1. **Wire the in-app AI chatbot to Kingdom's Ollama** (`http://100.68.231.84:11434/v1`, admin-only AI setting, no `ALLOW_PRIVATE_NETWORK_AI` change needed). `OLLAMA_CONTEXT_LENGTH` may need raising on Kingdom for reliable tool-calling.
 2. **Hermes integration — connection now DONE (2026-09-13); the morning-briefing automation itself is not.**
    - **Correction to this doc's own earlier assumption**: Hermes is **not** an n8n workflow. It's its own container on Pi5 (`docker ps` shows `hermes`, image `nousresearch/hermes-agent:v2026.8.27`), configured via `/home/pi1/.hermes/config.yaml` (bind-mounted into the container at `/opt/data`) and driven by its own CLI (`hermes mcp add/list/test/...`). `n8n` also runs on this Pi5 (container `n8n`) but is a separate, unrelated thing — don't conflate them, and don't plan a "wire it up via an n8n workflow" step again without checking first.
