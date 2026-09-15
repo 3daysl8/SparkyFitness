@@ -4,7 +4,44 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`b1740da32` on `main`):
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`2ed9c6214` on `main`):
+`CheckTarget` (the shared checkbox used by To-Do List and Daily Habits on Home) was shrunk from
+32px (`h-8 w-8`) to 20px (`h-5 w-5`) — it was visibly oversized next to its label and broke
+alignment with Today's Agenda above it — and its unchecked-state border bumped from a washed-out
+`/30` opacity to `/50` for contrast. Check icon/stroke sized down to match (`h-3 w-3`,
+`strokeWidth={3}`). Both row containers (`ToDoRow` in `ToDoCard.tsx`, `HabitRow` in
+`HomeChecklist.tsx`) standardized to the same `rounded-xl` (12px) + `px-3.5 py-2.5` (14px/10px)
+rhythm so the two sections read consistently with each other.
+
+**Isaac's brief asked for this in plain CSS/CSS Modules/styled-components "consistent with
+existing codebase styling patterns" — checked first and that's backwards**: this app has zero
+CSS Modules or styled-components anywhere, Tailwind v4 is the only styling system, and
+`CheckTarget`/`ToDoRow`/`HabitRow` were already 100% Tailwind utility classes with no dedicated
+stylesheet. Flagged it and got confirmation to implement in Tailwind instead, matching every
+sibling card on the dashboard — introducing a second styling paradigm for one component would
+have been the actual inconsistency. **Worth remembering for next time a request specifies a
+styling approach**: check `package.json` / grep for `.module.css` before assuming the brief's
+framing of "existing patterns" is accurate — it may be describing a different project (Isaac
+also works on the content-hub repo, which genuinely has no Tailwind).
+
+Live-verified with throwaway fixtures in the local dev stack (not just the build): logged into
+the dev DB's seeded demo account (`getDemoCredentials()` in `demoSeedService.ts` derives a
+stable password from `BETTER_AUTH_SECRET` when `SPARKY_FITNESS_DEMO_PASSWORD` isn't set — no
+password is hardcoded anywhere), added a throwaway to-do + habit via the UI, screenshotted both
+the unchecked and checked states, confirmed the smaller crisp circle and consistent row rhythm,
+then cleaned up (habit deleted via the Focus page's delete button, the completed to-do deleted
+directly via `psql` since completed one-off Focus items have no delete affordance on the Home
+dashboard itself — confirmed the demo account's real data, e.g. Water 91%/2-of-2 supplements,
+was untouched afterward). Full frontend suite (971/971 Jest tests — this frontend uses Jest, not
+vitest; vitest is the *backend's* test runner in this monorepo, don't confuse the two) + `tsc -b`
++ `eslint --max-warnings 0` all clean. Deployed: `--no-cache` frontend rebuild on Pi5, grepped
+the built image for the new `h-5 w-5 shrink-0` class combo to confirm it compiled in, confirmed
+the *running* container serves that same chunk, `docker builder prune -af` after.
+
+---
+
+**Previous entry, also shipped this same day:**
+
 `sparky_manage_workout_plans` gained two new MCP actions so Hermes can now change day-by-day
 workout scheduling itself instead of only reading it —
 
