@@ -56,6 +56,10 @@ export interface WorkoutPlaybackDraft {
    * on drafts persisted before it existed. */
   client_request_id?: string;
   preset_id: string;
+  /** The planned_workouts row this session, once saved, should auto-complete
+   * server-side (Phase 2's planned_workout_id-on-create path) — null/absent
+   * for a workout not launched from a plan. */
+  planned_workout_id?: string | null;
   name: string;
   description: string | null;
   entry_date: string;
@@ -311,7 +315,8 @@ export function isWorkoutPlaybackComplete(
 
 export function createWorkoutPlaybackDraftFromPreset(
   preset: WorkoutPreset,
-  entryDate: string
+  entryDate: string,
+  plannedWorkoutId?: string | null
 ): WorkoutPlaybackDraft {
   const createdAt = nowIso();
 
@@ -350,6 +355,7 @@ export function createWorkoutPlaybackDraftFromPreset(
     version: 1,
     client_request_id: generateClientId(),
     preset_id: String(preset.id),
+    planned_workout_id: plannedWorkoutId ?? null,
     name: preset.name,
     description: preset.description ?? null,
     entry_date: entryDate,
@@ -378,11 +384,16 @@ export function createWorkoutPlaybackDraftFromPreset(
 export function createWorkoutPlaybackRouteState(
   preset: WorkoutPreset,
   entryDate: string,
-  returnTo?: string
+  returnTo?: string,
+  plannedWorkoutId?: string | null
 ): WorkoutPlaybackRouteState {
   return {
     returnTo,
-    draft: createWorkoutPlaybackDraftFromPreset(preset, entryDate),
+    draft: createWorkoutPlaybackDraftFromPreset(
+      preset,
+      entryDate,
+      plannedWorkoutId
+    ),
   };
 }
 
@@ -497,13 +508,15 @@ export function createWorkoutPlaybackRouteStateFromSession(
  * shape as createWorkoutPlaybackDraftFromPreset's output, just with no
  * exercises yet. Built up live via addExerciseToWorkoutDraft below. */
 export function createBlankWorkoutPlaybackDraft(
-  entryDate: string
+  entryDate: string,
+  plannedWorkoutId?: string | null
 ): WorkoutPlaybackDraft {
   const createdAt = nowIso();
   return {
     version: 1,
     client_request_id: generateClientId(),
     preset_id: 'blank',
+    planned_workout_id: plannedWorkoutId ?? null,
     name: 'Workout',
     description: null,
     entry_date: entryDate,
@@ -1060,6 +1073,9 @@ export function buildPresetSessionCreateRequestFromDraft(
         ? draft.client_request_id
         : undefined,
     workout_preset_id: toWorkoutPresetId(draft.preset_id),
+    // Carries the plan through to the backend's auto-complete-on-save path
+    // (linkPlannedWorkoutWithClient) — see planned_workout_id on the draft.
+    planned_workout_id: draft.planned_workout_id ?? undefined,
     name: draft.name,
     description: draft.description,
     notes: draft.notes,

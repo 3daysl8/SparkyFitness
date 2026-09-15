@@ -1200,6 +1200,11 @@
       "restEditorTitle": "Edit Rest",
       "restTimer": "Rest",
       "volume": "Volume"
+    },
+    "workoutCard": {
+      "missedTitle": "{{count}} missed workouts",
+      "moveToToday": "Move to today",
+      "skip": "Skip"
     }
   },
   "workoutPresetsManager": {

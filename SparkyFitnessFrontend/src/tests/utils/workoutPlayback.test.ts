@@ -170,6 +170,63 @@ describe('workoutPlayback utils', () => {
     expect(routeState.returnTo).toBe('/diary');
     expect(routeState.draft?.entry_date).toBe('2026-04-27');
     expect(routeState.draft?.name).toBe('Upper Body');
+    expect(routeState.draft?.planned_workout_id).toBeNull();
+  });
+
+  it('threads an optional planned_workout_id through preset draft construction, route state, and the blank draft', () => {
+    const presetDraft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27',
+      'plan-123'
+    );
+    expect(presetDraft.planned_workout_id).toBe('plan-123');
+
+    const routeState = createWorkoutPlaybackRouteState(
+      createPresetFixture(),
+      '2026-04-27',
+      '/diary',
+      'plan-123'
+    );
+    expect(routeState.draft?.planned_workout_id).toBe('plan-123');
+
+    const blankDraft = createBlankWorkoutPlaybackDraft(
+      '2026-04-27',
+      'plan-456'
+    );
+    expect(blankDraft.planned_workout_id).toBe('plan-456');
+
+    // Omitting it (the un-planned launch path) still defaults to null rather
+    // than undefined, so a persisted draft always has the field.
+    expect(
+      createWorkoutPlaybackDraftFromPreset(createPresetFixture(), '2026-04-27')
+        .planned_workout_id
+    ).toBeNull();
+  });
+
+  it('includes planned_workout_id in the session-create payload when the draft carries one, and omits it otherwise', () => {
+    const planned = toggleWorkoutSetCompletion(
+      createWorkoutPlaybackDraftFromPreset(
+        createPresetFixture(),
+        '2026-04-27',
+        'plan-789'
+      ),
+      { exerciseIndex: 0, setIndex: 0 }
+    );
+    const plannedPayload = buildPresetSessionCreateRequestFromDraft(
+      planned,
+      'UTC'
+    );
+    expect(plannedPayload.planned_workout_id).toBe('plan-789');
+
+    const unplanned = toggleWorkoutSetCompletion(
+      createWorkoutPlaybackDraftFromPreset(createPresetFixture(), '2026-04-27'),
+      { exerciseIndex: 0, setIndex: 0 }
+    );
+    const unplannedPayload = buildPresetSessionCreateRequestFromDraft(
+      unplanned,
+      'UTC'
+    );
+    expect(unplannedPayload.planned_workout_id).toBeUndefined();
   });
 
   it('saves, loads, and clears a persisted draft by date', () => {
