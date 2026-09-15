@@ -15,6 +15,7 @@ vi.mock('../services/plannedWorkoutService.js', () => ({
     updatePlannedWorkout: vi.fn(),
     movePlannedWorkout: vi.fn(),
     startPlannedWorkout: vi.fn(),
+    revertPlannedWorkout: vi.fn(),
     skipPlannedWorkout: vi.fn(),
     completePlannedWorkout: vi.fn(),
     deletePlannedWorkout: vi.fn(),
@@ -223,6 +224,49 @@ describe('plannedWorkoutRoutes (supertest)', () => {
         .send({ session_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' });
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /:id/revert', () => {
+    it('returns the reverted plan on success', async () => {
+      vi.mocked(plannedWorkoutService.revertPlannedWorkout).mockResolvedValue({
+        ...rowFixture,
+        status: 'planned',
+        started_at: null,
+      });
+
+      const res = await request(app).post(
+        `/v2/planned-workouts/${PLAN_ID}/revert`
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('planned');
+    });
+
+    it('maps a 409 refusal when the plan is not currently started', async () => {
+      vi.mocked(plannedWorkoutService.revertPlannedWorkout).mockRejectedValue(
+        Object.assign(
+          new Error('Cannot revert a plan that is already completed.'),
+          { status: 409 }
+        )
+      );
+
+      const res = await request(app).post(
+        `/v2/planned-workouts/${PLAN_ID}/revert`
+      );
+
+      expect(res.status).toBe(409);
+      expect(res.body.error).toBe(
+        'Cannot revert a plan that is already completed.'
+      );
+    });
+
+    it('rejects a non-UUID id', async () => {
+      const res = await request(app).post(
+        '/v2/planned-workouts/not-a-uuid/revert'
+      );
+      expect(res.status).toBe(400);
+      expect(plannedWorkoutService.revertPlannedWorkout).not.toHaveBeenCalled();
     });
   });
 

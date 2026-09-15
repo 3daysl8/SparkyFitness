@@ -347,7 +347,9 @@ describe('chatService', () => {
         : Object.keys(raw);
     };
 
-    const toolCallStep = (
+    // Only used via `typeof` below (scriptModel's step union) — never called
+    // directly, hence the leading underscore to satisfy no-unused-vars.
+    const _toolCallStep = (
       toolName: string,
       args: Record<string, unknown> = {}
     ) => ({
@@ -373,7 +375,7 @@ describe('chatService', () => {
 
     const scriptModel = (
       steps: Array<
-        ReturnType<typeof toolCallStep> | ReturnType<typeof textStep>
+        ReturnType<typeof _toolCallStep> | ReturnType<typeof textStep>
       >
     ) => {
       const queue = [...steps];
@@ -475,7 +477,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 17\/34 active tools for chatbot \(profile=core/
+          /Loaded 18\/35 active tools for chatbot \(profile=core/
         )
       );
       // The core profile is the mitigation, so no context-window warning.
@@ -557,7 +559,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 34\/34 active tools for chatbot \(profile=full/
+          /Loaded 35\/35 active tools for chatbot \(profile=full/
         )
       );
       // Ollama + full profile is the risky combo, so warn about the 4096 default.
@@ -590,15 +592,15 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 34\/34 active tools for chatbot \(profile=full/
+          /Loaded 35\/35 active tools for chatbot \(profile=full/
         )
       );
     });
 
     it('never trims a non-Ollama service even with a stale core profile stored', async () => {
       // The profile gate keys on service_type, so a service that was Ollama+core
-      // and later switched to OpenAI still loads the full 34-tool surface
-      // (32 domain tools + sparky_enable_tools + sparky_ask_user).
+      // and later switched to OpenAI still loads the full 35-tool surface
+      // (33 domain tools + sparky_enable_tools + sparky_ask_user).
       vi.mocked(chatRepository.getAiServiceSettingForBackend).mockResolvedValue(
         {
           ...aiServiceSetting,
@@ -618,7 +620,7 @@ describe('chatService', () => {
       expect(log).toHaveBeenCalledWith(
         'info',
         expect.stringMatching(
-          /Loaded 34\/34 active tools for chatbot \(profile=full/
+          /Loaded 35\/35 active tools for chatbot \(profile=full/
         )
       );
       // The context-window warning is Ollama-only; cloud providers never see it.

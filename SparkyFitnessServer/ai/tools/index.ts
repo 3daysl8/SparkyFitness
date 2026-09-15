@@ -27,6 +27,7 @@ import { buildProfileTools } from './profileTools.js';
 import { buildReportTools } from './reportTools.js';
 import { buildWizardTools } from './wizardTools.js';
 import { buildWorkoutPlanTools } from './workoutPlanTools.js';
+import { buildPlannedWorkoutTools } from './plannedWorkoutTools.js';
 
 /**
  * Tool surfaces the chatbot can expose:
@@ -74,6 +75,7 @@ const CATEGORY_BUILDERS: Record<
     (u, tz) => buildExerciseTools(u, tz),
     (u, tz) => buildExerciseStatsTools(u, tz),
     (u, tz) => buildWorkoutPlanTools(u, tz),
+    (u, tz) => buildPlannedWorkoutTools(u, tz),
   ],
   // Food/nutrition tracking was hard-deleted from this fork (Ouroboros Life
   // restructure); water containers are hydration, not food-diary, so they are

@@ -19,6 +19,12 @@ vi.mock('../ai/tools/exerciseTools.js', () => ({
   findExerciseByExactName: vi.fn(),
 }));
 
+vi.mock('../services/plannedWorkoutService.js', () => ({
+  default: {
+    listPlannedWorkouts: vi.fn(),
+  },
+}));
+
 vi.mock('../config/logging.js', () => ({
   log: vi.fn(),
 }));
@@ -26,6 +32,7 @@ vi.mock('../config/logging.js', () => ({
 import workoutPlanTemplateService from '../services/workoutPlanTemplateService.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import { findExerciseByExactName } from '../ai/tools/exerciseTools.js';
+import plannedWorkoutService from '../services/plannedWorkoutService.js';
 import { buildWorkoutPlanTools } from '../ai/tools/workoutPlanTools.js';
 
 const opts = { toolCallId: 'tc-1', messages: [] };
@@ -49,6 +56,10 @@ const presetRepo = workoutPresetRepository as unknown as {
 const findExerciseMock = findExerciseByExactName as unknown as ReturnType<
   typeof vi.fn
 >;
+
+const plannedSvc = plannedWorkoutService as unknown as {
+  listPlannedWorkouts: ReturnType<typeof vi.fn>;
+};
 
 const BASE_PLAN = {
   id: PLAN_ID,
@@ -221,6 +232,7 @@ describe('sparky_manage_workout_plans', () => {
     it('assigns a preset by ID, replacing that day and echoing the rest of the plan unchanged', async () => {
       svc.getWorkoutPlanTemplateById.mockResolvedValue(BASE_PLAN);
       svc.updateWorkoutPlanTemplate.mockResolvedValue({});
+      plannedSvc.listPlannedWorkouts.mockResolvedValue([]);
       const result = await getTool().execute!(
         {
           action: 'set_day_assignment',
@@ -230,7 +242,9 @@ describe('sparky_manage_workout_plans', () => {
         },
         opts
       );
-      expect(result).toBe('✅ Monday set on "Push Pull Legs".');
+      expect(result).toBe(
+        '✅ Monday set on "Push Pull Legs".\n\n# Upcoming Planned Workouts (next 4 weeks)\n\nNo results found.'
+      );
       expect(svc.updateWorkoutPlanTemplate).toHaveBeenCalledWith(
         'user-1',
         PLAN_ID,
@@ -332,6 +346,38 @@ describe('sparky_manage_workout_plans', () => {
       expect(svc.updateWorkoutPlanTemplate).not.toHaveBeenCalled();
     });
 
+    it('includes the resulting upcoming schedule after the change', async () => {
+      svc.getWorkoutPlanTemplateById.mockResolvedValue(BASE_PLAN);
+      svc.updateWorkoutPlanTemplate.mockResolvedValue({});
+      plannedSvc.listPlannedWorkouts.mockResolvedValue([
+        {
+          id: 'pw-1',
+          title: 'Push Day',
+          status: 'planned',
+          planned_date: '2026-01-05',
+          planned_time: null,
+        },
+      ]);
+      const result = await getTool().execute!(
+        {
+          action: 'set_day_assignment',
+          plan_id: PLAN_ID,
+          day_of_week: 1,
+          preset_id: 9,
+        },
+        opts
+      );
+      expect(result).toContain('# Upcoming Planned Workouts (next 4 weeks)');
+      expect(result).toContain('**Push Day** (planned) — 2026-01-05');
+      expect(result).toContain('ID: pw-1');
+      expect(plannedSvc.listPlannedWorkouts).toHaveBeenCalledWith(
+        'user-1',
+        expect.any(String),
+        expect.any(String),
+        expect.any(String)
+      );
+    });
+
     it('returns NOT_FOUND for an unknown preset name', async () => {
       presetRepo.getWorkoutPresetByName.mockResolvedValue(null);
       const result = await getTool().execute!(
@@ -352,12 +398,13 @@ describe('sparky_manage_workout_plans', () => {
     it('removes the assignment for that day and keeps the rest', async () => {
       svc.getWorkoutPlanTemplateById.mockResolvedValue(BASE_PLAN);
       svc.updateWorkoutPlanTemplate.mockResolvedValue({});
+      plannedSvc.listPlannedWorkouts.mockResolvedValue([]);
       const result = await getTool().execute!(
         { action: 'clear_day_assignment', plan_id: PLAN_ID, day_of_week: 1 },
         opts
       );
       expect(result).toBe(
-        '✅ Monday cleared on "Push Pull Legs" — now a rest day.'
+        '✅ Monday cleared on "Push Pull Legs" — now a rest day.\n\n# Upcoming Planned Workouts (next 4 weeks)\n\nNo results found.'
       );
       expect(svc.updateWorkoutPlanTemplate).toHaveBeenCalledWith(
         'user-1',

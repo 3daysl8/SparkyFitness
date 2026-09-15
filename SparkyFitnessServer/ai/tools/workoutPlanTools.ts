@@ -1,9 +1,11 @@
 import { tool } from 'ai';
+import { addDays, todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import workoutPlanTemplateService, {
   type WorkoutPlanAssignmentSetInput,
 } from '../../services/workoutPlanTemplateService.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
+import plannedWorkoutService from '../../services/plannedWorkoutService.js';
 import { findExerciseByExactName } from './exerciseTools.js';
 import { ERRORS, formatZodError } from './errors.js';
 import { formatConfirmation, formatList } from './formatting.js';
@@ -48,6 +50,42 @@ interface WorkoutPlanTemplateRow {
   end_date?: unknown;
   is_active?: boolean;
   assignments?: WorkoutPlanAssignmentRow[];
+}
+
+// set_day_assignment/clear_day_assignment resync planned_workouts server-side
+// (workoutPlanTemplateService.updateWorkoutPlanTemplate calls
+// syncTemplatePlannedWorkouts internally), so by the time this runs the
+// change is already live — echoing it back saves the model a follow-up
+// sparky_manage_planned_workouts.list_planned call to see the effect.
+const UPCOMING_SCHEDULE_DAYS = 28;
+
+function formatUpcomingPlannedWorkout(row: {
+  id: string;
+  title: string;
+  status: string;
+  planned_date: string;
+  planned_time: string | null;
+}): string {
+  const time = row.planned_time ? ` at ${row.planned_time}` : '';
+  return `**${row.title}** (${row.status})${time} — ${row.planned_date}\n  ID: ${row.id}`;
+}
+
+async function formatUpcomingSchedule(
+  userId: string,
+  tz: string
+): Promise<string> {
+  const today = todayInZone(tz);
+  const rows = await plannedWorkoutService.listPlannedWorkouts(
+    userId,
+    today,
+    addDays(today, UPCOMING_SCHEDULE_DAYS - 1),
+    today
+  );
+  return formatList(
+    rows as Parameters<typeof formatUpcomingPlannedWorkout>[0][],
+    'Upcoming Planned Workouts (next 4 weeks)',
+    formatUpcomingPlannedWorkout
+  );
 }
 
 function formatAssignment(a: WorkoutPlanAssignmentRow): string {
@@ -163,7 +201,9 @@ Actions:
 - action: 'set_day_assignment' (fields: plan_id, day_of_week, and exactly one of preset_id/preset_name or exercise_id/exercise_name) — assigns a saved preset or a single exercise to that day. REPLACES anything already assigned to that day, it does not add alongside it.
 - action: 'clear_day_assignment' (fields: plan_id, day_of_week) — removes whatever is assigned to that day, making it a rest day
 
-day_of_week is 0=Sunday..6=Saturday, or a day name like "Monday" (case-insensitive, both accepted).`,
+day_of_week is 0=Sunday..6=Saturday, or a day name like "Monday" (case-insensitive, both accepted).
+
+Editing a day's assignment regenerates the user's actual scheduled workouts for that weekday going forward (a separate planned_workouts list — see sparky_manage_planned_workouts), so set_day_assignment and clear_day_assignment both return the next 4 weeks of that resulting schedule alongside the confirmation.`,
       inputSchema: manageWorkoutPlansInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -248,9 +288,11 @@ day_of_week is 0=Sunday..6=Saturday, or a day name like "Monday" (case-insensiti
               );
               const dayName =
                 DAY_NAMES[args.day_of_week] ?? `Day ${args.day_of_week}`;
-              return formatConfirmation(
+              const confirmation = formatConfirmation(
                 `${dayName} set on "${plan.plan_name}".`
               );
+              const upcoming = await formatUpcomingSchedule(userId, tz);
+              return `${confirmation}\n\n${upcoming}`;
             }
 
             case 'clear_day_assignment': {
@@ -276,9 +318,11 @@ day_of_week is 0=Sunday..6=Saturday, or a day name like "Monday" (case-insensiti
               );
               const dayName =
                 DAY_NAMES[args.day_of_week] ?? `Day ${args.day_of_week}`;
-              return formatConfirmation(
+              const confirmation = formatConfirmation(
                 `${dayName} cleared on "${plan.plan_name}" — now a rest day.`
               );
+              const upcoming = await formatUpcomingSchedule(userId, tz);
+              return `${confirmation}\n\n${upcoming}`;
             }
 
             default:
