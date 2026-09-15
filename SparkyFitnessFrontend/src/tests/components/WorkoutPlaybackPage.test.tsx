@@ -1,5 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import '@testing-library/jest-dom';
+import type { CreatePresetSessionRequest } from '@workspace/shared';
 import WorkoutPlaybackPage from '@/pages/Exercises/WorkoutPlaybackPage';
 import type { WorkoutPreset } from '@/types/workout';
 import { createWorkoutPlaybackDraftFromPreset } from '@/utils/workoutPlayback';
@@ -66,6 +73,33 @@ const presetFixture: WorkoutPreset = {
     },
   ],
 } as unknown as WorkoutPreset;
+
+const DRAFT_STORAGE_KEY = 'sparky.workoutPlaybackDraft.v1:2026-04-27';
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const completedDraft = (preset: WorkoutPreset = presetFixture) => {
+  const draft = createWorkoutPlaybackDraftFromPreset(preset, '2026-04-27');
+  draft.exercises.forEach((exercise) => {
+    exercise.sets.forEach((set) => {
+      set.completed = true;
+    });
+  });
+  return draft;
+};
+
+const sentPayload = (callIndex: number) =>
+  mockCreatePresetSession.mock.calls[
+    callIndex
+  ]?.[0] as CreatePresetSessionRequest;
+
+function deferred() {
+  let reject: (error: unknown) => void = () => undefined;
+  const promise = new Promise<undefined>((_resolve, rejectPromise) => {
+    reject = rejectPromise;
+  });
+  return { promise, reject };
+}
 
 describe('WorkoutPlaybackPage', () => {
   beforeEach(() => {
@@ -144,6 +178,179 @@ describe('WorkoutPlaybackPage', () => {
 
       expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
       expect(screen.queryByText(/Personal Record/i)).not.toBeInTheDocument();
+    });
+
+    it('saves once for a double tap and retries a failed save with the same client_request_id', async () => {
+      mockLocationState = {
+        returnTo: '/?date=2026-04-27',
+        draft: completedDraft(),
+      };
+      const firstAttempt = deferred();
+      mockCreatePresetSession
+        .mockReturnValueOnce(firstAttempt.promise)
+        .mockResolvedValueOnce(undefined);
+
+      render(<WorkoutPlaybackPage />);
+
+      const finishButtons = screen.getAllByRole('button', {
+        name: /finish workout/i,
+      });
+      fireEvent.click(finishButtons[0]!);
+      fireEvent.click(finishButtons[1]!);
+      fireEvent.click(finishButtons[0]!);
+
+      expect(mockCreatePresetSession).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        firstAttempt.reject(new Error('network'));
+      });
+      expect(
+        await screen.findByText(/Failed to save workout/)
+      ).toBeInTheDocument();
+
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+
+      await waitFor(() =>
+        expect(mockCreatePresetSession).toHaveBeenCalledTimes(2)
+      );
+      const firstId = sentPayload(0).client_request_id;
+      expect(firstId).toMatch(UUID_PATTERN);
+      expect(sentPayload(1).client_request_id).toBe(firstId);
+      expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
+    });
+
+    it('sends the client_request_id of a draft restored from storage', async () => {
+      const draft = completedDraft();
+      window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      mockCreatePresetSession.mockResolvedValue(undefined);
+
+      render(<WorkoutPlaybackPage />);
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+
+      await waitFor(() =>
+        expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
+      );
+      expect(sentPayload(0).client_request_id).toBe(draft.client_request_id);
+      expect(sentPayload(0).workout_preset_id).toBeNull();
+    });
+
+    it('persists a new client_request_id for a legacy draft before sending it', async () => {
+      const { client_request_id: _clientRequestId, ...legacyDraft } =
+        completedDraft();
+      window.localStorage.setItem(
+        DRAFT_STORAGE_KEY,
+        JSON.stringify(legacyDraft)
+      );
+      const storedAtSend: (string | null)[] = [];
+      mockCreatePresetSession.mockImplementation(() => {
+        storedAtSend.push(window.localStorage.getItem(DRAFT_STORAGE_KEY));
+        return Promise.reject(new Error('offline'));
+      });
+
+      render(<WorkoutPlaybackPage />);
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+
+      await waitFor(() =>
+        expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
+      );
+      const sentId = sentPayload(0).client_request_id;
+      expect(sentId).toMatch(UUID_PATTERN);
+      expect(JSON.parse(storedAtSend[0] ?? '{}').client_request_id).toBe(
+        sentId
+      );
+      expect(
+        await screen.findByText(/Failed to save workout/)
+      ).toBeInTheDocument();
+      expect(
+        JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) ?? '{}')
+          .client_request_id
+      ).toBe(sentId);
+    });
+
+    it('clears the stored draft as soon as the save succeeds while the summary stays open', async () => {
+      const draft = completedDraft();
+      window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      mockLocationState = { returnTo: '/?date=2026-04-27', draft };
+      mockCreatePresetSession.mockResolvedValue(undefined);
+
+      render(<WorkoutPlaybackPage />);
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+
+      expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
+      expect(window.localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+
+      // The debounced save scheduled on mount must not bring the draft back.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      });
+      expect(window.localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
+      expect(screen.getByText('Workout Complete!')).toBeInTheDocument();
+    });
+
+    it('asks for confirmation before saving an implausible duration', async () => {
+      const longPreset = {
+        ...presetFixture,
+        exercises: [
+          {
+            exercise_id: 'exercise-1',
+            exercise_name: 'Bench Press',
+            sets: [
+              {
+                set_number: 1,
+                reps: 8,
+                weight: 80,
+                duration: 4 * 60 * 60,
+                rest_time: 90,
+              },
+            ],
+          },
+        ],
+      } as unknown as WorkoutPreset;
+      mockLocationState = {
+        returnTo: '/?date=2026-04-27',
+        draft: completedDraft(longPreset),
+      };
+      mockCreatePresetSession.mockResolvedValue(undefined);
+
+      render(<WorkoutPlaybackPage />);
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+
+      expect(
+        await screen.findByText('Double-check this workout')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Bench Press: 242 min is longer than expected')
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Review' }));
+      await waitFor(() =>
+        expect(
+          screen.queryByText('Double-check this workout')
+        ).not.toBeInTheDocument()
+      );
+      expect(mockCreatePresetSession).not.toHaveBeenCalled();
+
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Save anyway' })
+      );
+
+      await waitFor(() =>
+        expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
+      );
+      expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
     });
   });
 

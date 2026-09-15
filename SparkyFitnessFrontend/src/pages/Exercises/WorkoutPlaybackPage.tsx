@@ -17,8 +17,10 @@ import {
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
   completeCurrentWorkoutSet,
+  ensureWorkoutPlaybackDraftClientRequestId,
   extendWorkoutPlaybackRestTimer,
   getCurrentWorkoutSetPointer,
+  getWorkoutPlaybackPlausibilityWarnings,
   getWorkoutPlaybackRestRemainingSeconds,
   getWorkoutPlaybackStats,
   isPrSet,
@@ -29,11 +31,13 @@ import {
   setWorkoutPlaybackPointer,
   setWorkoutPlaybackRestTimer,
   toggleWorkoutSetCompletion,
+  type WorkoutPlaybackPlausibilityWarning,
   type WorkoutPlaybackRouteState,
   type WorkoutPlaybackDraft,
   type WorkoutSetPointer,
   updateWorkoutSetAtPointer,
 } from '@/utils/workoutPlayback';
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { formatSecondsClock } from '@/utils/timeFormatters';
 import { localDateTimeToUtc } from '@workspace/shared';
 import type { Exercise } from '@/types/exercises';
@@ -159,9 +163,15 @@ const WorkoutPlaybackPage = () => {
   const [isAddExerciseDialogOpen, setIsAddExerciseDialogOpen] = useState(false);
   const [finishSummary, setFinishSummary] =
     useState<WorkoutFinishSummary | null>(null);
-  // Captured at finish time so the "Done" handler can clear/navigate after
-  // the draft itself has already been set to null (state below).
-  const finishedEntryDateRef = useRef<string | null>(null);
+  const [plausibilityWarnings, setPlausibilityWarnings] = useState<
+    WorkoutPlaybackPlausibilityWarning[] | null
+  >(null);
+  // Set synchronously on Finish: `isSaving` only disables the buttons a
+  // render later, so a double tap would otherwise save twice.
+  const finishInFlightRef = useRef(false);
+  // Once saved, the draft stays in state behind the summary but must never be
+  // written back to storage by a debounced save.
+  const sessionSavedRef = useRef(false);
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
@@ -208,6 +218,7 @@ const WorkoutPlaybackPage = () => {
     }
 
     const timer = setTimeout(() => {
+      if (sessionSavedRef.current) return;
       if (
         persistedDraftDateRef.current &&
         persistedDraftDateRef.current !== draft.entry_date
@@ -561,67 +572,79 @@ const WorkoutPlaybackPage = () => {
     navigate(returnPath);
   }, [draft, navigate, returnPath]);
 
-  const handleFinishWorkout = useCallback(async () => {
-    if (!draft) return;
+  const saveWorkout = useCallback(async () => {
+    if (!draft || finishInFlightRef.current) return;
+    finishInFlightRef.current = true;
 
-    const payload = buildPresetSessionCreateRequestFromDraft(draft, timezone);
-    if (!payload.exercises || payload.exercises.length === 0) {
-      setSaveError(
-        t(
-          'exercise.workoutPlaybackDialog.completeAtLeastOneSet',
-          'Complete at least one set before finishing.'
-        )
+    // Persisted before sending so a retry after a failure, a reload or a
+    // crash replays the same request id instead of creating a new session.
+    const draftToSave = ensureWorkoutPlaybackDraftClientRequestId(draft);
+    saveWorkoutPlaybackDraftToStorage(draftToSave);
+    persistedDraftDateRef.current = draftToSave.entry_date;
+    if (draftToSave !== draft) {
+      setDraft((currentDraft) =>
+        currentDraft && !currentDraft.client_request_id
+          ? {
+              ...currentDraft,
+              client_request_id: draftToSave.client_request_id,
+            }
+          : currentDraft
       );
-      return;
     }
 
     try {
-      await createPresetSession(payload);
-
-      // Best-effort: auto-check any "Workout"/"Gym" daily habit for this
-      // day. A failure here must not block the already-saved workout from
-      // navigating away — only boolean/none-target habits have a "done"
-      // state that toggling actually means something for.
-      const matchingHabits = (todaySnapshot?.daily_recurring ?? []).filter(
-        (habit) =>
-          habit.target_type !== 'numeric' &&
-          !habit.done &&
-          WORKOUT_HABIT_PATTERN.test(habit.statement)
+      await createPresetSession(
+        buildPresetSessionCreateRequestFromDraft(draftToSave, timezone)
       );
-      if (matchingHabits.length > 0) {
-        await Promise.allSettled(
-          matchingHabits.map((habit) =>
-            upsertHabitCheckin.mutateAsync({
-              focusId: habit.id,
-              date: draft.entry_date,
-              body: { completed: true },
-            })
-          )
-        );
-      }
-
-      const prCount = draft.exercises
-        .flatMap((exercise) => exercise.sets)
-        .filter((set) => set.is_pr).length;
-
-      setSaveError(null);
-      finishedEntryDateRef.current = draft.entry_date;
-      setFinishSummary({
-        name: draft.name,
-        prCount,
-        totalVolume,
-        elapsedSeconds,
-        setsCompleted: stats?.completedSets ?? 0,
-        totalSets: stats?.totalSets ?? 0,
-      });
     } catch {
+      finishInFlightRef.current = false;
       setSaveError(
         t(
           'exercise.workoutPlaybackDialog.finishError',
           'Failed to save workout. Your local progress is still preserved, and you can retry.'
         )
       );
+      return;
     }
+
+    sessionSavedRef.current = true;
+    clearWorkoutPlaybackDraftFromStorage(draftToSave.entry_date);
+
+    // Best-effort: auto-check any "Workout"/"Gym" daily habit for this
+    // day. A failure here must not block the already-saved workout from
+    // navigating away — only boolean/none-target habits have a "done"
+    // state that toggling actually means something for.
+    const matchingHabits = (todaySnapshot?.daily_recurring ?? []).filter(
+      (habit) =>
+        habit.target_type !== 'numeric' &&
+        !habit.done &&
+        WORKOUT_HABIT_PATTERN.test(habit.statement)
+    );
+    if (matchingHabits.length > 0) {
+      await Promise.allSettled(
+        matchingHabits.map((habit) =>
+          upsertHabitCheckin.mutateAsync({
+            focusId: habit.id,
+            date: draftToSave.entry_date,
+            body: { completed: true },
+          })
+        )
+      );
+    }
+
+    const prCount = draftToSave.exercises
+      .flatMap((exercise) => exercise.sets)
+      .filter((set) => set.is_pr).length;
+
+    setSaveError(null);
+    setFinishSummary({
+      name: draftToSave.name,
+      prCount,
+      totalVolume,
+      elapsedSeconds,
+      setsCompleted: stats?.completedSets ?? 0,
+      totalSets: stats?.totalSets ?? 0,
+    });
   }, [
     createPresetSession,
     draft,
@@ -634,11 +657,81 @@ const WorkoutPlaybackPage = () => {
     upsertHabitCheckin,
   ]);
 
-  const handleCloseFinishSummary = useCallback(() => {
-    if (finishedEntryDateRef.current) {
-      clearWorkoutPlaybackDraftFromStorage(finishedEntryDateRef.current);
-      finishedEntryDateRef.current = null;
+  const handleFinishWorkout = useCallback(() => {
+    if (!draft || finishInFlightRef.current) return;
+
+    const payload = buildPresetSessionCreateRequestFromDraft(draft, timezone);
+    if (!payload.exercises || payload.exercises.length === 0) {
+      setSaveError(
+        t(
+          'exercise.workoutPlaybackDialog.completeAtLeastOneSet',
+          'Complete at least one set before finishing.'
+        )
+      );
+      return;
     }
+
+    const warnings = getWorkoutPlaybackPlausibilityWarnings(draft, payload);
+    if (warnings.length > 0) {
+      setPlausibilityWarnings(warnings);
+      return;
+    }
+
+    void saveWorkout();
+  }, [draft, saveWorkout, t, timezone]);
+
+  const handleSaveImplausibleWorkout = useCallback(() => {
+    setPlausibilityWarnings(null);
+    void saveWorkout();
+  }, [saveWorkout]);
+
+  const plausibilityMessages = useMemo(
+    () =>
+      (plausibilityWarnings ?? []).map((warning) => {
+        const exercise = warning.exercise_name ?? '';
+        switch (warning.code) {
+          case 'entry_duration_high':
+            return t(
+              'exercise.workoutPlaybackDialog.implausibleEntryDuration',
+              {
+                exercise,
+                value: Math.round(warning.value),
+                defaultValue:
+                  '{{exercise}}: {{value}} min is longer than expected',
+              }
+            );
+          case 'entry_calories_high':
+            return t(
+              'exercise.workoutPlaybackDialog.implausibleEntryCalories',
+              {
+                exercise,
+                value: Math.round(warning.value),
+                defaultValue:
+                  '{{exercise}}: {{value}} kcal is higher than expected',
+              }
+            );
+          case 'calorie_rate_high':
+            return t('exercise.workoutPlaybackDialog.implausibleCalorieRate', {
+              exercise,
+              value: Number(warning.value.toFixed(1)),
+              defaultValue:
+                '{{exercise}}: {{value}} kcal/min is higher than expected',
+            });
+          default:
+            return t(
+              'exercise.workoutPlaybackDialog.implausibleSessionDuration',
+              {
+                value: Math.round(warning.value),
+                defaultValue:
+                  'Workout total of {{value}} min is longer than expected',
+              }
+            );
+        }
+      }),
+    [plausibilityWarnings, t]
+  );
+
+  const handleCloseFinishSummary = useCallback(() => {
     setDraft(null);
     setFinishSummary(null);
     navigate(returnPath, { replace: true });
@@ -724,6 +817,40 @@ const WorkoutPlaybackPage = () => {
         isDiscardDialogOpen={isDiscardDialogOpen}
         onDiscardDialogChange={setIsDiscardDialogOpen}
         onConfirmDiscard={handleConfirmDiscard}
+      />
+
+      <ConfirmationDialog
+        open={plausibilityWarnings !== null}
+        onOpenChange={(open) => !open && setPlausibilityWarnings(null)}
+        onConfirm={handleSaveImplausibleWorkout}
+        title={t(
+          'exercise.workoutPlaybackDialog.implausibleTitle',
+          'Double-check this workout'
+        )}
+        description={
+          <>
+            <p>
+              {t(
+                'exercise.workoutPlaybackDialog.implausibleDescription',
+                'Some values look unusual. Save anyway, or go back and review?'
+              )}
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {plausibilityMessages.map((message, index) => (
+                <li key={index}>{message}</li>
+              ))}
+            </ul>
+          </>
+        }
+        confirmLabel={t(
+          'exercise.workoutPlaybackDialog.implausibleSaveAnyway',
+          'Save anyway'
+        )}
+        secondaryActionLabel={t(
+          'exercise.workoutPlaybackDialog.implausibleReview',
+          'Review'
+        )}
+        onSecondaryAction={() => setPlausibilityWarnings(null)}
       />
 
       <WorkoutPlaybackFloatingRestTimer

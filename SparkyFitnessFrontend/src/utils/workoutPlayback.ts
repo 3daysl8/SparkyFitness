@@ -1,14 +1,18 @@
 import {
+  checkSessionPlausibility,
+  deriveExerciseDurationFromSets,
   instantHourMinute,
+  plausibilityKindFromModality,
   resolveExerciseModality,
-  setsDurationMinutes,
   type CreatePresetSessionRequest,
   type ExerciseModality,
   type ExerciseSessionResponse,
   type ExerciseEntryResponse,
+  type PlausibilityWarning,
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
+import { generateClientId } from '@/utils/generateClientId';
 
 export const DEFAULT_REST_SECONDS = 90;
 export const WORKOUT_PLAYBACK_SET_GRID_CLASSES =
@@ -47,6 +51,10 @@ export interface WorkoutPlaybackExerciseDraft {
 
 export interface WorkoutPlaybackDraft {
   version: 1;
+  /** Idempotency key for saving this draft: stays the same across retries so
+   * the server returns the original session instead of a duplicate. Absent
+   * on drafts persisted before it existed. */
+  client_request_id?: string;
   preset_id: string;
   name: string;
   description: string | null;
@@ -102,6 +110,8 @@ function isWorkoutPlaybackDraft(value: unknown): value is WorkoutPlaybackDraft {
   const draft = value as WorkoutPlaybackDraft;
   return (
     draft.version === 1 &&
+    (draft.client_request_id === undefined ||
+      typeof draft.client_request_id === 'string') &&
     typeof draft.preset_id === 'string' &&
     typeof draft.entry_date === 'string' &&
     typeof draft.started_at === 'string' &&
@@ -338,6 +348,7 @@ export function createWorkoutPlaybackDraftFromPreset(
 
   const draft: WorkoutPlaybackDraft = {
     version: 1,
+    client_request_id: generateClientId(),
     preset_id: String(preset.id),
     name: preset.name,
     description: preset.description ?? null,
@@ -441,6 +452,7 @@ export function createWorkoutPlaybackDraftFromSession(
 
   const draft: WorkoutPlaybackDraft = {
     version: 1,
+    client_request_id: generateClientId(),
     preset_id:
       session.type === 'preset' && session.workout_preset_id
         ? String(session.workout_preset_id)
@@ -490,6 +502,7 @@ export function createBlankWorkoutPlaybackDraft(
   const createdAt = nowIso();
   return {
     version: 1,
+    client_request_id: generateClientId(),
     preset_id: 'blank',
     name: 'Workout',
     description: null,
@@ -971,19 +984,20 @@ function toNullableNumber(value: number | null | undefined): number | null {
   return value === undefined ? null : value;
 }
 
-function deriveExerciseDurationMinutes(
-  exercise: WorkoutPlaybackExerciseDraft,
-  nowMs: number = Date.now()
-): number {
-  const startMs = exercise.started_at ? Date.parse(exercise.started_at) : NaN;
-  if (!Number.isNaN(startMs)) {
-    const endMs = exercise.ended_at ? Date.parse(exercise.ended_at) : nowMs;
-    if (!Number.isNaN(endMs) && endMs >= startMs) {
-      return (endMs - startMs) / 60000;
-    }
-  }
+function toWorkoutPresetId(presetId: string): number | null {
+  if (!/^\d+$/.test(presetId)) return null;
+  const id = Number(presetId);
+  return Number.isSafeInteger(id) ? id : null;
+}
 
-  return setsDurationMinutes(exercise.sets);
+/** Gives a draft persisted before client_request_id existed its idempotency
+ * key; a draft that already has one is returned unchanged. */
+export function ensureWorkoutPlaybackDraftClientRequestId(
+  draft: WorkoutPlaybackDraft
+): WorkoutPlaybackDraft {
+  return draft.client_request_id
+    ? draft
+    : { ...draft, client_request_id: generateClientId() };
 }
 
 export function buildPresetSessionCreateRequestFromDraft(
@@ -1011,7 +1025,7 @@ export function buildPresetSessionCreateRequestFromDraft(
       return {
         exercise_id: exercise.exercise_id,
         sort_order: exerciseIndex,
-        duration_minutes: deriveExerciseDurationMinutes(exercise),
+        duration_minutes: deriveExerciseDurationFromSets(completedSets),
         notes: exercise.notes ?? null,
         entry_time: entryTime,
         sets: completedSets.map((set, setIndex) => ({
@@ -1036,6 +1050,8 @@ export function buildPresetSessionCreateRequestFromDraft(
     .filter((exercise): exercise is NonNullable<typeof exercise> => !!exercise);
 
   return {
+    client_request_id: draft.client_request_id,
+    workout_preset_id: toWorkoutPresetId(draft.preset_id),
     name: draft.name,
     description: draft.description,
     notes: draft.notes,
@@ -1043,4 +1059,33 @@ export function buildPresetSessionCreateRequestFromDraft(
     source: draft.source,
     exercises,
   };
+}
+
+export interface WorkoutPlaybackPlausibilityWarning extends PlausibilityWarning {
+  exercise_name: string | null;
+}
+
+/** Soft warnings for the exercises a Finish would send. Calories are left
+ * out because the server computes them. */
+export function getWorkoutPlaybackPlausibilityWarnings(
+  draft: WorkoutPlaybackDraft,
+  request: CreatePresetSessionRequest
+): WorkoutPlaybackPlausibilityWarning[] {
+  const sentExercises = request.exercises ?? [];
+  const draftExercises = sentExercises.map(
+    (exercise) => draft.exercises[exercise.sort_order]
+  );
+
+  return checkSessionPlausibility(
+    sentExercises.map((exercise, index) => ({
+      duration_minutes: exercise.duration_minutes,
+      kind: plausibilityKindFromModality(draftExercises[index]?.modality),
+    }))
+  ).map((warning) => ({
+    ...warning,
+    exercise_name:
+      warning.entryIndex === undefined
+        ? null
+        : (draftExercises[warning.entryIndex]?.exercise_name ?? null),
+  }));
 }

@@ -76,7 +76,6 @@ import {
 } from '@/hooks/useMedications';
 import type { RecurringFocus } from '@/types/focus';
 import type { MedicationDetail, MedicationEntry } from '@/types/medications';
-import type { ExerciseSessionResponse } from '@workspace/shared';
 import {
   loadWorkoutPlaybackDraftFromStorage,
   getWorkoutPlaybackStats,
@@ -84,6 +83,10 @@ import {
   createBlankWorkoutPlaybackDraft,
   type WorkoutPlaybackDraft,
 } from '@/utils/workoutPlayback';
+import {
+  hasLoggedWorkout,
+  summarizeWorkoutSessions,
+} from '@/utils/workoutSessionSummary';
 import { formatWeight } from '@/utils/numberFormatting';
 import { entryMatchesDue } from '@/utils/medicationUtils';
 import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
@@ -135,7 +138,7 @@ const DayPill = forwardRef<
         : done > 0
           ? 'partial'
           : 'none';
-  const hasWorkout = exerciseEntries.length > 0;
+  const hasWorkout = hasLoggedWorkout(exerciseEntries);
 
   return (
     <button
@@ -255,34 +258,6 @@ function useActiveWorkoutDraft(selectedDate: string) {
   return draft;
 }
 
-function summarizeWorkoutSessions(sessions: ExerciseSessionResponse[]) {
-  let durationMinutes = 0;
-  let volumeKg = 0;
-
-  for (const session of sessions) {
-    durationMinutes +=
-      session.type === 'preset'
-        ? session.total_duration_minutes
-        : session.duration_minutes;
-    const exercises = session.type === 'preset' ? session.exercises : [session];
-    for (const exercise of exercises) {
-      for (const set of exercise.sets) {
-        volumeKg += (set.weight ?? 0) * (set.reps ?? 0);
-      }
-    }
-  }
-
-  const first = sessions[0];
-  const name =
-    sessions.length === 1 && first
-      ? first.type === 'preset'
-        ? first.name
-        : (first.name ?? first.exercise_snapshot?.name ?? 'Workout')
-      : `${sessions.length} Workouts`;
-
-  return { name, durationMinutes: Math.round(durationMinutes), volumeKg };
-}
-
 function WorkoutCard({ selectedDate }: { selectedDate: string }) {
   const navigate = useNavigate();
   const { activeUserId } = useActiveUser();
@@ -356,10 +331,9 @@ function WorkoutCard({ selectedDate }: { selectedDate: string }) {
     );
   }
 
-  const logged = exerciseEntries.length > 0;
+  const summary = summarizeWorkoutSessions(exerciseEntries);
 
-  if (logged) {
-    const summary = summarizeWorkoutSessions(exerciseEntries);
+  if (summary.count > 0) {
     return (
       <button
         onClick={() => navigate('/workouts')}
