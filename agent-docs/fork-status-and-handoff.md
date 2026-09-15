@@ -4,7 +4,29 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`2ed9c6214` on `main`):
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`8879dceb3` on `main`):
+the app's display name was shortened from "Ouroboros Life" to **"Ouros Life"** everywhere
+user-facing — `index.html` title/og:title, both PWA manifests (the static
+`public/manifest.json` used in dev + the `vite-plugin-pwa`-generated `manifest.webmanifest` used
+in prod, which are two separate config sources that had drifted into agreement and need updating
+together), the header heading + `BrandMark`'s `aria-label`, the three Auth-flow screens (sign
+in/up, forgot password, reset password) logo alt text + heading, and the chunk-recovery
+"Updating..." loading message + its test. Checked all 34 locale files in
+`public/locales/*/translation.json` for the old name first — none reference it, so no i18n
+follow-up needed. **Left deliberately untouched**: every other "Ouroboros" hit in
+`SparkyFitnessServer` (13 files: repositories, AI tools, migrations, tests) is the *unrelated*
+internal "Ouroboros restructure" codename — the name of the earlier refactor that hard-deleted
+nutrition tracking (see `agent-docs/ouroboros-restructure-plan.md`) — not the product name; don't
+confuse the two if "Ouroboros" comes up again. Verified live in the local dev stack (page title
++ header + BrandMark aria-label all confirmed rendering "Ouros Life") before deploying; deployed
+via `--no-cache` frontend rebuild on Pi5, grepped the built image for the new string and zero
+remaining old-name hits in `index.html`, confirmed the running container serves it,
+`docker builder prune -af` after. Full frontend suite (971/971) + `tsc -b` + `eslint
+--max-warnings 0` all clean beforehand.
+
+---
+
+**Previous entry, also shipped this same day:**
 `CheckTarget` (the shared checkbox used by To-Do List and Daily Habits on Home) was shrunk from
 32px (`h-8 w-8`) to 20px (`h-5 w-5`) — it was visibly oversized next to its label and broke
 alignment with Today's Agenda above it — and its unchecked-state border bumped from a washed-out
