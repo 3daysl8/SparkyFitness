@@ -5,11 +5,14 @@ import {
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
   completeCurrentWorkoutSet,
+  createBlankWorkoutPlaybackDraft,
   createWorkoutPlaybackDraftFromPreset,
   createWorkoutPlaybackDraftFromSession,
   createWorkoutPlaybackRouteState,
   createWorkoutPlaybackRouteStateFromSession,
+  ensureWorkoutPlaybackDraftClientRequestId,
   getCurrentWorkoutSetPointer,
+  getWorkoutPlaybackPlausibilityWarnings,
   getWorkoutPlaybackStats,
   getWorkoutPlaybackRestRemainingSeconds,
   getWorkoutPlaybackDraftStorageKey,
@@ -385,35 +388,201 @@ describe('workoutPlayback utils', () => {
     expect(movedDraft.exercises[1]?.ended_at).toBeNull();
   });
 
-  it('uses exercise start/end timestamps for duration minutes', () => {
+  it('derives duration from when sets were completed, not from wall-clock time', () => {
     const draft = createWorkoutPlaybackDraftFromPreset(
       createPresetFixture(),
       '2026-04-27'
     );
 
-    const completedDraft = {
+    // The exercise was opened hours before the sets were done and, as the
+    // last exercise, never got an ended_at before Finish.
+    const idleDraft = {
       ...draft,
       exercises: draft.exercises.map((exercise, index) =>
         index === 0
           ? {
               ...exercise,
-              started_at: '2026-04-27T10:00:00.000Z',
-              ended_at: '2026-04-27T10:03:30.000Z',
-              sets: exercise.sets.map((set) => ({
+              started_at: '2026-04-27T04:00:00.000Z',
+              ended_at: null,
+              sets: exercise.sets.map((set, setIndex) => ({
                 ...set,
                 completed: true,
+                completed_at: `2026-04-27T10:0${setIndex * 3}:00.000Z`,
               })),
             }
           : exercise
       ),
     };
 
-    const payload = buildPresetSessionCreateRequestFromDraft(
-      completedDraft,
+    const payload = buildPresetSessionCreateRequestFromDraft(idleDraft, 'UTC');
+
+    expect(payload.exercises?.[0]?.duration_minutes).toBeCloseTo(3, 5);
+  });
+
+  it('caps an idle gap between two completed sets', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const completedAt = [
+      '2026-04-27T10:00:00.000Z',
+      '2026-04-27T16:46:00.000Z',
+    ];
+    const idleDraft = {
+      ...draft,
+      exercises: draft.exercises.map((exercise, index) =>
+        index === 0
+          ? {
+              ...exercise,
+              sets: exercise.sets.map((set, setIndex) => ({
+                ...set,
+                completed: true,
+                completed_at: completedAt[setIndex] ?? null,
+              })),
+            }
+          : exercise
+      ),
+    };
+
+    const payload = buildPresetSessionCreateRequestFromDraft(idleDraft, 'UTC');
+
+    expect(payload.exercises?.[0]?.duration_minutes).toBeLessThanOrEqual(5);
+  });
+
+  it('gives every new draft its own UUID client_request_id', () => {
+    const uuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const ids = [
+      createWorkoutPlaybackDraftFromPreset(createPresetFixture(), '2026-04-27'),
+      createWorkoutPlaybackDraftFromSession(
+        createPresetSessionFixture(),
+        '2026-04-27'
+      ),
+      createBlankWorkoutPlaybackDraft('2026-04-27'),
+    ].map((draft) => draft.client_request_id);
+
+    ids.forEach((id) => expect(id).toMatch(uuid));
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it('keeps the id across storage and accepts stored drafts that predate it', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    saveWorkoutPlaybackDraftToStorage(draft);
+    expect(
+      loadWorkoutPlaybackDraftFromStorage('2026-04-27')?.client_request_id
+    ).toBe(draft.client_request_id);
+
+    const { client_request_id: _clientRequestId, ...legacyDraft } = draft;
+    window.localStorage.setItem(
+      getWorkoutPlaybackDraftStorageKey('2026-04-27'),
+      JSON.stringify(legacyDraft)
+    );
+    const restored = loadWorkoutPlaybackDraftFromStorage('2026-04-27');
+    expect(restored).not.toBeNull();
+    expect(restored?.client_request_id).toBeUndefined();
+
+    const ensured = ensureWorkoutPlaybackDraftClientRequestId(restored!);
+    expect(ensured.client_request_id).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(ensureWorkoutPlaybackDraftClientRequestId(ensured)).toBe(ensured);
+
+    clearWorkoutPlaybackDraftFromStorage('2026-04-27');
+  });
+
+  it('sends the client_request_id and a numeric workout_preset_id', () => {
+    const complete = (
+      draft: ReturnType<typeof createBlankWorkoutPlaybackDraft>
+    ) => ({
+      ...draft,
+      exercises: draft.exercises.map((exercise) => ({
+        ...exercise,
+        sets: exercise.sets.map((set) => ({ ...set, completed: true })),
+      })),
+    });
+
+    const numericDraft = complete(
+      createWorkoutPlaybackDraftFromPreset(
+        { ...createPresetFixture(), id: 42 },
+        '2026-04-27'
+      )
+    );
+    const numericPayload = buildPresetSessionCreateRequestFromDraft(
+      numericDraft,
       'UTC'
     );
+    expect(numericPayload.client_request_id).toBe(
+      numericDraft.client_request_id
+    );
+    expect(numericPayload.workout_preset_id).toBe(42);
 
-    expect(payload.exercises?.[0]?.duration_minutes).toBeCloseTo(3.5, 5);
+    const repeated = createWorkoutPlaybackDraftFromSession(
+      createPresetSessionFixture(),
+      '2026-04-27'
+    );
+    expect(
+      buildPresetSessionCreateRequestFromDraft(complete(repeated), 'UTC')
+        .workout_preset_id
+    ).toBe(42);
+
+    const nonNumericDraft = complete(
+      createWorkoutPlaybackDraftFromPreset(createPresetFixture(), '2026-04-27')
+    );
+    expect(
+      buildPresetSessionCreateRequestFromDraft(nonNumericDraft, 'UTC')
+        .workout_preset_id
+    ).toBeNull();
+
+    const blankDraft = createBlankWorkoutPlaybackDraft('2026-04-27');
+    const blankPayload = buildPresetSessionCreateRequestFromDraft(
+      blankDraft,
+      'UTC'
+    );
+    expect(blankPayload.workout_preset_id).toBeNull();
+    expect(blankPayload.client_request_id).toBe(blankDraft.client_request_id);
+  });
+
+  it('warns about implausible durations using the exercise modality', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+    const longDraft = {
+      ...draft,
+      exercises: draft.exercises.map((exercise, index) => ({
+        ...exercise,
+        modality:
+          index === 0
+            ? ('weight_reps' as const)
+            : ('duration_distance' as const),
+        sets: exercise.sets.slice(0, 1).map((set) => ({
+          ...set,
+          // 150 min of work: over the strength cap, under the cardio cap.
+          duration: 150 * 60,
+          rest_time: 0,
+          completed: true,
+          completed_at: null,
+        })),
+      })),
+    };
+    longDraft.exercises[1]!.modality = 'duration_distance';
+
+    const payload = buildPresetSessionCreateRequestFromDraft(longDraft, 'UTC');
+    const warnings = getWorkoutPlaybackPlausibilityWarnings(longDraft, payload);
+
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        code: 'entry_duration_high',
+        exercise_name: 'Bench Press',
+        value: 150,
+      }),
+      expect.objectContaining({
+        code: 'session_duration_high',
+        exercise_name: null,
+        value: 300,
+      }),
+    ]);
   });
 
   it('falls back to per-set duration and rest seconds without timestamps', () => {

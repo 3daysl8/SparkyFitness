@@ -2,7 +2,6 @@ import {
   useQuery,
   useQueries,
   useMutation,
-  useQueryClient,
   keepPreviousData,
 } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -22,7 +21,6 @@ import {
 } from '@/api/Exercises/exerciseEntryService';
 import { exerciseEntryKeys, exerciseKeys } from '@/api/keys/exercises';
 import i18n from '@/i18n';
-import { dailyProgressKeys } from '@/api/keys/diary';
 import {
   UpdateExerciseEntryRequest,
   type ExerciseStatsResponse,
@@ -186,7 +184,7 @@ export const useDeleteExerciseEntryMutation = () => {
 };
 
 export const useLogWorkoutPresetMutation = () => {
-  const queryClient = useQueryClient();
+  const invalidate = useDiaryInvalidation();
   const { t } = useTranslation();
 
   return useMutation({
@@ -197,14 +195,7 @@ export const useLogWorkoutPresetMutation = () => {
       presetId: string | number;
       date: string;
     }) => logWorkoutPreset(presetId, date),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: exerciseEntryKeys.byDate(variables.date),
-      });
-      queryClient.invalidateQueries({
-        queryKey: dailyProgressKeys.all,
-      });
-    },
+    onSuccess: invalidate,
     meta: {
       successMessage: t(
         'diary.exerciseEntry.logPresetSuccess',
@@ -219,15 +210,12 @@ export const useLogWorkoutPresetMutation = () => {
 };
 
 export const useCreatePresetSessionMutation = () => {
-  const queryClient = useQueryClient();
+  const invalidate = useDiaryInvalidation();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: createPresetSession,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: exerciseEntryKeys.all });
-      queryClient.invalidateQueries({ queryKey: dailyProgressKeys.all });
-    },
+    onSuccess: invalidate,
     meta: {
       successMessage: t(
         'diary.exerciseEntry.createPresetSessionSuccess',
@@ -242,17 +230,12 @@ export const useCreatePresetSessionMutation = () => {
 };
 
 export const useDeleteExercisePresetEntryMutation = () => {
-  const queryClient = useQueryClient();
+  const invalidate = useDiaryInvalidation();
   const { t } = useTranslation();
 
   return useMutation({
     mutationFn: deleteExercisePresetEntry,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: exerciseEntryKeys.all });
-      queryClient.invalidateQueries({
-        queryKey: dailyProgressKeys.all,
-      });
-    },
+    onSuccess: invalidate,
     meta: {
       successMessage: t(
         'diary.exerciseEntry.deletePresetSuccess',
