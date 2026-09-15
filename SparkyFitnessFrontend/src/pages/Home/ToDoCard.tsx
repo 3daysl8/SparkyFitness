@@ -48,7 +48,7 @@ function ToDoRow({
   return (
     <button
       onClick={() => onToggle(focus)}
-      className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/50 bg-card/50 px-3.5 py-2.5 text-left transition-colors hover:bg-card/80"
+      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/50 px-3.5 py-2.5 text-left transition-colors hover:bg-card/80"
     >
       <span className="flex min-w-0 items-center gap-3">
         <CheckTarget done={done} />

@@ -621,7 +621,7 @@ function HabitRow({
 
   return (
     <div
-      className="rounded-xl border p-3"
+      className="rounded-xl border px-3.5 py-2.5"
       style={
         domainColor ? { borderLeft: `4px solid ${domainColor}` } : undefined
       }
