@@ -51,10 +51,20 @@ from a few sessions ago) — `git push` was rejected because a different concurr
 already pushed `bcfd41530` ("harmonize dashboard water card tint and standardize section header
 typography," `AgendaCard.tsx`/`HomeChecklist.tsx`, frontend-only) straight to `origin/main`.
 Confirmed it touched disjoint files from this session's backend-only change, `git pull --rebase`
-onto it cleanly, re-ran `tsc -b` + the scoped test suite post-rebase, then pushed. That frontend
-commit was NOT part of this session's work and has not been deployed by this session — it's
-sitting on `main` unreleased as of this write-up; whichever session made it should confirm
-whether it's already been deployed separately or still needs one.
+onto it cleanly, re-ran `tsc -b` + the scoped test suite post-rebase, then pushed.
+
+**That frontend commit has now also been deployed** (Isaac confirmed it was a real fix — the
+"Daily Habits" card's `CardTitle` had no size override, so it fell back to shadcn's default
+`text-2xl`, while "Today's Agenda" and "Today's Supplements" already explicitly set `text-base`;
+the fix adds the matching `text-base font-semibold tracking-tight` to Daily Habits). Frontend
+image rebuilt `--no-cache` on Pi5, `docker compose up -d --force-recreate sparkyfitness-frontend`,
+confirmed both the freshly built image *and* the running container serve the new
+`HomeChecklist-*.js` chunk (grepped for the new `metric-water/30` tint class as a fingerprint —
+present in both), `docker builder prune -af` after. **Not** re-verified with an authenticated
+live screenshot (no known admin password, and standing up a disposable account + seeding
+habit/agenda/supplement fixtures felt disproportionate for a one-line class fix matching an
+already-proven sibling pattern) — if it still looks wrong when checked, try the PWA stale-cache
+gotcha below first before assuming the fix didn't land.
 
 **Still open, untouched this session**: the proactive Hermes morning-briefing automation, the
 phantom-diary-entries decision, and the passkey RP ID console error — all still open from the
