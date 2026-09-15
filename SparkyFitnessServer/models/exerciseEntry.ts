@@ -1,7 +1,6 @@
 import { compareByEntryTime, earliestEntryTime } from '@workspace/shared';
 import { getClient } from '../db/poolManager.js';
 import type { PoolClient } from 'pg';
-// @ts-expect-error TS(7016): Could not find a declaration file for module 'pg-f... Remove this comment to see the full error message
 import format from 'pg-format';
 import { log } from '../config/logging.js';
 import exerciseRepository from './exercise.js';

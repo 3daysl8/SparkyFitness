@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import workoutPlanTemplateService from '../services/workoutPlanTemplateService.js';
 import workoutPlanTemplateRepository from '../models/workoutPlanTemplateRepository.js';
+import plannedWorkoutRepository from '../models/plannedWorkoutRepository.js';
+import plannedWorkoutService from '../services/plannedWorkoutService.js';
 import exerciseRepository from '../models/exerciseRepository.js';
 
 vi.mock('../models/workoutPlanTemplateRepository.js', () => ({
@@ -24,8 +26,18 @@ vi.mock('../models/workoutPresetRepository.js', () => ({
 vi.mock('../models/exerciseRepository.js', () => ({
   default: {
     getExerciseById: vi.fn(),
-    createExerciseEntriesFromTemplate: vi.fn(),
-    deleteExerciseEntriesByTemplateId: vi.fn(),
+  },
+}));
+
+vi.mock('../models/plannedWorkoutRepository.js', () => ({
+  default: {
+    deletePlannedWorkoutsByTemplateId: vi.fn(),
+  },
+}));
+
+vi.mock('../services/plannedWorkoutService.js', () => ({
+  default: {
+    syncTemplatePlannedWorkouts: vi.fn(),
   },
 }));
 
@@ -107,6 +119,22 @@ describe('workoutPlanTemplateService', () => {
     });
   });
 
+  describe('createWorkoutPlanTemplate', () => {
+    it('syncs planned workouts for the new template regardless of is_active (sync itself is the no-op when inactive)', async () => {
+      vi.mocked(
+        workoutPlanTemplateRepository.createWorkoutPlanTemplate
+      ).mockResolvedValue({ id: 42, is_active: false });
+
+      await workoutPlanTemplateService.createWorkoutPlanTemplate(USER_ID, {
+        plan_name: 'New Plan',
+      });
+
+      expect(
+        plannedWorkoutService.syncTemplatePlannedWorkouts
+      ).toHaveBeenCalledWith(USER_ID, 42, '2026-09-10');
+    });
+  });
+
   describe('updateWorkoutPlanTemplate', () => {
     it('throws Forbidden when user does not own the template', async () => {
       vi.mocked(
@@ -124,7 +152,7 @@ describe('workoutPlanTemplateService', () => {
       );
     });
 
-    it('updates template when user is owner', async () => {
+    it('updates the template and syncs planned workouts instead of deleting and recreating entries', async () => {
       vi.mocked(
         workoutPlanTemplateRepository.getWorkoutPlanTemplateOwnerId
       ).mockResolvedValue(USER_ID);
@@ -133,7 +161,7 @@ describe('workoutPlanTemplateService', () => {
       ).mockResolvedValue({
         id: TEMPLATE_ID,
         plan_name: 'Updated Name',
-        is_active: false,
+        is_active: true,
       });
 
       const result = await workoutPlanTemplateService.updateWorkoutPlanTemplate(
@@ -150,7 +178,36 @@ describe('workoutPlanTemplateService', () => {
       ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID, {
         plan_name: 'Updated Name',
       });
+      // The old delete-then-recreate call is gone; only a sync happens, and
+      // it happens after the template row is durably updated.
+      expect(exerciseRepository.getExerciseById).not.toHaveBeenCalled();
+      expect(
+        plannedWorkoutService.syncTemplatePlannedWorkouts
+      ).toHaveBeenCalledWith(USER_ID, TEMPLATE_ID, '2026-09-10');
       expect(result.plan_name).toBe('Updated Name');
+    });
+
+    it('still syncs (not skips) when the updated plan is inactive, letting sync handle cleanup', async () => {
+      vi.mocked(
+        workoutPlanTemplateRepository.getWorkoutPlanTemplateOwnerId
+      ).mockResolvedValue(USER_ID);
+      vi.mocked(
+        workoutPlanTemplateRepository.updateWorkoutPlanTemplate
+      ).mockResolvedValue({
+        id: TEMPLATE_ID,
+        plan_name: 'Updated Name',
+        is_active: false,
+      });
+
+      await workoutPlanTemplateService.updateWorkoutPlanTemplate(
+        USER_ID,
+        TEMPLATE_ID,
+        { is_active: false }
+      );
+
+      expect(
+        plannedWorkoutService.syncTemplatePlannedWorkouts
+      ).toHaveBeenCalledWith(USER_ID, TEMPLATE_ID, '2026-09-10');
     });
   });
 
@@ -183,7 +240,7 @@ describe('workoutPlanTemplateService', () => {
       );
     });
 
-    it('deletes template and cleans up entries when user is owner', async () => {
+    it('deletes the template and removes its future planned workouts when user is owner', async () => {
       vi.mocked(
         workoutPlanTemplateRepository.getWorkoutPlanTemplateOwnerId
       ).mockResolvedValue(USER_ID);
@@ -197,8 +254,8 @@ describe('workoutPlanTemplateService', () => {
       );
 
       expect(
-        exerciseRepository.deleteExerciseEntriesByTemplateId
-      ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID, '2026-09-10');
+        plannedWorkoutRepository.deletePlannedWorkoutsByTemplateId
+      ).toHaveBeenCalledWith(USER_ID, Number(TEMPLATE_ID), '2026-09-10');
       expect(
         workoutPlanTemplateRepository.deleteWorkoutPlanTemplate
       ).toHaveBeenCalledWith(TEMPLATE_ID, USER_ID);

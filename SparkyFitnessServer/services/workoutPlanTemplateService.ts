@@ -1,6 +1,8 @@
 import workoutPlanTemplateRepository from '../models/workoutPlanTemplateRepository.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import exerciseRepository from '../models/exerciseRepository.js';
+import plannedWorkoutRepository from '../models/plannedWorkoutRepository.js';
+import plannedWorkoutService from './plannedWorkoutService.js';
 import { log } from '../config/logging.js';
 import { resolveTemplateStartDay } from '../utils/timezoneLoader.js';
 
@@ -91,26 +93,18 @@ async function createWorkoutPlanTemplate(
       'createWorkoutPlanTemplate service - newPlan created:',
       newPlan
     );
-    if (newPlan.is_active) {
-      log(
-        'info',
-        `createWorkoutPlanTemplate service - New plan is active, creating exercise entries from template ${newPlan.id}`
-      );
-      const today = await resolveTemplateStartDay(
-        userId,
-        planData.currentClientDate
-      );
-      await exerciseRepository.createExerciseEntriesFromTemplate(
-        newPlan.id,
-        userId,
-        today
-      );
-    } else {
-      log(
-        'info',
-        'createWorkoutPlanTemplate service - New plan is not active, skipping exercise entry creation.'
-      );
-    }
+    // syncTemplatePlannedWorkouts checks is_active itself (a no-op cleanup
+    // when the new plan isn't active, since nothing has been generated for
+    // it yet) — no need to branch here.
+    const today = await resolveTemplateStartDay(
+      userId,
+      planData.currentClientDate
+    );
+    await plannedWorkoutService.syncTemplatePlannedWorkouts(
+      userId,
+      newPlan.id,
+      today
+    );
     return newPlan;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -199,16 +193,6 @@ async function updateWorkoutPlanTemplate(
       userId,
       updateData.currentClientDate
     );
-    // When a plan is updated, remove the old exercise entries that were created from it.
-    log(
-      'info',
-      `updateWorkoutPlanTemplate service - Deleting old exercise entries for template ${templateId}`
-    );
-    await exerciseRepository.deleteExerciseEntriesByTemplateId(
-      templateId,
-      userId,
-      today
-    );
     const updatedPlan =
       await workoutPlanTemplateRepository.updateWorkoutPlanTemplate(
         templateId,
@@ -220,22 +204,23 @@ async function updateWorkoutPlanTemplate(
       'updateWorkoutPlanTemplate service - updatedPlan:',
       updatedPlan
     );
-    if (updatedPlan.is_active) {
-      log(
-        'info',
-        `updateWorkoutPlanTemplate service - Updated plan is active, creating exercise entries from template ${updatedPlan.id}`
-      );
-      await exerciseRepository.createExerciseEntriesFromTemplate(
-        updatedPlan.id,
-        userId,
-        today
-      );
-    } else {
-      log(
-        'info',
-        'updateWorkoutPlanTemplate service - Updated plan is not active, skipping exercise entry creation.'
-      );
-    }
+    // Sync (not delete-then-recreate): a still-planned, unmodified,
+    // undismissed generated row is refreshed to match the new assignments;
+    // an already-started/completed/skipped or user-edited row is left
+    // exactly alone. Fixes the old bug where any edit to any part of the
+    // plan wiped every future entry it had ever generated, including ones
+    // already completed today. syncTemplatePlannedWorkouts checks is_active
+    // itself (cleans up instead of regenerating when the plan was just
+    // deactivated) — no need to branch here.
+    log(
+      'info',
+      `updateWorkoutPlanTemplate service - syncing planned workouts for template ${updatedPlan.id}`
+    );
+    await plannedWorkoutService.syncTemplatePlannedWorkouts(
+      userId,
+      updatedPlan.id,
+      today
+    );
     return updatedPlan;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -272,15 +257,18 @@ async function deleteWorkoutPlanTemplate(
     );
   }
   try {
-    // Delete future associated exercise entries, and decouple past ones via ON DELETE SET NULL
+    // Remove still-safe-to-touch future generated planned workouts; a
+    // completed/started/user-edited one is left as history — the FK's ON
+    // DELETE SET NULL nulls its template_id once the template row itself is
+    // gone, below.
     log(
       'info',
-      `deleteWorkoutPlanTemplate service - Deleting future associated exercise entries for template ${templateId}`
+      `deleteWorkoutPlanTemplate service - Removing future planned workouts generated from template ${templateId}`
     );
     const today = await resolveTemplateStartDay(userId);
-    await exerciseRepository.deleteExerciseEntriesByTemplateId(
-      templateId,
+    await plannedWorkoutRepository.deletePlannedWorkoutsByTemplateId(
       userId,
+      Number(templateId),
       today
     );
     const deleted =

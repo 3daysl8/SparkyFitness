@@ -99,6 +99,7 @@ describe('exercise source/source_id scoping', () => {
     it('forwards the userId to getExerciseBySourceAndSourceId so each user resolves to their own copy', async () => {
       const userId = uuidv4();
       const resolved = uuidv4();
+      // @ts-expect-error mock typing
       exerciseRepository.getExerciseBySourceAndSourceId.mockResolvedValueOnce({
         id: resolved,
       });
@@ -115,6 +116,7 @@ describe('exercise source/source_id scoping', () => {
     });
 
     it('throws when no exercise is found for the caller', async () => {
+      // @ts-expect-error mock typing
       exerciseRepository.getExerciseBySourceAndSourceId.mockResolvedValueOnce(
         undefined
       );
