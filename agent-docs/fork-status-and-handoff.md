@@ -4,7 +4,86 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`8879dceb3` on `main`):
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`6d94d3f98` on `main`):
+**Phase 1 of the workout-mapping fix** (full plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`,
+6 phases total) is complete, merged, and live. Fixed: duplicate sessions from a double-tap
+Finish or a coach retry, empty session shells that still counted as workouts, calorie values
+that went stale after a duration edit, and unsafe MCP writes (`log_workout_preset`'s `preset_id`
+was typed as a `uuidSchema` even though the DB column is an integer — no real preset id could
+ever have validated through that tool).
+
+Contract: migration `20260915100000_add_workout_session_integrity_columns.sql` —
+`exercise_preset_entries.client_request_id`/`client_request_fingerprint` (partial unique index
+on `(user_id, client_request_id)`) for idempotent session creation, `exercise_entries.calories_source`
+(`derived`/`manual`/`device`, named CHECK) so a duration edit only recomputes calories the server
+itself derived. `shared/src/utils/workoutDuration.ts` + `workoutPlausibility.ts` new.
+
+Backend (`exercisePresetEntryRepository.ts`, `exerciseEntry.ts`, `exerciseService.ts`,
+`exerciseEntryHistoryService.ts`, `errorHandler.ts`, both exercise routes): idempotent
+`INSERT ... ON CONFLICT (user_id, client_request_id) WHERE client_request_id IS NOT NULL DO NOTHING`
+then re-select, fingerprint-mismatch → 409; deletes the parent session in the same transaction
+when its last exercise entry is removed; empty sessions excluded from by-date/history reads and
+counts; route-level future-date guard exempting sync sources and `'Workout Plan'`; `errorHandler`
+now honors `err.status`/`err.statusCode` and hides internal 5xx messages from the client. **Late
+addition beyond the original spec**: if a client-sent `workout_preset_id` isn't visible to the
+saving user's RLS client (the FK to `workout_presets` ignores RLS, so trusting it blindly would
+let a stale/malicious id cross-link to another user's preset), the session still saves — the
+preset link is stored `NULL` instead of a hard 404, provided the client also sent its own
+exercise/set structure.
+
+MCP (`ai/tools/exerciseTools.ts`, `focusTools.ts`, `formatting.ts`, schemas): `log_workout_preset`
+now matches an existing non-empty session on the same date by preset id **or** normalized name
+(the app itself saves sessions with `workout_preset_id` NULL) and returns it with
+`already_logged` instead of duplicating; `log_exercise` gained a 6-hour retry guard (same
+exercise/date/duration/set-count); both refuse a future `entry_date` against the user's own
+timezone. Also fixed a **latent data-loss bug** in `manage_focus`: `update_focus` was calling
+`focusRepository.updateFocus` with every field on every call, so any field the caller didn't
+mention got written as `NULL` — needed fixing for the new `due_time` field to behave sanely, but
+it was already wiping `statement`/`unit`/`target_value`/etc. on any partial update before this
+fix.
+
+Verification: full backend suite 2940/2940 (vitest, `tsc -b` clean), full frontend suite 989/989
+(jest, `tsc -b` + `eslint --max-warnings 0` clean), the real-database integration suite
+`workoutSessionIntegrity.integration.test.ts` 8/8 against the dev DB (plus `schemaParity` 2/2 and
+`exerciseEntryStats` 16/16, unaffected) — one of its own fixtures had a bug (seeded exercises as
+private to one synthetic user, then logged them against a second synthetic user in the
+"scopes client_request_id per user" case; fixed by seeding `shared_with_public: true`). Live UI
+round-trip against the local dev stack (demo account): started a blank preset-based workout,
+completed a set, hit Finish, confirmed exactly one row in `exercise_preset_entries` with
+`client_request_id`/`client_request_fingerprint` populated and `calories_source = 'derived'` on
+the child `exercise_entries` row, watched the Home "Workouts" count go 2→3→2 across create and
+DB-level cleanup. Then live-verified again directly against **production** post-deploy with a
+pre-existing disposable test account (`Claude Test 6`): page loads clean (0 console errors),
+started a blank workout, confirmed the "Complete at least one set before finishing" guard blocks
+an empty Finish (so a truly-empty session can't even be created via the UI), backed out clean —
+no data left behind, nothing to clean up.
+
+**New gotcha, not in the Known Gotchas list below yet**: the **dev** Docker stack's `shared/`
+package is baked into the image at build time (only `SparkyFitnessServer/`/`SparkyFitnessFrontend/`
+are bind-mounted — see `docker/docker-compose.dev.yml`), so a `docker restart` after editing
+`shared/` is not enough; the container starts and then crashes on a since-added export it can't
+see, or (frontend) Vite throws `does not provide an export named ...` from a stale
+`/@fs/app/shared/src/index.ts`. Needed a real `docker compose --env-file .env -f
+docker/docker-compose.dev.yml build --no-cache <service>` + `up -d --force-recreate` for both
+`sparkyfitness-server` and `sparkyfitness-frontend` to pick up a `shared/` change on this host —
+this had apparently been silently stale since the Phase 1 contract commit landed, so the dev
+containers had been running broken since before this session started. Production doesn't have
+this problem (it always does a full image rebuild), but check this first if the **dev** stack
+throws a missing-shared-export error after only editing `shared/`.
+
+**Next**: Phase 2 of the workout-mapping plan (`planned_workouts` table, planning UI/dashboard, a
+new MCP planned-workout tool, weekly goals, the approval-gated repair script for the known-bad
+production rows below) — see the plan file above for the full phase breakdown. Production data
+still has the pre-existing bad rows the plan's Phase 6 repair script will need to fix (with
+Isaac's explicit approval, never silently): 5 phantom "Bodyweight Squat HD" entries
+(13/20/27 Sep, 4/11 Oct, `workout_plan_assignment_id = 1`), one empty session
+(`ea3d3a7a-277a-42cc-9ce1-13143823cfe1`, 14 Sep — now correctly hidden from the UI by this
+phase's fix, but the row itself is still there), a Slow Squat entry with duration 6 / 2181.53 kcal
+(rate 322 kcal/min), and five upper-body playback entries on 15 Sep with 0.1–1.0 min durations.
+
+---
+
+**Previous entry, also shipped this same day (`8879dceb3` on `main`):**
 the app's display name was shortened from "Ouroboros Life" to **"Ouros Life"** everywhere
 user-facing — `index.html` title/og:title, both PWA manifests (the static
 `public/manifest.json` used in dev + the `vite-plugin-pwa`-generated `manifest.webmanifest` used
@@ -509,9 +588,11 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 - **`docker/Docker_deploy_manual_command.md` describes the wrong build for this fork and will produce a failed build if followed literally.** It documents the *upstream* project's multi-arch DockerHub publish flow (`docker buildx build ... -f docker/Dockerfile.backend SparkyFitnessServer --push`), which uses `SparkyFitnessServer` as the build context. This fork's `Dockerfile.backend`/`Dockerfile.frontend` are written for a pnpm-workspace monorepo (they `COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./` and `COPY shared/ shared/` before anything else) and need the **repo root** (`.`, run from `/home/pi1/sparkyfitness-build`) as the build context, not `SparkyFitnessServer`. Using the wrong context fails fast and loudly (`COPY shared/ shared/: "/shared": not found`), so it's not a silent-corruption risk like the cache issues below — just don't trust that doc file's exact invocation. The correct commands: `docker build --no-cache -t sparkyfitness_server:custom -f docker/Dockerfile.backend .` and `docker build --no-cache -t sparkyfitness:custom -f docker/Dockerfile.frontend .`, both from `/home/pi1/sparkyfitness-build`. Matches the dev compose file's own `build: { context: .., dockerfile: docker/Dockerfile.backend.dev }` pattern — check that file first next time instead of the manual-command doc.
 - **A raw HTTP client hitting `/mcp` without both `Accept: application/json` and `Accept: text/event-stream` gets a `406 Not Acceptable`** ("Client must accept both application/json and text/event-stream") before auth is even checked — this is the MCP StreamableHTTP transport spec's own requirement, enforced by the SDK, not a bug in this app. Hit this connecting Hermes (2026-09-13): its native HTTP MCP client sends a plain `Accept: */*` and 406s every time, which looks exactly like an auth failure (it fails right after the "does this need auth" step) but isn't — confirmed by curling the same endpoint with the correct dual `Accept` header and the same key, which worked immediately. If a future client 406s here, check its `Accept` header before assuming the key is bad; the `mcp-remote` npm bridge (already documented above in the MCP setup docs) sends it correctly and is the fallback for any client that doesn't.
 - **The PWA service worker can serve a stale cached JS chunk even in a brand-new Playwright browser context, immediately after a fresh `--force-recreate` deploy** — a feature that's genuinely in the deployed image can still appear "missing" live because the browser is running an old precached bundle. Compare `performance.getEntriesByType('resource')` (filtered to the chunk in question) against what's actually in the freshly built image; if they don't match, unregister service workers (`navigator.serviceWorker.getRegistrations()` → `.unregister()`) and clear caches (`caches.keys()` → `.delete()`) before hard-navigating and trusting anything rendered. This app also has a named-theme cycle (`localStorage['theme']` — `system`/`light`/`dark`/plus at least one branded palette like `whoop`) behind the single header toggle button; don't assume the button's next click lands on plain "dark", set `localStorage.theme` directly and reload if you need a specific one for a screenshot.
+- **The dev Docker stack's `shared/` package is baked into the image at build time, not bind-mounted** (`docker/docker-compose.dev.yml` only mounts `SparkyFitnessServer/`/`SparkyFitnessFrontend/`) — a `docker restart` after editing `shared/` is not enough. The backend starts and then crashes with `SyntaxError: The requested module '@workspace/shared' does not provide an export named '...'`; the frontend throws the same thing from Vite (`/@fs/app/shared/src/index.ts does not provide an export named ...`) even after its own `.vite` cache is cleared and the container restarted, because the *image's* copy of `shared/` is what's stale, not a runtime cache. Fix: `docker compose --env-file .env -f docker/docker-compose.dev.yml build --no-cache <service>` (`sparkyfitness-server` and/or `sparkyfitness-frontend`) then `up -d --force-recreate <service>` — for both, if `shared/` changed. Also: running `docker compose build` from inside `docker/` (instead of the repo root) silently drops the `../.env` variable interpolation and fails with `required variable ... is missing a value` even though the file exists at the expected relative path — pass `--env-file .env` explicitly and/or run from the repo root to be safe. Hit this 2026-09-15: the Phase 1 contract commit had added new `shared/` exports well before this session started, and the dev containers had apparently been running against a stale image (and therefore silently broken for anything touching those exports) since then, undetected until this session tried to boot them.
 
 ## Not yet done (from the original broader plan — still open)
 
+0. **Workout-mapping fix, Phases 2–6** (plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`) — Phase 1 (session integrity) is done, see "PICK UP HERE" above. Phase 2 is next: a new `planned_workouts` table, the planning UI/dashboard, an MCP planned-workout tool, weekly-goal tracking (3 strength + 2 cardio ≥20 min, any intentional strength session counts, `first_day_of_week = 0`), and stopping `workoutPlanTemplateService.ts`'s phantom auto-materialization of diary entries on program activation (item 3 below is the symptom of this same root cause). Phase 6 is the approval-gated repair script for the known-bad production rows listed above — dry-run report first, apply only with Isaac's explicit sign-off, never silently.
 1. **Wire the in-app AI chatbot to Kingdom's Ollama** (`http://100.68.231.84:11434/v1`, admin-only AI setting, no `ALLOW_PRIVATE_NETWORK_AI` change needed). `OLLAMA_CONTEXT_LENGTH` may need raising on Kingdom for reliable tool-calling.
 2. **Hermes integration — connection now DONE (2026-09-13); the morning-briefing automation itself is not.**
    - **Correction to this doc's own earlier assumption**: Hermes is **not** an n8n workflow. It's its own container on Pi5 (`docker ps` shows `hermes`, image `nousresearch/hermes-agent:v2026.8.27`), configured via `/home/pi1/.hermes/config.yaml` (bind-mounted into the container at `/opt/data`) and driven by its own CLI (`hermes mcp add/list/test/...`). `n8n` also runs on this Pi5 (container `n8n`) but is a separate, unrelated thing — don't conflate them, and don't plan a "wire it up via an n8n workflow" step again without checking first.
