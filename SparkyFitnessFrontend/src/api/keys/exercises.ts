@@ -158,6 +158,25 @@ export const exerciseEntryKeys = {
     [...exerciseEntryKeys.all, 'groupedSession', presetEntryId] as const,
 };
 
+export const plannedWorkoutKeys = {
+  all: ['plannedWorkouts'] as const,
+  lists: () => [...plannedWorkoutKeys.all, 'list'] as const,
+  /** One date-range read of planned workouts (e.g. an upcoming-plans list). */
+  list: (from: string, to: string, userId?: string) =>
+    [...plannedWorkoutKeys.lists(), { from, to, userId }] as const,
+  /** A single date's for-date + missed rows — what the dashboard card and
+   * Active Program Widget read. */
+  day: (date: string, userId?: string) =>
+    [
+      ...plannedWorkoutKeys.all,
+      'day',
+      date,
+      ...(userId ? [{ userId }] : []),
+    ] as const,
+  details: () => [...plannedWorkoutKeys.all, 'detail'] as const,
+  detail: (id: string) => [...plannedWorkoutKeys.details(), id] as const,
+};
+
 export const assetKeys = {
   all: ['assets'] as const,
   svg: (filename: string) => [...assetKeys.all, 'svg', filename] as const,

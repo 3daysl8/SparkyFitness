@@ -43,3 +43,16 @@ export function buildMonthGrid(
 
   return { gridStart, gridEnd: days[days.length - 1]!, days };
 }
+
+/**
+ * Day-of-week indices (0 = Sunday .. 6 = Saturday) in display order starting
+ * from `firstDayOfWeek`, e.g. `orderedDaysOfWeek(1) => [1,2,3,4,5,6,0]` for a
+ * Monday-first week. Only reorders *display* order — index 0 always still
+ * means Sunday in the underlying data model; callers map these ids back onto
+ * their own day-name/assignment lookups.
+ *
+ * @param firstDayOfWeek - 0 = Sunday, 1 = Monday, ... 6 = Saturday
+ */
+export function orderedDaysOfWeek(firstDayOfWeek: number): number[] {
+  return Array.from({ length: 7 }, (_, i) => (firstDayOfWeek + i) % 7);
+}

@@ -909,6 +909,20 @@
       "manage": "Manage",
       "manageSchedules": "Manage Schedules"
     },
+    "plannedWorkouts": {
+      "createSuccess": "Workout planned.",
+      "createError": "Failed to plan workout.",
+      "updateSuccess": "Planned workout updated.",
+      "updateError": "Failed to update planned workout.",
+      "moveSuccess": "Workout moved.",
+      "moveError": "Failed to move workout.",
+      "startError": "Failed to start workout.",
+      "skipSuccess": "Workout skipped.",
+      "skipError": "Failed to skip workout.",
+      "completeError": "Failed to complete planned workout.",
+      "deleteSuccess": "Planned workout removed.",
+      "deleteError": "Failed to remove planned workout."
+    },
     "workoutFinishSummary": {
       "title": "Workout Complete!",
       "prCount": "{{count}} Personal Records!",
