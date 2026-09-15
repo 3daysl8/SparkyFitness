@@ -178,7 +178,7 @@ function projectExercise(row: any) {
 // Case-insensitive exact name lookup (MCP's `name ILIKE $1` without
 // wildcards). The server search returns substring matches; the exact match,
 // when present, is always among them.
-async function findExerciseByExactName(userId: string, name: string) {
+export async function findExerciseByExactName(userId: string, name: string) {
   const rows = await exerciseService.searchExercises(
     userId,
     name,

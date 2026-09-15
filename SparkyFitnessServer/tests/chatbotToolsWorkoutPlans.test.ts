@@ -5,7 +5,18 @@ vi.mock('../services/workoutPlanTemplateService.js', () => ({
     getWorkoutPlanTemplatesByUserId: vi.fn(),
     getWorkoutPlanTemplateById: vi.fn(),
     deleteWorkoutPlanTemplate: vi.fn(),
+    updateWorkoutPlanTemplate: vi.fn(),
   },
+}));
+
+vi.mock('../models/workoutPresetRepository.js', () => ({
+  default: {
+    getWorkoutPresetByName: vi.fn(),
+  },
+}));
+
+vi.mock('../ai/tools/exerciseTools.js', () => ({
+  findExerciseByExactName: vi.fn(),
 }));
 
 vi.mock('../config/logging.js', () => ({
@@ -13,6 +24,8 @@ vi.mock('../config/logging.js', () => ({
 }));
 
 import workoutPlanTemplateService from '../services/workoutPlanTemplateService.js';
+import workoutPresetRepository from '../models/workoutPresetRepository.js';
+import { findExerciseByExactName } from '../ai/tools/exerciseTools.js';
 import { buildWorkoutPlanTools } from '../ai/tools/workoutPlanTools.js';
 
 const opts = { toolCallId: 'tc-1', messages: [] };
@@ -26,6 +39,45 @@ const svc = workoutPlanTemplateService as unknown as {
   getWorkoutPlanTemplatesByUserId: ReturnType<typeof vi.fn>;
   getWorkoutPlanTemplateById: ReturnType<typeof vi.fn>;
   deleteWorkoutPlanTemplate: ReturnType<typeof vi.fn>;
+  updateWorkoutPlanTemplate: ReturnType<typeof vi.fn>;
+};
+
+const presetRepo = workoutPresetRepository as unknown as {
+  getWorkoutPresetByName: ReturnType<typeof vi.fn>;
+};
+
+const findExerciseMock = findExerciseByExactName as unknown as ReturnType<
+  typeof vi.fn
+>;
+
+const BASE_PLAN = {
+  id: PLAN_ID,
+  plan_name: 'Push Pull Legs',
+  description: 'A 3-day split',
+  start_date: '2026-01-01',
+  end_date: null,
+  is_active: true,
+  assignments: [
+    {
+      id: 1,
+      day_of_week: 1,
+      workout_preset_id: 5,
+      workout_preset_name: 'Push Day',
+      exercise_id: null,
+      exercise_name: null,
+      sort_order: 0,
+      sets: [],
+    },
+    {
+      id: 2,
+      day_of_week: 3,
+      workout_preset_id: null,
+      exercise_id: 'ex-uuid',
+      exercise_name: 'Deadlift',
+      sort_order: 0,
+      sets: [{ id: 's1', set_number: 1, reps: 5, weight: 100 }],
+    },
+  ],
 };
 
 function getTool() {
@@ -163,5 +215,171 @@ describe('sparky_manage_workout_plans', () => {
       opts
     );
     expect(result).toBe(DB_ERROR_TEXT);
+  });
+
+  describe('set_day_assignment', () => {
+    it('assigns a preset by ID, replacing that day and echoing the rest of the plan unchanged', async () => {
+      svc.getWorkoutPlanTemplateById.mockResolvedValue(BASE_PLAN);
+      svc.updateWorkoutPlanTemplate.mockResolvedValue({});
+      const result = await getTool().execute!(
+        {
+          action: 'set_day_assignment',
+          plan_id: PLAN_ID,
+          day_of_week: 1,
+          preset_id: 9,
+        },
+        opts
+      );
+      expect(result).toBe('✅ Monday set on "Push Pull Legs".');
+      expect(svc.updateWorkoutPlanTemplate).toHaveBeenCalledWith(
+        'user-1',
+        PLAN_ID,
+        {
+          plan_name: 'Push Pull Legs',
+          description: 'A 3-day split',
+          start_date: '2026-01-01',
+          end_date: null,
+          is_active: true,
+          assignments: [
+            {
+              id: 2,
+              day_of_week: 3,
+              workout_preset_id: null,
+              exercise_id: 'ex-uuid',
+              sort_order: 0,
+              sets: [{ id: 's1', set_number: 1, reps: 5, weight: 100 }],
+            },
+            {
+              day_of_week: 1,
+              workout_preset_id: 9,
+              exercise_id: null,
+              sort_order: 0,
+            },
+          ],
+        }
+      );
+    });
+
+    it('resolves a preset by name', async () => {
+      svc.getWorkoutPlanTemplateById.mockResolvedValue(BASE_PLAN);
+      svc.updateWorkoutPlanTemplate.mockResolvedValue({});
+      presetRepo.getWorkoutPresetByName.mockResolvedValue({ id: 11 });
+      await getTool().execute!(
+        {
+          action: 'set_day_assignment',
+          plan_id: PLAN_ID,
+          day_of_week: 'Tuesday',
+          preset_name: 'Upper Body B',
+        },
+        opts
+      );
+      expect(presetRepo.getWorkoutPresetByName).toHaveBeenCalledWith(
+        'user-1',
+        'Upper Body B'
+      );
+      const call = svc.updateWorkoutPlanTemplate.mock.calls[0][2];
+      expect(call.assignments).toContainEqual(
+        expect.objectContaining({ day_of_week: 2, workout_preset_id: 11 })
+      );
+    });
+
+    it('resolves an exercise by name', async () => {
+      svc.getWorkoutPlanTemplateById.mockResolvedValue(BASE_PLAN);
+      svc.updateWorkoutPlanTemplate.mockResolvedValue({});
+      findExerciseMock.mockResolvedValue({ id: 'resolved-uuid' });
+      await getTool().execute!(
+        {
+          action: 'set_day_assignment',
+          plan_id: PLAN_ID,
+          day_of_week: 5,
+          exercise_name: 'Squats',
+        },
+        opts
+      );
+      expect(findExerciseMock).toHaveBeenCalledWith('user-1', 'Squats');
+      const call = svc.updateWorkoutPlanTemplate.mock.calls[0][2];
+      expect(call.assignments).toContainEqual(
+        expect.objectContaining({
+          day_of_week: 5,
+          exercise_id: 'resolved-uuid',
+          workout_preset_id: null,
+        })
+      );
+    });
+
+    it('rejects both a preset and an exercise given together', async () => {
+      const result = await getTool().execute!(
+        {
+          action: 'set_day_assignment',
+          plan_id: PLAN_ID,
+          day_of_week: 1,
+          preset_id: 9,
+          exercise_id: '11111111-1111-1111-1111-111111111111',
+        },
+        opts
+      );
+      expect(result).toContain('Error [VALIDATION]');
+      expect(svc.getWorkoutPlanTemplateById).not.toHaveBeenCalled();
+      expect(svc.updateWorkoutPlanTemplate).not.toHaveBeenCalled();
+    });
+
+    it('rejects neither a preset nor an exercise given', async () => {
+      const result = await getTool().execute!(
+        { action: 'set_day_assignment', plan_id: PLAN_ID, day_of_week: 1 },
+        opts
+      );
+      expect(result).toContain('Error [MISSING_PARAMS]');
+      expect(svc.updateWorkoutPlanTemplate).not.toHaveBeenCalled();
+    });
+
+    it('returns NOT_FOUND for an unknown preset name', async () => {
+      presetRepo.getWorkoutPresetByName.mockResolvedValue(null);
+      const result = await getTool().execute!(
+        {
+          action: 'set_day_assignment',
+          plan_id: PLAN_ID,
+          day_of_week: 1,
+          preset_name: 'Nonexistent',
+        },
+        opts
+      );
+      expect(result).toContain('Error [NOT_FOUND]');
+      expect(svc.updateWorkoutPlanTemplate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('clear_day_assignment', () => {
+    it('removes the assignment for that day and keeps the rest', async () => {
+      svc.getWorkoutPlanTemplateById.mockResolvedValue(BASE_PLAN);
+      svc.updateWorkoutPlanTemplate.mockResolvedValue({});
+      const result = await getTool().execute!(
+        { action: 'clear_day_assignment', plan_id: PLAN_ID, day_of_week: 1 },
+        opts
+      );
+      expect(result).toBe(
+        '✅ Monday cleared on "Push Pull Legs" — now a rest day.'
+      );
+      expect(svc.updateWorkoutPlanTemplate).toHaveBeenCalledWith(
+        'user-1',
+        PLAN_ID,
+        {
+          plan_name: 'Push Pull Legs',
+          description: 'A 3-day split',
+          start_date: '2026-01-01',
+          end_date: null,
+          is_active: true,
+          assignments: [
+            {
+              id: 2,
+              day_of_week: 3,
+              workout_preset_id: null,
+              exercise_id: 'ex-uuid',
+              sort_order: 0,
+              sets: [{ id: 's1', set_number: 1, reps: 5, weight: 100 }],
+            },
+          ],
+        }
+      );
+    });
   });
 });
