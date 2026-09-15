@@ -10,6 +10,7 @@ import {
   Dumbbell,
   Trophy,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import type { ExerciseSessionResponse } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -20,11 +21,13 @@ import { SET_TYPE_STYLES } from '@/constants/exercises';
 interface WorkoutHistorySessionCardProps {
   session: ExerciseSessionResponse;
   onRepeat: () => void;
+  onDelete: () => void;
 }
 
 const WorkoutHistorySessionCard = ({
   session,
   onRepeat,
+  onDelete,
 }: WorkoutHistorySessionCardProps) => {
   const { t } = useTranslation();
   const { weightUnit, formatDateInUserTimezone } = usePreferences();
@@ -127,15 +130,28 @@ const WorkoutHistorySessionCard = ({
                 </div>
               </div>
             ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-2 mt-2"
-              onClick={onRepeat}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {t('exercise.workoutsHistory.repeatWorkout', 'Repeat Workout')}
-            </Button>
+            <div className="flex items-center gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={onRepeat}
+              >
+                <RotateCcw className="h-4 w-4" />
+                {t('exercise.workoutsHistory.repeatWorkout', 'Repeat Workout')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={onDelete}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">
+                  {t('exercise.workoutsHistory.deleteWorkout', 'Delete')}
+                </span>
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

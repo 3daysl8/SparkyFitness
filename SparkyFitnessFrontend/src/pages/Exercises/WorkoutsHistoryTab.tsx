@@ -3,10 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { ChevronLeft, ChevronRight, History } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDateToYYYYMMDD } from '@/lib/utils';
-import { useExerciseEntryHistoryPage } from '@/hooks/Exercises/useExerciseEntries';
+import {
+  useExerciseEntryHistoryPage,
+  useDeleteExerciseEntryMutation,
+  useDeleteExercisePresetEntryMutation,
+} from '@/hooks/Exercises/useExerciseEntries';
 import { createWorkoutPlaybackRouteStateFromSession } from '@/utils/workoutPlayback';
 import type { ExerciseSessionResponse } from '@workspace/shared';
 import WorkoutHistorySessionCard from './WorkoutHistorySessionCard';
@@ -19,12 +24,17 @@ const WorkoutsHistoryTab = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [page, setPage] = useState(1);
+  const [sessionToDelete, setSessionToDelete] =
+    useState<ExerciseSessionResponse | null>(null);
 
   const { data, isLoading, isFetching } = useExerciseEntryHistoryPage(
     page,
     PAGE_SIZE,
     user?.id
   );
+  const { mutate: deleteExerciseEntry } = useDeleteExerciseEntryMutation();
+  const { mutate: deleteExercisePresetEntry } =
+    useDeleteExercisePresetEntryMutation();
 
   const sessions = data?.sessions ?? [];
   const totalPages = Math.max(
@@ -40,6 +50,19 @@ const WorkoutsHistoryTab = () => {
       `${location.pathname}${location.search}`
     );
     navigate(`/workout-playback?date=${today}`, { state: routeState });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!sessionToDelete) return;
+    // A "preset" session is a grouped workout (its id is the preset entry
+    // id); an "individual" session is a single standalone exercise entry —
+    // each has its own delete route, per exerciseEntryService.ts.
+    if (sessionToDelete.type === 'preset') {
+      deleteExercisePresetEntry(sessionToDelete.id);
+    } else {
+      deleteExerciseEntry(sessionToDelete.id);
+    }
+    setSessionToDelete(null);
   };
 
   if (!isLoading && sessions.length === 0) {
@@ -67,6 +90,7 @@ const WorkoutsHistoryTab = () => {
           key={session.id}
           session={session}
           onRepeat={() => handleRepeat(session)}
+          onDelete={() => setSessionToDelete(session)}
         />
       ))}
 
@@ -105,6 +129,22 @@ const WorkoutsHistoryTab = () => {
           </Button>
         </div>
       )}
+
+      <ConfirmationDialog
+        open={!!sessionToDelete}
+        onOpenChange={(open) => !open && setSessionToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title={t(
+          'exercise.workoutsHistory.deleteConfirmTitle',
+          'Delete this workout?'
+        )}
+        description={t(
+          'exercise.workoutsHistory.deleteConfirmDescription',
+          "This permanently removes the logged session. This can't be undone."
+        )}
+        variant="destructive"
+        confirmLabel={t('exercise.workoutsHistory.deleteWorkout', 'Delete')}
+      />
     </div>
   );
 };

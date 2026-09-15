@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -38,7 +38,7 @@ import {
 import AddExerciseDialog from './AddExerciseDialog';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { formatDateToYYYYMMDD, cn } from '@/lib/utils';
-import { addDays } from '@workspace/shared';
+import { addDays, orderedDaysOfWeek } from '@workspace/shared';
 import { DAYS_OF_WEEK } from '@/constants/exercises';
 import { useWorkoutPlanAssignments } from '@/hooks/Exercises/useWorkoutPlanAssignments';
 import { SortableExerciseItem } from './SortableExerciseItem';
@@ -87,7 +87,7 @@ const AddWorkoutPlanDialog = ({
     buildAssignmentsForSave,
   } = useWorkoutPlanAssignments(initialData);
   const { t } = useTranslation();
-  const { weightUnit } = usePreferences();
+  const { weightUnit, firstDayOfWeek } = usePreferences();
   const [planName, setPlanName] = useState(() => initialData?.plan_name || '');
   const [description, setDescription] = useState(
     () => initialData?.description || ''
@@ -139,6 +139,17 @@ const AddWorkoutPlanDialog = ({
     // 'custom' has no action of its own — it's already reachable by typing
     // directly into the End Date field below.
   };
+
+  // Display order only — the underlying day_of_week values (and DAYS_OF_WEEK
+  // itself) stay Sunday-indexed; this just reorders which card renders first
+  // to match the user's preferred week start.
+  const orderedDays = useMemo(
+    () =>
+      orderedDaysOfWeek(firstDayOfWeek)
+        .map((id) => DAYS_OF_WEEK.find((day) => day.id === id))
+        .filter((day): day is (typeof DAYS_OF_WEEK)[number] => day != null),
+    [firstDayOfWeek]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -297,7 +308,7 @@ const AddWorkoutPlanDialog = ({
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
-                {DAYS_OF_WEEK.map((day) => {
+                {orderedDays.map((day) => {
                   const dayAssignments = assignments.filter(
                     (assignment) => assignment.day_of_week === day.id
                   );

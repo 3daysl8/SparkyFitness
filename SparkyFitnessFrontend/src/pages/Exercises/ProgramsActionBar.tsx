@@ -5,11 +5,13 @@ import { Plus } from 'lucide-react';
 interface ProgramsActionBarProps {
   onAddSchedule: () => void;
   onCreateProgram: () => void;
+  onPlanWorkout: () => void;
 }
 
 const ProgramsActionBar = ({
   onAddSchedule,
   onCreateProgram,
+  onPlanWorkout,
 }: ProgramsActionBarProps) => {
   const { t } = useTranslation();
 
@@ -22,6 +24,10 @@ const ProgramsActionBar = ({
       <Button onClick={onCreateProgram} className="gap-2">
         <Plus className="h-4 w-4" />
         {t('exercise.workoutsPage.createProgram', 'Create Program')}
+      </Button>
+      <Button variant="outline" onClick={onPlanWorkout} className="gap-2">
+        <Plus className="h-4 w-4" />
+        {t('exercise.addPlannedWorkoutDialog.triggerButton', 'Plan a Workout')}
       </Button>
     </div>
   );
