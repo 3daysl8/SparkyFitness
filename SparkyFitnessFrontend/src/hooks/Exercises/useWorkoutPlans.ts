@@ -7,6 +7,7 @@ import {
   deleteWorkoutPlanTemplate,
   getActiveWorkoutPlanTemplate,
 } from '@/api/Exercises/workoutPlanTemplates';
+import { plannedWorkoutKeys } from '@/api/keys/exercises';
 import type { WorkoutPlanTemplate } from '@/types/workout';
 
 export const workoutPlanKeys = {
@@ -72,6 +73,10 @@ export const useCreateWorkoutPlanTemplateMutation = () => {
       // reads via workoutPlanKeys.active(date), a sibling key under the same
       // prefix.
       queryClient.invalidateQueries({ queryKey: workoutPlanKeys.all });
+      // Creating (and, per syncTemplatePlannedWorkouts, especially activating)
+      // a template regenerates its planned_workouts rows server-side, so any
+      // planned-workouts list/day-view reader must refetch too.
+      queryClient.invalidateQueries({ queryKey: plannedWorkoutKeys.all });
     },
     meta: {
       successMessage: t(
@@ -106,6 +111,9 @@ export const useUpdateWorkoutPlanTemplateMutation = () => {
       queryClient.invalidateQueries({
         queryKey: workoutPlanKeys.detail(variables.id),
       });
+      // Activating/deactivating/editing a template resyncs its
+      // planned_workouts rows server-side (syncTemplatePlannedWorkouts).
+      queryClient.invalidateQueries({ queryKey: plannedWorkoutKeys.all });
     },
     meta: {
       errorMessage: t(
@@ -144,6 +152,10 @@ export const useDeleteWorkoutPlanTemplateMutation = () => {
       // Deleting the active plan should clear it from the Active Program
       // Widget too, not just the manage-schedules list.
       queryClient.invalidateQueries({ queryKey: workoutPlanKeys.all });
+      // A deleted template's future planned_workouts rows are also cleaned
+      // up server-side (syncTemplatePlannedWorkouts) — refetch so a planned
+      // list/day-view stops showing them.
+      queryClient.invalidateQueries({ queryKey: plannedWorkoutKeys.all });
     },
     meta: {
       successMessage: t(

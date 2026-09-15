@@ -941,7 +941,10 @@
       "untitledWorkout": "Workout",
       "exercise": "Exercise",
       "repeatWorkout": "Repeat Workout",
-      "emptyState": "No workouts logged yet — finish a session and it'll show up here."
+      "emptyState": "No workouts logged yet — finish a session and it'll show up here.",
+      "deleteWorkout": "Delete",
+      "deleteConfirmTitle": "Delete this workout?",
+      "deleteConfirmDescription": "This permanently removes the logged session. This can't be undone."
     },
     "databaseManager": {
       "errorLoadingExercises": "Error loading exercises:",
@@ -1200,6 +1203,52 @@
       "restEditorTitle": "Edit Rest",
       "restTimer": "Rest",
       "volume": "Volume"
+    },
+    "plannedWorkoutsList": {
+      "title": "Planned Workouts",
+      "emptyState": "Nothing planned yet — plan a workout and it'll show up here.",
+      "missedBadge": "Missed",
+      "moveButton": "Move",
+      "moveDateLabel": "Date",
+      "moveTimeLabel": "Time (optional)",
+      "moveSubmit": "Confirm Move",
+      "skipButton": "Skip",
+      "deleteButton": "Delete",
+      "status": {
+        "planned": "Planned",
+        "started": "In Progress",
+        "completed": "Completed",
+        "skipped": "Skipped"
+      }
+    },
+    "addPlannedWorkoutDialog": {
+      "triggerButton": "Plan a Workout",
+      "title": "Plan a Workout",
+      "description": "Add a workout to your calendar for a specific date.",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Leg Day",
+      "dateLabel": "Date",
+      "timeLabel": "Time (optional)",
+      "durationLabel": "Duration (minutes, optional)",
+      "typeLabel": "Workout Type (optional)",
+      "workoutTypeNone": "No type",
+      "workoutTypeOptions": {
+        "strength": "Strength",
+        "cardio": "Cardio",
+        "mobility": "Mobility",
+        "recovery": "Recovery",
+        "other": "Other"
+      },
+      "linkLabel": "Link to a preset or exercise (optional)",
+      "chooseButton": "Choose Exercise or Preset",
+      "changeButton": "Change",
+      "clearButton": "Clear",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Add any notes...",
+      "cancelButton": "Cancel",
+      "saveButton": "Save Plan",
+      "validationErrorTitle": "Validation Error",
+      "validationErrorDescription": "Title and Date are required."
     }
   },
   "workoutPresetsManager": {

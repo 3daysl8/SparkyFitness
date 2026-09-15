@@ -8,12 +8,15 @@ import ActiveProgramWidget from './ActiveProgramWidget';
 import ProgramsActionBar from './ProgramsActionBar';
 import MyProgramsGrid from './MyProgramsGrid';
 import AddWorkoutPlanDialog from './AddWorkoutPlanDialog';
+import PlannedWorkoutsList from './PlannedWorkoutsList';
+import AddPlannedWorkoutDialog from './AddPlannedWorkoutDialog';
 
 const WorkoutsRoutinesTab = () => {
   const { user } = useAuth();
   const { loggingLevel } = usePreferences();
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
+  const [isPlanWorkoutOpen, setIsPlanWorkoutOpen] = useState(false);
 
   const { mutateAsync: createWorkoutPlanTemplate } =
     useCreateWorkoutPlanTemplateMutation();
@@ -36,9 +39,11 @@ const WorkoutsRoutinesTab = () => {
   return (
     <div className="space-y-6">
       <ActiveProgramWidget />
+      <PlannedWorkoutsList />
       <ProgramsActionBar
         onAddSchedule={() => setIsAddScheduleOpen(true)}
         onCreateProgram={() => setIsAddProgramOpen(true)}
+        onPlanWorkout={() => setIsPlanWorkoutOpen(true)}
       />
       <MyProgramsGrid
         isAddOpen={isAddProgramOpen}
@@ -51,6 +56,11 @@ const WorkoutsRoutinesTab = () => {
         onClose={() => setIsAddScheduleOpen(false)}
         onSave={handleCreateSchedule}
         initialData={null}
+      />
+      <AddPlannedWorkoutDialog
+        key={isPlanWorkoutOpen ? 'plan-open' : 'plan-closed'}
+        isOpen={isPlanWorkoutOpen}
+        onClose={() => setIsPlanWorkoutOpen(false)}
       />
     </div>
   );
