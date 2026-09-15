@@ -177,6 +177,14 @@ function _buildExerciseEntryWithSnapshot(
   } satisfies ExerciseEntryResponse;
 }
 
+// A preset session with no exercises and no activity details (its last exercise
+// was deleted) is not a workout. The page and count queries must both apply it
+// or pagination drifts.
+const NON_EMPTY_PRESET_SESSION = `(
+  EXISTS (SELECT 1 FROM exercise_entries ne WHERE ne.exercise_preset_entry_id = epe.id)
+  OR EXISTS (SELECT 1 FROM exercise_entry_activity_details nad WHERE nad.exercise_preset_entry_id = epe.id)
+)`;
+
 /** Count the total number of "sessions" (preset entries + standalone exercise entries). */
 async function countExerciseEntrySessions(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
@@ -188,6 +196,7 @@ async function countExerciseEntrySessions(
     `WITH sessions AS (
        SELECT epe.id FROM exercise_preset_entries epe
        WHERE epe.user_id = $1
+         AND ${NON_EMPTY_PRESET_SESSION}
          AND ($2::uuid IS NULL OR EXISTS (
            SELECT 1 FROM exercise_entries ce
            WHERE ce.exercise_preset_entry_id = epe.id AND ce.exercise_id = $2
@@ -218,6 +227,7 @@ async function getExerciseEntryHistorySessions(
        SELECT epe.id, epe.entry_date, epe.created_at, 'preset' AS session_type
        FROM exercise_preset_entries epe
        WHERE epe.user_id = $1
+         AND ${NON_EMPTY_PRESET_SESSION}
          AND ($4::uuid IS NULL OR EXISTS (
            SELECT 1 FROM exercise_entries ce
            WHERE ce.exercise_preset_entry_id = epe.id AND ce.exercise_id = $4
@@ -659,6 +669,12 @@ async function _getExerciseEntriesByDateWithClient(
 
   for (const presetRow of presetRows) {
     const pid = presetRow.id as string;
+    if (
+      (presetChildrenMap.get(pid) ?? []).length === 0 &&
+      (presetActivityMap.get(pid) ?? []).length === 0
+    ) {
+      continue;
+    }
     stubs.push({
       sessionType: 'preset',
       id: pid,

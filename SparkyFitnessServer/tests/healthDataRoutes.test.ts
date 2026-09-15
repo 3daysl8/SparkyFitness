@@ -249,6 +249,7 @@ describe('Health Data Routes - POST /api/health-data', () => {
       .send([{ type: 'step', value: 1000, date: '2026-05-05' }]);
 
     expect(res.statusCode).toBe(500);
-    expect(res.body.error).toBe('database unavailable');
+    // The error handler hides internal failure messages from the client.
+    expect(res.body.error).toBe('Internal Server Error');
   });
 });

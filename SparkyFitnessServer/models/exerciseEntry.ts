@@ -6,6 +6,7 @@ import format from 'pg-format';
 import { log } from '../config/logging.js';
 import exerciseRepository from './exercise.js';
 import activityDetailsRepository from './activityDetailsRepository.js';
+import exercisePresetEntryRepository from './exercisePresetEntryRepository.js';
 /**
  * Updates a daily calorie import, retaining entries created against shared exercises.
  * A matching exercise takes precedence; legacy matches require the same source.
@@ -454,6 +455,10 @@ async function _updateExerciseEntryWithClient(
       updateData.water_estimated !== undefined
         ? updateData.water_estimated
         : currentEntry.water_estimated,
+    calories_source:
+      updateData.calories_source !== undefined
+        ? updateData.calories_source
+        : currentEntry.calories_source,
   };
   // If exercise_id is explicitly updated, re-fetch snapshot data from the exercise
   if (
@@ -527,6 +532,7 @@ async function _updateExerciseEntryWithClient(
       entry_time = $30,
       modality = $31,
       ${telemetrySetClause},
+      calories_source = $${32 + EXERCISE_ENTRY_TELEMETRY_COLUMNS.length},
       updated_at = now()
     WHERE id = $28 AND user_id = $29
     RETURNING id`,
@@ -563,6 +569,7 @@ async function _updateExerciseEntryWithClient(
       mergedData.entry_time ?? null,
       mergedData.modality ?? null,
       ...telemetryParams,
+      mergedData.calories_source ?? null,
     ]
   );
   // The row can be deleted by a competing writer between the existence check
@@ -618,6 +625,14 @@ interface MatchedExerciseEntry {
   id: string;
 }
 
+/** Entry sources written by a health-platform or wearable sync, not typed in by a user. */
+export const SYNC_ENTRY_SOURCES: readonly string[] = [
+  'HealthKit',
+  'Health Connect',
+  'Fitbit',
+  'Strava',
+];
+
 /**
  * Serializes destructive range deletes and deduplicating writes for one
  * user's provider source until the surrounding transaction ends.
@@ -654,12 +669,15 @@ async function _createExerciseEntryWithClient(
     if (syncDuplicateCheck) {
       await acquireExerciseEntrySyncLockWithClient(client, userId, entrySource);
     }
-    const skipManualDuplicateCheck = [
-      'HealthKit',
-      'Health Connect',
-      'Fitbit',
-      'Strava',
-    ].includes(entrySource);
+    const skipManualDuplicateCheck = SYNC_ENTRY_SOURCES.includes(entrySource);
+    // The service labels calories it derived or the user entered; a writer
+    // that does not label them is a provider sync reporting device calories.
+    const caloriesSource =
+      entryData.calories_source ??
+      (syncDuplicateCheck || skipManualDuplicateCheck ? 'device' : null);
+    const writeData = caloriesSource
+      ? { ...entryData, calories_source: caloriesSource }
+      : entryData;
     // Both deduplication lookups live behind one function so that the update
     // path can re-run exactly the lookup that produced its match. Returns the
     // id of the matched entry, or null when this is a genuinely new one.
@@ -717,7 +735,7 @@ async function _createExerciseEntryWithClient(
         client,
         existingEntryId,
         userId,
-        entryData,
+        writeData,
         createdByUserId,
         entrySource,
         { returnNullIfMissing: true }
@@ -744,7 +762,7 @@ async function _createExerciseEntryWithClient(
             client,
             replacementEntryId,
             userId,
-            entryData,
+            writeData,
             createdByUserId,
             entrySource,
             { returnNullIfMissing: true }
@@ -806,6 +824,7 @@ async function _createExerciseEntryWithClient(
         entryData.entry_time ?? null,
         snapshot.modality,
         ...telemetryValuesFrom(entryData),
+        caloriesSource,
       ];
       const hasClientId = entryData.id !== undefined && entryData.id !== null;
       const idColumn = hasClientId ? ', id' : '';
@@ -817,7 +836,7 @@ async function _createExerciseEntryWithClient(
         'equipment, primary_muscles, secondary_muscles, instructions, images, ' +
         'distance, avg_heart_rate, exercise_preset_entry_id, sort_order, steps, water_estimated, ' +
         'superset_group, entry_time, modality';
-      const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}${idColumn}`;
+      const allColumns = `${baseColumns}, ${EXERCISE_ENTRY_TELEMETRY_COLUMNS.join(', ')}, calories_source${idColumn}`;
       const placeholders = entryValues
         .map((_, index) => `$${index + 1}`)
         .join(', ');
@@ -1185,15 +1204,46 @@ async function _reconcileExerciseEntrySetsWithClient(
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function deleteExerciseEntry(id: any, userId: any) {
+/**
+ * Deletes one exercise entry and, when it was the last thing in its grouped
+ * session, the now-empty session too, in a single transaction.
+ */
+async function deleteExerciseEntry(
+  id: string,
+  userId: string
+): Promise<{ deleted: boolean; removedSessionId: string | null }> {
   const client = await getClient(userId);
   try {
-    const result = await client.query(
-      'DELETE FROM exercise_entries WHERE id = $1 AND user_id = $2 RETURNING id',
+    await client.query('BEGIN');
+    const parentResult = await client.query(
+      'SELECT exercise_preset_entry_id FROM exercise_entries WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
-    return result.rowCount > 0;
+    const sessionId: string | null =
+      parentResult.rows[0]?.exercise_preset_entry_id ?? null;
+    if (sessionId) {
+      // Serializes concurrent deletes of one session's exercises, so the last
+      // of them sees the others gone and removes the session instead of each
+      // seeing a sibling and leaving an empty session behind.
+      await client.query(
+        'SELECT id FROM exercise_preset_entries WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [sessionId, userId]
+      );
+    }
+    const deleted = await _deleteExerciseEntryWithClient(client, userId, id);
+    const sessionRemoved =
+      deleted && sessionId
+        ? await exercisePresetEntryRepository.deleteSessionIfEmptyWithClient(
+            client,
+            sessionId,
+            userId
+          )
+        : false;
+    await client.query('COMMIT');
+    return { deleted, removedSessionId: sessionRemoved ? sessionId : null };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
   } finally {
     client.release();
   }
@@ -1347,6 +1397,13 @@ async function getExerciseEntriesByDate(userId: any, selectedDate: any) {
     // Now add the preset entries (which now contain their associated exercises) to the final list
     for (const preset of groupedEntries.values()) {
       preset.activity_details = activityDetailsByPresetId.get(preset.id) || [];
+      // A session emptied of exercises is not a workout.
+      if (
+        preset.exercises.length === 0 &&
+        preset.activity_details.length === 0
+      ) {
+        continue;
+      }
       finalEntriesMap.set(preset.id, preset); // Add preset to map, overwriting if already present (shouldn't happen for presets)
     }
     const finalEntries = Array.from(finalEntriesMap.values()); // Convert map values to an array

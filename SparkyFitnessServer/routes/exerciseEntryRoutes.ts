@@ -16,8 +16,10 @@ import {
   demoUploadGuard,
 } from '../middleware/demoGuardMiddleware.js';
 import { canAccessUserData } from '../utils/permissionUtils.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
+import { SYNC_ENTRY_SOURCES } from '../models/exerciseEntry.js';
 import { fileURLToPath } from 'url';
-import { isEntryTimeString } from '@workspace/shared';
+import { isDayString, isEntryTimeString, todayInZone } from '@workspace/shared';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -30,6 +32,23 @@ const baseUploadsDir = process.env.SPARKY_FITNESS_CUSTOM_UPLOADS_DIRECTORY
 const sanitizeFilename = (filename: any) => {
   return filename.replace(/[^a-zA-Z0-9_.-]/g, '_').substring(0, 50);
 };
+// Syncs and plan generation write future-dated entries on purpose; only a
+// manually logged entry cannot have happened yet.
+async function isFutureManualEntryDate(
+  userId: string,
+  entryDate: unknown,
+  source: unknown
+) {
+  if (
+    typeof entryDate !== 'string' ||
+    !isDayString(entryDate.slice(0, 10)) ||
+    source === 'Workout Plan' ||
+    (typeof source === 'string' && SYNC_ENTRY_SOURCES.includes(source))
+  ) {
+    return false;
+  }
+  return entryDate.slice(0, 10) > todayInZone(await loadUserTimezone(userId));
+}
 // Custom storage for exercise entries
 const exerciseEntryStorage = multer.diskStorage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -269,7 +288,7 @@ router.get('/by-date', authenticate, async (req, res, next) => {
  *             schema:
  *               $ref: '#/components/schemas/ExerciseEntry'
  *       400:
- *         description: Invalid request body or exercise ID.
+ *         description: Invalid request body or exercise ID, or a manually logged entry dated in the future.
  *       403:
  *         description: User does not have permission to create an exercise entry.
  *       500:
@@ -341,6 +360,13 @@ router.post(
         return res
           .status(400)
           .json({ error: 'Exercise ID must be a valid UUID.' });
+      }
+      if (
+        await isFutureManualEntryDate(req.userId, entry_date, entryData.source)
+      ) {
+        return res
+          .status(400)
+          .json({ error: 'entry_date cannot be in the future' });
       }
       let imageUrl = entryData.image_url || null;
       // @ts-expect-error TS(2339): Property 'file' does not exist on type 'Request<{}... Remove this comment to see the full error message

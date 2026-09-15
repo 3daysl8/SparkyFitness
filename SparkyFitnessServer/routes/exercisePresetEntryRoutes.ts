@@ -4,9 +4,12 @@ import {
   createPresetSessionRequestSchema,
   updatePresetSessionRequestSchema,
   presetSessionResponseSchema,
+  todayInZone,
 } from '@workspace/shared';
 import exercisePresetEntryRepository from '../models/exercisePresetEntryRepository.js';
+import { SYNC_ENTRY_SOURCES } from '../models/exerciseEntry.js';
 import exerciseService from '../services/exerciseService.js';
+import { loadUserTimezone } from '../utils/timezoneLoader.js';
 import { log } from '../config/logging.js';
 const router = express.Router();
 const presetEntryIdParamSchema = z.object({
@@ -26,9 +29,24 @@ function sendValidationError(res: any, message: any, error: any) {
     details: error.flatten(),
   });
 }
+// Syncs and plan generation write future-dated sessions on purpose; only a
+// manually logged workout cannot have happened yet.
+async function isFutureManualEntryDate(
+  userId: string,
+  entryDate: string,
+  source: string | undefined
+) {
+  if (
+    source === 'Workout Plan' ||
+    (source !== undefined && SYNC_ENTRY_SOURCES.includes(source))
+  ) {
+    return false;
+  }
+  return entryDate > todayInZone(await loadUserTimezone(userId));
+}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function handleRouteError(error: any, res: any, next: any) {
-  if (error?.status) {
+  if (error?.status >= 400 && error.status < 500) {
     return res.status(error.status).json({ message: error.message });
   }
   if (error instanceof z.ZodError) {
@@ -61,17 +79,23 @@ function handleRouteError(error: any, res: any, next: any) {
  *       preset for stats scoping while using the client-supplied exercise/set structure
  *       verbatim, keeping the session editable like any other client-authored session.
  *       Returns the full nested grouped session payload used by the mobile client.
+ *       A `client_request_id` makes the save idempotent: repeating the request returns
+ *       the session the first one created.
  *     security:
  *       - cookieAuth: []
  *     responses:
+ *       200:
+ *         description: A repeat of an earlier request with the same client_request_id and payload; returns the session that request created.
  *       201:
  *         description: The grouped workout session was created successfully.
  *       400:
- *         description: Invalid request body.
+ *         description: Invalid request body, or a manually logged session dated in the future.
  *       401:
  *         description: Unauthorized.
  *       404:
  *         description: Workout preset not found.
+ *       409:
+ *         description: The client_request_id was already used for a different payload.
  */
 router.post('/', isAuthenticated, async (req, res, next) => {
   try {
@@ -83,14 +107,25 @@ router.post('/', isAuthenticated, async (req, res, next) => {
         parsedBody.error
       );
     }
-    const groupedWorkout = await exerciseService.createGroupedWorkoutSession(
-      req.userId,
-
-      req.originalUserId || req.userId,
-      parsedBody.data
-    );
-    const response = presetSessionResponseSchema.parse(groupedWorkout);
-    res.status(201).json(response);
+    if (
+      await isFutureManualEntryDate(
+        req.userId,
+        parsedBody.data.entry_date,
+        parsedBody.data.source
+      )
+    ) {
+      return res
+        .status(400)
+        .json({ error: 'entry_date cannot be in the future' });
+    }
+    const { session, created } =
+      await exerciseService.createGroupedWorkoutSessionWithStatus(
+        req.userId,
+        req.originalUserId || req.userId,
+        parsedBody.data
+      );
+    const response = presetSessionResponseSchema.parse(session);
+    res.status(created ? 201 : 200).json(response);
   } catch (error) {
     log('error', 'Error creating grouped workout session:', error);
     handleRouteError(error, res, next);

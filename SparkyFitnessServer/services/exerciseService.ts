@@ -16,17 +16,20 @@ import { downloadImage } from '../utils/imageDownloader.js';
 import calorieCalculationService from './CalorieCalculationService.js';
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
 import { resolveExerciseIdToUuid } from '../utils/uuidUtils.js';
 import { normalizeToStringArray } from '../utils/exerciseJsonFields.js';
 import {
   deriveExerciseModality,
   canEditGroupedWorkout,
+  deriveExerciseDurationFromSets,
   setsDistanceKm,
   setsDurationMinutes,
   toNumber,
   parseCsv,
   DEFAULT_CSV_FORMAT,
+  type PresetSessionResponse,
 } from '@workspace/shared';
 import {
   getGroupedExerciseSessionById,
@@ -346,10 +349,9 @@ async function prepareExerciseEntryForCreate(
       ? entryData.duration_minutes
       : setsDurationMinutes(entryData.sets);
   let calculatedCaloriesBurned = entryData.calories_burned;
-  if (
-    calculatedCaloriesBurned === undefined ||
-    calculatedCaloriesBurned === null
-  ) {
+  const caloriesSupplied =
+    calculatedCaloriesBurned !== undefined && calculatedCaloriesBurned !== null;
+  if (!caloriesSupplied) {
     const caloriesPerHour =
       await calorieCalculationService.estimateCaloriesBurnedPerHour(
         exercise,
@@ -365,6 +367,7 @@ async function prepareExerciseEntryForCreate(
     exercise_name: exercise.name,
     calories_per_hour: exercise.calories_per_hour,
     calories_burned: calculatedCaloriesBurned ?? 0,
+    calories_source: caloriesSupplied ? 'manual' : 'derived',
     duration_minutes: durationMinutes ?? 0,
     workout_plan_assignment_id: entryData.workout_plan_assignment_id || null,
     image_url: entryData.image_url || null,
@@ -453,6 +456,15 @@ async function getExerciseEntryById(authenticatedUserId: any, id: any) {
     throw error;
   }
 }
+/** Whether stored calories still equal the rate x duration formula (within 2% or 1 kcal). */
+function caloriesMatchFormula(
+  calories: number,
+  caloriesPerHour: number,
+  durationMinutes: number
+) {
+  const expected = (caloriesPerHour / 60) * durationMinutes;
+  return Math.abs(calories - expected) <= Math.max(1, expected * 0.02);
+}
 async function updateExerciseEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authenticatedUserId: any,
@@ -485,36 +497,68 @@ async function updateExerciseEntry(
         log('info', `Deleted old exercise entry image: ${oldImagePath}`);
       }
     }
-    // If calories_burned is not provided, calculate it using the calorieCalculationService
-    if (
-      updateData.exercise_id &&
-      updateData.duration_minutes !== null &&
+    const durationChanged =
       updateData.duration_minutes !== undefined &&
-      updateData.calories_burned === undefined
+      updateData.duration_minutes !== null &&
+      Number(updateData.duration_minutes) !==
+        Number(existingEntry.duration_minutes);
+    const exerciseChanged =
+      updateData.exercise_id !== undefined &&
+      updateData.exercise_id !== existingEntry.exercise_id;
+    if (
+      updateData.calories_burned !== undefined &&
+      updateData.calories_burned !== null
     ) {
-      const exercise = await exerciseDb.getExerciseById(
-        updateData.exercise_id,
-        authenticatedUserId
-      );
-      if (exercise) {
-        const caloriesPerHour =
-          await calorieCalculationService.estimateCaloriesBurnedPerHour(
-            exercise,
-            authenticatedUserId,
-            updateData.sets
-          );
-        updateData.calories_burned =
-          (caloriesPerHour / 60) * updateData.duration_minutes;
-      } else {
+      updateData.calories_source = 'manual';
+    } else if (
+      durationChanged ||
+      exerciseChanged ||
+      updateData.sets !== undefined
+    ) {
+      // Only calories the server derived may follow the new duration; ones a
+      // user or device supplied are kept. Legacy rows carry no
+      // calories_source, so they count as derived only while they still match
+      // the formula.
+      const storedCalories = Number(existingEntry.calories_burned) || 0;
+      const isDerived =
+        existingEntry.calories_source === 'derived' ||
+        ((existingEntry.calories_source ?? null) === null &&
+          caloriesMatchFormula(
+            storedCalories,
+            Number(existingEntry.calories_per_hour) || 0,
+            Number(existingEntry.duration_minutes) || 0
+          ));
+      if (!isDerived) {
         log(
           'warn',
-          `Exercise ${updateData.exercise_id} not found. Cannot auto-calculate calories_burned.`
+          `Exercise entry ${id} changed duration, sets or exercise; keeping calories_burned ${storedCalories} because they were not derived (calories_source: ${existingEntry.calories_source ?? 'unknown'}).`
         );
-        updateData.calories_burned = 0;
+      } else {
+        const exerciseId = updateData.exercise_id ?? existingEntry.exercise_id;
+        const exercise = await exerciseDb.getExerciseById(
+          exerciseId,
+          authenticatedUserId
+        );
+        if (exercise) {
+          const caloriesPerHour =
+            await calorieCalculationService.estimateCaloriesBurnedPerHour(
+              exercise,
+              authenticatedUserId,
+              updateData.sets ?? existingEntry.sets
+            );
+          const durationMinutes =
+            Number(
+              updateData.duration_minutes ?? existingEntry.duration_minutes
+            ) || 0;
+          updateData.calories_burned = (caloriesPerHour / 60) * durationMinutes;
+          updateData.calories_source = 'derived';
+        } else {
+          log(
+            'warn',
+            `Exercise ${exerciseId} not found. Keeping calories_burned for exercise entry ${id}.`
+          );
+        }
       }
-    } else if (updateData.calories_burned === undefined) {
-      // If calories_burned is not in updateData, use existing value or 0
-      updateData.calories_burned = existingEntry.calories_burned || 0;
     }
     const updatedEntry = await exerciseEntryDb.updateExerciseEntry(
       id,
@@ -678,9 +722,16 @@ async function deleteExerciseEntry(authenticatedUserId: any, id: any) {
         log('info', `Deleted exercise entry image: ${imagePath}`);
       }
     }
-    const success = await exerciseEntryDb.deleteExerciseEntry(id, entryOwnerId);
-    if (!success) {
+    const { deleted, removedSessionId } =
+      await exerciseEntryDb.deleteExerciseEntry(id, entryOwnerId);
+    if (!deleted) {
       throw new Error('Exercise entry not found or not authorized to delete.');
+    }
+    if (removedSessionId) {
+      log(
+        'info',
+        `Deleted grouped workout session ${removedSessionId}: exercise entry ${id} was the last thing in it.`
+      );
     }
     return { message: 'Exercise entry deleted successfully.' };
   } catch (error) {
@@ -1806,6 +1857,30 @@ function createServiceError(status: any, message: any) {
   error.status = status;
   return error;
 }
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortKeysDeep);
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [
+          key,
+          sortKeysDeep((value as Record<string, unknown>)[key]),
+        ])
+    );
+  }
+  return value;
+}
+/** sha256 of a validated session-create request minus its idempotency key, independent of key order. */
+function fingerprintSessionRequest(sessionData: Record<string, unknown>) {
+  const payload = { ...sessionData };
+  delete payload.client_request_id;
+  return createHash('sha256')
+    .update(JSON.stringify(sortKeysDeep(payload)))
+    .digest('hex');
+}
 function deriveDurationMinutes(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exerciseData: any,
@@ -1814,7 +1889,7 @@ function deriveDurationMinutes(
   if (typeof exerciseData.duration_minutes === 'number') {
     return exerciseData.duration_minutes;
   }
-  return setsDurationMinutes(
+  return deriveExerciseDurationFromSets(
     exerciseData.sets,
     preserveLegacyPresetDurationFallback ? { fallbackMinutes: 30 } : undefined
   );
@@ -1891,18 +1966,25 @@ async function getGroupedWorkoutSessionById(userId: any, presetEntryId: any) {
   return getGroupedExerciseSessionById(userId, presetEntryId);
 }
 
-async function createGroupedWorkoutSession(
+/**
+ * Creates a grouped workout session. With a `client_request_id`, repeating the
+ * same request returns the session the first one created (`created: false`)
+ * instead of inserting a duplicate, and reusing the key for a different
+ * payload is a 409.
+ */
+async function createGroupedWorkoutSessionWithStatus(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   userId: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actingUserId: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sessionData: any
-) {
+): Promise<{ session: PresetSessionResponse | null; created: boolean }> {
   const client = await getClient(userId);
   try {
     await client.query('BEGIN');
     const {
+      client_request_id,
       workout_preset_id,
       entry_date,
       name,
@@ -1912,7 +1994,42 @@ async function createGroupedWorkoutSession(
       exercises,
       workoutPlanAssignmentId = null,
     } = sessionData;
-    let presetEntry;
+    const fingerprint = client_request_id
+      ? fingerprintSessionRequest(sessionData)
+      : null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insertPresetEntry = async (entryData: any) => {
+      if (!fingerprint) {
+        const entry =
+          await exercisePresetEntryRepository.createExercisePresetEntryWithClient(
+            client,
+            userId,
+            entryData,
+            actingUserId
+          );
+        return { entry, created: true };
+      }
+      const result =
+        await exercisePresetEntryRepository.insertExercisePresetEntryIdempotentWithClient(
+          client,
+          userId,
+          {
+            ...entryData,
+            client_request_id,
+            client_request_fingerprint: fingerprint,
+          },
+          actingUserId
+        );
+      if (!result.created && result.storedFingerprint !== fingerprint) {
+        throw createServiceError(
+          409,
+          'This client_request_id was already used to save a different workout.'
+        );
+      }
+      return result;
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let inserted: { entry: any; created: boolean };
     let exerciseDefinitions;
     let childEntrySource = source;
     let preserveLegacyPresetDurationFallback = false;
@@ -1921,26 +2038,28 @@ async function createGroupedWorkoutSession(
         workout_preset_id,
         userId
       );
-      if (!workoutPreset) {
+      // The FK to workout_presets ignores RLS, so a preset id this user's RLS
+      // client cannot see would otherwise still insert and cross-link to
+      // another user's preset. Without the preset's own data to copy, we can
+      // only proceed when the client already supplied the exercise/set
+      // structure itself; store the link as NULL either way rather than
+      // trusting the client-sent id. The idempotency fingerprint is computed
+      // from the untouched sessionData, so it still covers the original
+      // client-sent workout_preset_id.
+      if (!workoutPreset && exercises === undefined) {
         throw createServiceError(404, 'Workout preset not found.');
       }
-      presetEntry =
-        await exercisePresetEntryRepository.createExercisePresetEntryWithClient(
-          client,
-          userId,
-          {
-            workout_preset_id,
-            name: name || workoutPreset.name,
-            description:
-              description !== undefined
-                ? description
-                : workoutPreset.description,
-            entry_date,
-            notes,
-            source,
-          },
-          actingUserId
-        );
+      inserted = await insertPresetEntry({
+        workout_preset_id: workoutPreset ? workout_preset_id : null,
+        name: name || workoutPreset?.name || 'Workout',
+        description:
+          description !== undefined
+            ? description
+            : (workoutPreset?.description ?? null),
+        entry_date,
+        notes,
+        source,
+      });
       if (exercises !== undefined) {
         // Client supplied its own exercise/set structure (e.g. a live
         // workout's Hevy-style placeholders) — use it verbatim. The entry is
@@ -1950,47 +2069,49 @@ async function createGroupedWorkoutSession(
         // (source 'Workout Preset', not in EDITABLE_SOURCES).
         exerciseDefinitions = exercises;
       } else {
-        exerciseDefinitions = workoutPreset.exercises || [];
+        exerciseDefinitions = workoutPreset!.exercises || [];
         childEntrySource = 'Workout Preset';
         preserveLegacyPresetDurationFallback = true;
       }
     } else {
-      presetEntry =
-        await exercisePresetEntryRepository.createExercisePresetEntryWithClient(
-          client,
-          userId,
-          {
-            workout_preset_id: null,
-            name,
-            description: description ?? null,
-            entry_date,
-            notes: notes ?? null,
-            source,
-          },
-          actingUserId
-        );
+      inserted = await insertPresetEntry({
+        workout_preset_id: null,
+        name,
+        description: description ?? null,
+        entry_date,
+        notes: notes ?? null,
+        source,
+      });
       exerciseDefinitions = exercises || [];
     }
-    await createGroupedExerciseEntriesWithClient(
-      client,
-      userId,
-      actingUserId,
-      presetEntry.id,
-      entry_date,
-      exerciseDefinitions,
-      {
-        entrySource: childEntrySource,
-        workoutPlanAssignmentId,
-        preserveLegacyPresetDurationFallback,
-      }
-    );
+    const presetEntry = inserted.entry;
+    if (inserted.created) {
+      await createGroupedExerciseEntriesWithClient(
+        client,
+        userId,
+        actingUserId,
+        presetEntry.id,
+        entry_date,
+        exerciseDefinitions,
+        {
+          entrySource: childEntrySource,
+          workoutPlanAssignmentId,
+          preserveLegacyPresetDurationFallback,
+        }
+      );
+    } else {
+      log(
+        'info',
+        `Replayed grouped workout save ${client_request_id} for user ${userId}; returning existing session ${presetEntry.id}.`
+      );
+    }
     const groupedSession = await getGroupedExerciseSessionByIdWithClient(
       client,
       userId,
       presetEntry.id
     );
     await client.query('COMMIT');
-    return groupedSession;
+    return { session: groupedSession, created: inserted.created };
   } catch (error) {
     await client.query('ROLLBACK');
     log('error', 'Error creating grouped workout session:', error);
@@ -1998,6 +2119,21 @@ async function createGroupedWorkoutSession(
   } finally {
     client.release();
   }
+}
+async function createGroupedWorkoutSession(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userId: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actingUserId: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sessionData: any
+) {
+  const { session } = await createGroupedWorkoutSessionWithStatus(
+    userId,
+    actingUserId,
+    sessionData
+  );
+  return session;
 }
 async function updateGroupedWorkoutSession(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2170,6 +2306,7 @@ async function updateGroupedWorkoutSession(
               avg_heart_rate: preparedEntry.avg_heart_rate,
               duration_minutes: preparedEntry.duration_minutes,
               calories_burned: preparedEntry.calories_burned,
+              calories_source: preparedEntry.calories_source,
               entry_date: targetEntryDate,
               entry_time: ex.entry_time ?? null,
             },
@@ -2562,6 +2699,7 @@ export { updateExerciseEntriesSnapshot };
 export { getActivityDetailsByExerciseEntryIdAndProvider };
 export { logWorkoutPresetGrouped };
 export { createGroupedWorkoutSession };
+export { createGroupedWorkoutSessionWithStatus };
 export { updateGroupedWorkoutSession };
 export { getGroupedWorkoutSessionById };
 export default {
@@ -2599,6 +2737,7 @@ export default {
   getActivityDetailsByExerciseEntryIdAndProvider,
   logWorkoutPresetGrouped,
   createGroupedWorkoutSession,
+  createGroupedWorkoutSessionWithStatus,
   updateGroupedWorkoutSession,
   getGroupedWorkoutSessionById,
 };
