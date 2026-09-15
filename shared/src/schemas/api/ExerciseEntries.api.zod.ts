@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { paginationSchema } from "./Pagination.api.zod.ts";
 import { exerciseModalitySchema } from "./Exercises.api.zod.ts";
+import {
+  MAX_ENTRY_CALORIES,
+  MAX_ENTRY_DURATION_MINUTES,
+} from "../../utils/workoutPlausibility.ts";
 
 // --- Query contracts ---
 
@@ -136,10 +140,10 @@ export const presetSessionExerciseRequestSchema = z
     id: z.string().uuid().optional(),
     exercise_id: z.string().uuid(),
     sort_order: z.number().int().min(0).default(0),
-    duration_minutes: z.number().min(0).default(0),
+    duration_minutes: z.number().min(0).max(MAX_ENTRY_DURATION_MINUTES).default(0),
     // Manual per-exercise override; when omitted the server recomputes
     // calories from duration and sets.
-    calories_burned: z.number().min(0).optional(),
+    calories_burned: z.number().min(0).max(MAX_ENTRY_CALORIES).optional(),
     notes: z.string().nullable().optional(),
     superset_group: z.number().int().nullable().optional(),
     sets: z.array(exerciseEntrySetRequestSchema).default([]),
@@ -149,6 +153,9 @@ export const presetSessionExerciseRequestSchema = z
 
 export const createPresetSessionRequestSchema = z
   .object({
+    // Client-generated once per logical save (e.g. per playback draft) so a
+    // repeated Finish tap or network retry returns the original session.
+    client_request_id: z.string().uuid().optional(),
     workout_preset_id: z.number().int().nullable().optional(),
     entry_date: dateStringSchema,
     name: z.string().min(1).optional(),
@@ -220,8 +227,12 @@ export const activityDetailRequestItemSchema = z.object({
 export const createExerciseEntryRequestSchema = z
   .object({
     exercise_id: z.string().uuid(),
-    duration_minutes: z.coerce.number().min(0).default(0),
-    calories_burned: z.coerce.number().min(0).default(0),
+    duration_minutes: z.coerce
+      .number()
+      .min(0)
+      .max(MAX_ENTRY_DURATION_MINUTES)
+      .default(0),
+    calories_burned: z.coerce.number().min(0).max(MAX_ENTRY_CALORIES).default(0),
     entry_date: dateStringSchema,
     entry_time: timeStringSchema.nullish(),
     notes: z.string().nullable().optional(),

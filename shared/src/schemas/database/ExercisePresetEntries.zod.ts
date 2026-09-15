@@ -23,6 +23,8 @@ export const exercisePresetEntriesSchema = z.object({
   created_by_user_id: userIdSchema.nullable(),
   notes: z.string().nullable(),
   source: z.string(),
+  client_request_id: z.string().nullable(),
+  client_request_fingerprint: z.string().nullable(),
 });
 
 export const exercisePresetEntriesInitializerSchema = z.object({
@@ -37,6 +39,8 @@ export const exercisePresetEntriesInitializerSchema = z.object({
   created_by_user_id: userIdSchema.optional().nullable(),
   notes: z.string().optional().nullable(),
   source: z.string().optional(),
+  client_request_id: z.string().optional().nullable(),
+  client_request_fingerprint: z.string().optional().nullable(),
 });
 
 export const exercisePresetEntriesMutatorSchema = z.object({
@@ -51,6 +55,8 @@ export const exercisePresetEntriesMutatorSchema = z.object({
   created_by_user_id: userIdSchema.optional().nullable(),
   notes: z.string().optional().nullable(),
   source: z.string().optional(),
+  client_request_id: z.string().optional().nullable(),
+  client_request_fingerprint: z.string().optional().nullable(),
 });
 
 export type ExercisePresetEntries = z.infer<typeof exercisePresetEntriesSchema>;

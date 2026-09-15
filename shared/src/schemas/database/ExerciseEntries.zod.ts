@@ -80,6 +80,7 @@ export const exerciseEntriesSchema = z.object({
   gear_external_id: z.string().nullable(),
   steps: z.number().nullable().optional(),
   water_estimated: z.number().nullable().optional(),
+  calories_source: z.string().nullable(),
 });
 
 export const exerciseEntriesInitializerSchema = z.object({
@@ -158,6 +159,7 @@ export const exerciseEntriesInitializerSchema = z.object({
   gear_external_id: z.string().optional().nullable(),
   steps: z.number().optional().nullable(),
   water_estimated: z.number().optional().nullable(),
+  calories_source: z.string().optional().nullable(),
 });
 
 export const exerciseEntriesMutatorSchema =

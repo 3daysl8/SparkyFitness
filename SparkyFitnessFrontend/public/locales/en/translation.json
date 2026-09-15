@@ -1159,7 +1159,15 @@
       "extendRest": "+30s Rest",
       "prBadge": "PR",
       "previousSet": "Previous",
-      "repsAbbrev": "reps"
+      "repsAbbrev": "reps",
+      "implausibleTitle": "Double-check this workout",
+      "implausibleDescription": "Some values look unusual. Save anyway, or go back and review?",
+      "implausibleSaveAnyway": "Save anyway",
+      "implausibleReview": "Review",
+      "implausibleEntryDuration": "{{exercise}}: {{value}} min is longer than expected",
+      "implausibleEntryCalories": "{{exercise}}: {{value}} kcal is higher than expected",
+      "implausibleCalorieRate": "{{exercise}}: {{value}} kcal/min is higher than expected",
+      "implausibleSessionDuration": "Workout total of {{value}} min is longer than expected"
     },
     "workoutPlaybackPage": {
       "addSet": "Add Set",
