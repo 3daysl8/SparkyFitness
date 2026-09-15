@@ -5,6 +5,19 @@ const TIMEFRAMES = ['daily', 'weekly', 'long_term'] as const;
 const TARGET_TYPES = ['none', 'numeric', 'boolean'] as const;
 const STATUSES = ['active', 'completed', 'archived'] as const;
 
+// Matches the REST contract (timeOfDayString in schemas/focusSchemas.ts).
+const dueTimeSchema = z
+  .string()
+  .regex(
+    /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/,
+    'Due time must be in 24-hour HH:MM format (optionally HH:MM:SS).'
+  )
+  .nullable()
+  .optional()
+  .describe(
+    'Time of day the focus is due, 24-hour HH:MM (e.g. "18:00"). Put a deadline time here, never in the statement. null clears it.'
+  );
+
 const listDomainsSchema = z
   .object({ action: z.literal('list_domains') })
   .strict();
@@ -73,6 +86,7 @@ const createFocusSchema = z
     period_date: optionalDateSchema.describe(
       "For a one-off scheduled daily focus: the specific date. For weekly: that week's Monday start date. Omit entirely (and use recurrence fields instead) for a standing recurring daily habit. Omit for long_term."
     ),
+    due_time: dueTimeSchema,
     recurrence_days_of_week: z
       .array(z.number().int().min(0).max(6))
       .nullable()
@@ -96,6 +110,7 @@ const updateFocusSchema = z
     target_value: z.number().nullable().optional(),
     unit: z.string().nullable().optional(),
     parent_focus_id: uuidSchema.nullable().optional(),
+    due_time: dueTimeSchema,
     status: z
       .enum(STATUSES)
       .optional()
@@ -200,6 +215,7 @@ export const manageFocusInput = z.object({
   unit: z.string().nullable().optional(),
   parent_focus_id: uuidSchema.nullable().optional(),
   period_date: optionalDateSchema,
+  due_time: dueTimeSchema,
   recurrence_days_of_week: z
     .array(z.number().int().min(0).max(6))
     .nullable()

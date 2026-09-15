@@ -38,6 +38,7 @@ interface FocusRow {
   target_value: number | null;
   unit: string | null;
   period_date: string | null;
+  due_time: string | null;
   status: string;
   parent_focus_id: string | null;
   recurrence_days_of_week: number[] | null;
@@ -57,6 +58,25 @@ interface CheckinRow {
   reflection_note: string | null;
 }
 
+// pg returns TIME as HH:MM:SS; HH:MM is what the user and coach speak.
+function formatDueTime(value: string): string {
+  return String(value).slice(0, 5);
+}
+
+function logMutation(
+  userId: string,
+  action: string,
+  ids: Record<string, unknown>
+) {
+  const detail = Object.entries(ids)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(' ');
+  log(
+    'info',
+    `[Focus Tool] tool=sparky_manage_focus action=${action} userId=${userId} ${detail}`
+  );
+}
+
 function formatFocus(f: FocusRow): string {
   let text = `**${f.statement}** (${f.timeframe})`;
   if (f.target_type !== 'none' && f.target_value !== null) {
@@ -65,6 +85,7 @@ function formatFocus(f: FocusRow): string {
     text += ' — target: yes/no';
   }
   if (f.period_date) text += ` | ${dayString(f.period_date)}`;
+  if (f.due_time) text += ` | due ${formatDueTime(f.due_time)}`;
   if (f.timeframe === 'daily' && !f.period_date) {
     const days = f.recurrence_days_of_week;
     text +=
@@ -90,12 +111,14 @@ Actions:
 - create_domain(name, color?, icon?)
 - list_focuses(timeframe?, domain_id?, status?)
 - get_focus(focus_id)
-- create_focus(timeframe, statement, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, period_date?, recurrence_days_of_week?, recurrence_end_date?) — for a standing recurring daily habit (e.g. "walk 10,000 steps every day except weekends"), omit period_date and use recurrence_days_of_week (0=Sun..6=Sat, omit for every day) and optionally recurrence_end_date
-- update_focus(focus_id, statement?, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, status?, recurrence_days_of_week?, recurrence_end_date?)
+- create_focus(timeframe, statement, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, period_date?, due_time?, recurrence_days_of_week?, recurrence_end_date?) — for a standing recurring daily habit (e.g. "walk 10,000 steps every day except weekends"), omit period_date and use recurrence_days_of_week (0=Sun..6=Sat, omit for every day) and optionally recurrence_end_date
+- update_focus(focus_id, statement?, domain_id?, target_type?, target_value?, unit?, parent_focus_id?, due_time?, status?, recurrence_days_of_week?, recurrence_end_date?)
 - delete_focus(focus_id)
 - checkin(focus_id, date?, progress_value?, completed?, reflection_note?)
 - list_checkins(focus_id, from_date?, to_date?)
-- get_today(date?) — resolves everything for a given date (defaults to today) in one call: one-off focuses scheduled that day, recurring daily habits active that day (each with its done state and current streak), that week's focus, and all active long-term focuses. This is the primary call for a morning-briefing or daily-checklist style summary.`,
+- get_today(date?) — resolves everything for a given date (defaults to today) in one call: one-off focuses scheduled that day, recurring daily habits active that day (each with its done state and current streak), that week's focus, and all active long-term focuses. This is the primary call for a morning-briefing or daily-checklist style summary.
+
+Times of day go in due_time (24-hour HH:MM, e.g. "18:00"; null clears it), never in the statement: statement "Submit the report" with due_time "18:00", not "Submit the report by 6:00 PM".`,
       inputSchema: manageFocusInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -117,6 +140,7 @@ Actions:
             if (
               args.focus_id &&
               (args.statement !== undefined ||
+                args.due_time !== undefined ||
                 args.status !== undefined ||
                 args.target_type !== undefined ||
                 args.target_value !== undefined)
@@ -158,6 +182,7 @@ Actions:
                 userId,
                 { name: args.name, color: args.color, icon: args.icon }
               );
+              logMutation(userId, 'create_domain', { domain_id: domain.id });
               return formatConfirmation(
                 `Domain **${domain.name}** created (ID: ${domain.id}).`
               );
@@ -193,31 +218,46 @@ Actions:
                   unit: args.unit ?? undefined,
                   parent_focus_id: args.parent_focus_id ?? undefined,
                   period_date: args.period_date ?? undefined,
+                  due_time: args.due_time ?? undefined,
                   recurrence_days_of_week:
                     args.recurrence_days_of_week ?? undefined,
                   recurrence_end_date: args.recurrence_end_date ?? undefined,
                 }
               );
+              logMutation(userId, 'create_focus', { focus_id: focus.id });
+              const due = focus.due_time
+                ? `, due ${formatDueTime(focus.due_time)}`
+                : '';
               return formatConfirmation(
-                `Focus created: "${focus.statement}" (${focus.timeframe}, ID: ${focus.id}).`
+                `Focus created: "${focus.statement}" (${focus.timeframe}${due}, ID: ${focus.id}).`
               );
             }
             case 'update_focus': {
-              const updated: FocusRow | null =
-                await focusRepository.updateFocus(userId, args.focus_id, {
+              // The repository writes every key it receives (undefined as
+              // NULL), so send only the fields the caller provided.
+              const patch = Object.fromEntries(
+                Object.entries({
                   statement: args.statement,
                   domain_id: args.domain_id,
                   target_type: args.target_type,
                   target_value: args.target_value,
                   unit: args.unit,
                   parent_focus_id: args.parent_focus_id,
+                  due_time: args.due_time,
                   status: args.status,
                   recurrence_days_of_week: args.recurrence_days_of_week,
                   recurrence_end_date: args.recurrence_end_date,
-                });
+                }).filter(([, value]) => value !== undefined)
+              ) as Parameters<typeof focusRepository.updateFocus>[2];
+              const updated: FocusRow | null =
+                await focusRepository.updateFocus(userId, args.focus_id, patch);
               if (!updated) return ERRORS.NOT_FOUND('Focus', args.focus_id);
+              logMutation(userId, 'update_focus', { focus_id: updated.id });
+              const due = updated.due_time
+                ? ` (due ${formatDueTime(updated.due_time)})`
+                : '';
               return formatConfirmation(
-                `Focus updated: "${updated.statement}".`
+                `Focus updated: "${updated.statement}"${due}.`
               );
             }
             case 'delete_focus': {
@@ -226,6 +266,7 @@ Actions:
                 args.focus_id
               );
               if (!ok) return ERRORS.NOT_FOUND('Focus', args.focus_id);
+              logMutation(userId, 'delete_focus', { focus_id: args.focus_id });
               return formatConfirmation('Focus deleted.');
             }
             case 'checkin': {
@@ -240,6 +281,10 @@ Actions:
                   reflection_note: args.reflection_note ?? undefined,
                 }
               );
+              logMutation(userId, 'checkin', {
+                focus_id: args.focus_id,
+                checkin_id: saved.id,
+              });
               return formatConfirmation(
                 `Checked in for ${dayString(saved.checkin_date)}.`
               );
