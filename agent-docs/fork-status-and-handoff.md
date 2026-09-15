@@ -4,7 +4,126 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-15** (`8038c264a` on `main`):
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16** (`9b5066f6c` on `main`):
+**Phase 3 of the workout-mapping plan** (full plan:
+`C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
+merged, and live. Frontend-only, built on top of Phase 2's `planned_workouts` backend: a real
+planning UI, and the dashboard/playback surfaces re-pointed off the workout-plan-*template* domain
+onto the new domain.
+
+**Contract deviation, worth knowing if a future phase touches this domain again**: the plan
+assigned the frontend `planned_workouts` API client + hooks (`api/Exercises/plannedWorkouts.ts`,
+`hooks/Exercises/usePlannedWorkouts.ts`, `api/keys/exercises.ts`) to lane 3A, but lane 3B's
+dashboard/playback work needed the same module to compile standalone in its own worktree — so
+those three files were built once as part of the contract instead (fully implemented, not just
+typed — the backend API shape was already 100% fixed from Phase 2, so there was no real design
+left to split across lanes). `translation.json`'s "contract only" ownership was also relaxed for
+this phase: each lane was given its own reserved i18n namespace to append into directly (rather
+than pre-authoring exact UI copy for components not yet designed), which did produce one real
+merge conflict on reconciliation (both lanes appended near the same spot in `translation.json`) —
+resolved by simple concatenation, both blocks are valid siblings. Worth the same call again for
+any future UI-heavy phase with genuinely disjoint i18n groups.
+
+**Lane 3A (Planning UI)**: new `PlannedWorkoutsList.tsx` (date-ordered, 7-days-back to 27-days-
+forward window matching the backend's eager-sync horizon, status/missed chips, Move/Skip/Delete
+row actions gated on the row's actual status so the UI never triggers a predictable 409) and
+`AddPlannedWorkoutDialog.tsx` (reuses `AddExerciseDialog`'s `mode="workout-plan"` picker rather
+than building a new one), wired into `WorkoutsRoutinesTab` via a third `ProgramsActionBar` action.
+`AddWorkoutPlanDialog`'s day-cards now render in `orderedDaysOfWeek(firstDayOfWeek)` order (display
+only — `day_of_week` values and `DAYS_OF_WEEK` itself untouched). `useWorkoutPlans.ts`'s template
+mutations now also invalidate `plannedWorkoutKeys.all`, since activating/editing/deleting a
+template resyncs `planned_workouts` rows server-side. Added a minimal "Delete workout" action on
+history cards, reusing the pre-existing `useDeleteExercisePresetEntryMutation`/
+`useDeleteExerciseEntryMutation` hooks (no new backend plumbing) behind `ConfirmationDialog`.
+
+**Lane 3B (Dashboard + playback)** — the bigger piece: extracted `WorkoutCard` out of
+`HomeChecklist.tsx` into its own file and re-pointed it from the template-domain hook onto
+`usePlannedWorkoutDayView`, dropping the old today-only gate so it reflects whichever date is
+selected (starting is still gated to today only — browsing another date's plan is informational).
+Added a `MissedWorkoutsNudge` card with Move-to-today/Skip actions, driven by the day-view's
+`missed` array (a date-independent signal computed relative to *today*, not to whatever date
+happens to be selected — Isaac's standing decision: missed workouts stay on their date and only
+move via explicit action, never automatically). Threaded `planned_workout_id` through the entire
+playback draft lifecycle (`WorkoutPlaybackDraft`, `createWorkoutPlaybackDraftFromPreset`/
+`createWorkoutPlaybackRouteState`/`createBlankWorkoutPlaybackDraft`,
+`buildPresetSessionCreateRequestFromDraft`) so finishing a workout launched from a plan reaches
+Phase 2's existing auto-complete-on-save path. Fixed `ActiveProgramWidget`'s device-local
+`new Date()` to `todayInZone`, reordered its day grid and `HomeChecklist`'s week strip and
+`WeekdayToggle` via `orderedDaysOfWeek`, and re-pointed its "Start Today's Workout" button onto a
+real `planned_workouts` row (via day-view) instead of the raw template assignments array, so it
+carries an id the playback draft can use. Added local-midnight rollover for `selectedDate`, gated
+so it never yanks the user off a manually-selected non-today date.
+
+**A real backend gap was found and deliberately designed around, not papered over**: the plan's
+"Discard releases a started plan" requirement assumed a revert-from-`started` path exists — it
+doesn't. Phase 2 shipped `start`/`skip`/`complete`/`delete` but nothing reverts `started` back to
+`planned`, and `delete`/move both refuse a `started` row. Investigated directly against
+`plannedWorkoutService.ts`/`plannedWorkoutRepository.ts` before building anything. **Decision:
+never call the `start` endpoint anywhere in the playback launch path** — the auto-complete-on-save
+path is unconditional on status, so plan completion still works end-to-end; the cost is no
+mid-workout "started" indicator anywhere in the UI (a plan stays `planned` all the way through an
+in-progress workout, jumping straight to `completed` on save). If a future session wants that
+indicator, it needs either a real revert-to-`planned` endpoint (Phase 2 backend follow-up) or a
+frontend-only signal (checking for a live localStorage draft, the same mechanism `WorkoutCard`'s
+own "active" tile already uses) — not a naive `start()` call, which would orphan rows the moment
+anyone discards.
+
+Verified: shared `tsc --noEmit` + frontend `tsc -b` clean on the contract and both lanes
+individually, `eslint --max-warnings 0` clean throughout, each lane's own full `pnpm test` green
+(108/1018 and 104/1016), reconciled `main`'s full suite **112 suites / 1045 tests passing**, `knip`
+clean (flags some pre-existing unused-export debt plus four now-legitimately-unused
+`usePlannedWorkouts` exports — `usePlannedWorkout`, `useUpdatePlannedWorkoutMutation`,
+`useStartPlannedWorkoutMutation`, `useCompletePlannedWorkoutMutation` — the last two unused
+specifically *because* of the started/discard decision above, not dead code to delete). No backend
+or migration this phase (confirmed via diff against the pre-Phase-3 commit). `prettier --check`
+still fails repo-wide — same pre-existing Windows `core.autocrlf` checkout artifact documented in
+the Known Gotchas below, confirmed via a zero-diff `prettier --write` on an affected file; not a
+regression, don't chase it.
+
+Live-verified against the local dev stack (`--no-cache` rebuild of both dev images, `shared/`
+changed again): created a planned workout through the real "Plan a Workout" dialog, confirmed it
+rendered correctly in `PlannedWorkoutsList` (status chip, actions correctly enabled) and on the
+Home dashboard's `WorkoutCard` for today; launched playback from it and confirmed
+`planned_workout_id` was present on the persisted localStorage draft; Discarded and confirmed the
+plan stayed at `status: 'planned'` (no orphaning, per the decision above); Deleted it and confirmed
+clean removal. Exercised the History tab's new delete confirmation dialog (cancelled without
+deleting real demo data). Then live-verified again against **production** post-deploy with a fresh
+disposable signup account (the documented demo-account approach wasn't usable here since prod
+isn't running in demo mode) — hit the PWA stale-service-worker gotcha immediately (page title still
+read the pre-rename "Ouroboros Life" until service workers/caches were cleared, confirming the gate
+matters, not just documentation), then repeated the full create → dashboard-reflects-it → cleanup
+loop successfully; account and its cascade-deleted `planned_workouts` row confirmed fully gone
+afterward (`SELECT count(*) ... = 0`).
+
+Deployed to Pi5: both images tagged `pre-9b5066f6c` before rebuild, `--no-cache` build of both from
+`/home/pi1/sparkyfitness-build`, confirmed the new UI strings present in the built frontend image
+before deploying, `pg_dump -Fc` backup taken and verified restorable (`pg_restore --list`, 993 TOC
+entries) *despite* no migration this phase (cheap insurance, matches the established per-phase
+procedure), copied off the Pi to `C:\dev\SparkyFitness-backups\db\`, `docker compose up -d
+--force-recreate` both services, confirmed `{"status":"UP"}` and both containers healthy, Hermes
+stopped before and restarted after, `docker builder prune -af` (reclaimed 3.9GB). Worktrees
+(`p3-planning-ui`, `p3-dashboard`) and their branches removed after reconciliation — the directory
+deletion itself needed PowerShell's `\\?\` long-path prefix on this host (`git worktree remove`
+alone failed with "Filename too long" on the nested `node_modules` trees; worth remembering for
+future worktree cleanup on Kingdom).
+
+**New gotcha, not yet in the Known Gotchas list below**: `ssh`-ing to Pi5 by the documented alias
+(`pi1@100.103.152.66`) works fine as a raw command, but there's no `~/.ssh/config` entry on Kingdom
+mapping a short host alias to it — every session has to pass the full `-i ~/.ssh/id_ed25519_pi5
+pi1@100.103.152.66` each time (the key itself is present and works). Also: the Pi's
+`/home/pi1/sparkyfitness/backup/` directory is `root:root` 755, not writable by the `pi1` user a
+plain SSH session runs as — a `pg_dump ... > backup/file.dump` redirect fails with "Permission
+denied" even though `pi1` is in the `sudo`/`docker` groups; write to `/home/pi1/` first and `sudo
+mv` into `backup/` instead of fighting the redirect under `sudo`.
+
+**Not done yet, deliberately deferred**: Phase 4 (MCP `sparky_manage_planned_workouts` tool),
+Phase 5 (weekly-goal tracking), and Phase 6's data-repair script for the 5 known-bad production
+phantom rows (Bodyweight Squat HD, 13/20/27 Sep + 4/11 Oct) — still present, still untouched, still
+real safety-critical work deserving its own focused session. See "Not yet done" item 0 below.
+
+---
+
+**Previous entry, also shipped 2026-09-15** (`8038c264a` on `main`):
 **Phase 2 of the workout-mapping plan** (full plan:
 `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
 merged, and live. New `planned_workouts` table + CRUD domain
@@ -662,7 +781,7 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 
 ## Not yet done (from the original broader plan — still open)
 
-0. **Workout-mapping fix, Phases 3–6** (plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`) — Phases 1 (session integrity) and 2 (planned-workout domain + phantom-generation fix) are done, see "PICK UP HERE" above. Phase 3 is next: date/timezone alignment and the planning UI/dashboard (frontend) — a `PlannedWorkoutsList`/`AddPlannedWorkoutDialog` under Workouts, `todayInZone` instead of device dates, week order from `first_day_of_week` preference, planned-vs-completed counts on the Home `WorkoutCard`, missed-workout Move/Skip prompts. Phase 4 is the MCP `sparky_manage_planned_workouts` tool. Phase 5 is weekly-goal tracking (3 strength + 2 cardio ≥20 min, any intentional strength session counts, Isaac's `first_day_of_week = 0`). Phase 6 is the approval-gated repair script for the known-bad production rows listed above (still present, untouched by Phase 2 — stopping future phantom generation doesn't retroactively fix existing rows) — dry-run report first, apply only with Isaac's explicit sign-off, never silently; this is real, safety-critical work (JSON backup + restore script) that deserves its own focused session rather than being appended to another phase's.
+0. **Workout-mapping fix, Phases 4–6** (plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`) — Phases 1 (session integrity), 2 (planned-workout domain + phantom-generation fix), and 3 (planning UI + dashboard/playback integration) are done, see "PICK UP HERE" above. Phase 4 is next: the MCP `sparky_manage_planned_workouts` tool (list_planned/get_day/create/update/move/delete/start/complete/skip/get_weekly_progress per the plan's Phase 4 table) — note Phase 3's own started/discard investigation found no backend revert-from-`started` path, worth checking whether Phase 4's tool design needs to account for that same gap. Phase 5 is weekly-goal tracking (3 strength + 2 cardio ≥20 min, any intentional strength session counts, Isaac's `first_day_of_week = 0`). Phase 6 is the approval-gated repair script for the known-bad production rows listed above (still present, untouched by Phases 2-3 — stopping future phantom generation doesn't retroactively fix existing rows) — dry-run report first, apply only with Isaac's explicit sign-off, never silently; this is real, safety-critical work (JSON backup + restore script) that deserves its own focused session rather than being appended to another phase's.
 1. **Wire the in-app AI chatbot to Kingdom's Ollama** (`http://100.68.231.84:11434/v1`, admin-only AI setting, no `ALLOW_PRIVATE_NETWORK_AI` change needed). `OLLAMA_CONTEXT_LENGTH` may need raising on Kingdom for reliable tool-calling.
 2. **Hermes integration — connection now DONE (2026-09-13); the morning-briefing automation itself is not.**
    - **Correction to this doc's own earlier assumption**: Hermes is **not** an n8n workflow. It's its own container on Pi5 (`docker ps` shows `hermes`, image `nousresearch/hermes-agent:v2026.8.27`), configured via `/home/pi1/.hermes/config.yaml` (bind-mounted into the container at `/opt/data`) and driven by its own CLI (`hermes mcp add/list/test/...`). `n8n` also runs on this Pi5 (container `n8n`) but is a separate, unrelated thing — don't conflate them, and don't plan a "wire it up via an n8n workflow" step again without checking first.
