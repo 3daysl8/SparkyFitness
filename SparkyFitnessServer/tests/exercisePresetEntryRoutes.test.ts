@@ -8,7 +8,8 @@ import request from 'supertest';
 import express from 'express';
 import errorHandler from '../middleware/errorHandler.js';
 
-vi.mock('@workspace/shared', () => ({
+vi.mock('@workspace/shared', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   createPresetSessionRequestSchema: {
     safeParse: vi.fn((data) => {
       const hasPresetId =
@@ -54,7 +55,7 @@ vi.mock('@workspace/shared', () => ({
 
 vi.mock('../services/exerciseService.js', () => ({
   default: {
-    createGroupedWorkoutSession: vi.fn(),
+    createGroupedWorkoutSessionWithStatus: vi.fn(),
     getGroupedWorkoutSessionById: vi.fn(),
     updateGroupedWorkoutSession: vi.fn(),
   },
@@ -68,6 +69,10 @@ vi.mock('../models/exercisePresetEntryRepository.js', () => ({
 
 vi.mock('../config/logging.js', () => ({
   log: vi.fn(),
+}));
+
+vi.mock('../utils/timezoneLoader.js', () => ({
+  loadUserTimezone: vi.fn().mockResolvedValue('UTC'),
 }));
 
 const presetSessionResponseSchema = z
@@ -284,9 +289,10 @@ describe('exercisePresetEntryRoutes', () => {
   });
   it('creates a freeform grouped workout session', async () => {
     // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
-    exerciseService.createGroupedWorkoutSession.mockResolvedValue(
-      groupedSessionFixture
-    );
+    exerciseService.createGroupedWorkoutSessionWithStatus.mockResolvedValue({
+      session: groupedSessionFixture,
+      created: true,
+    });
     const response = await invokeRoute('post', '/', {
       body: {
         name: 'Morning Workout',
@@ -315,7 +321,9 @@ describe('exercisePresetEntryRoutes', () => {
     });
     expect(response.statusCode).toBe(201);
     expect(response.body).toEqual(groupedSessionFixture);
-    expect(exerciseService.createGroupedWorkoutSession).toHaveBeenCalledWith(
+    expect(
+      exerciseService.createGroupedWorkoutSessionWithStatus
+    ).toHaveBeenCalledWith(
       '99999999-9999-4999-8999-999999999999',
       '99999999-9999-4999-8999-999999999999',
       {
@@ -346,9 +354,10 @@ describe('exercisePresetEntryRoutes', () => {
   });
   it('accepts create payloads that tag a preset while supplying client exercises', async () => {
     // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
-    exerciseService.createGroupedWorkoutSession.mockResolvedValue(
-      groupedSessionFixture
-    );
+    exerciseService.createGroupedWorkoutSessionWithStatus.mockResolvedValue({
+      session: groupedSessionFixture,
+      created: true,
+    });
     const body = {
       workout_preset_id: 42,
       name: 'Morning Workout',
@@ -361,7 +370,9 @@ describe('exercisePresetEntryRoutes', () => {
     };
     const response = await invokeRoute('post', '/', { body });
     expect(response.statusCode).toBe(201);
-    expect(exerciseService.createGroupedWorkoutSession).toHaveBeenCalledWith(
+    expect(
+      exerciseService.createGroupedWorkoutSessionWithStatus
+    ).toHaveBeenCalledWith(
       '99999999-9999-4999-8999-999999999999',
       '99999999-9999-4999-8999-999999999999',
       body
@@ -377,7 +388,9 @@ describe('exercisePresetEntryRoutes', () => {
     expect(response.statusCode).toBe(400);
     // @ts-expect-error TS(2532): Object is possibly 'undefined'.
     expect(response.body.error).toBe('Invalid grouped workout payload.');
-    expect(exerciseService.createGroupedWorkoutSession).not.toHaveBeenCalled();
+    expect(
+      exerciseService.createGroupedWorkoutSessionWithStatus
+    ).not.toHaveBeenCalled();
   });
   it('returns a grouped workout session by id', async () => {
     // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message

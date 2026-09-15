@@ -6,8 +6,14 @@ const errorHandler = (err: any, _req: any, res: any, _next: any) => {
     `Error caught by centralized handler: ${err.message}`,
     err.stack
   );
-  // Default to 500 Internal Server Error
-  let statusCode = err.statusCode || 500;
+  // Libraries set `statusCode`; service errors (createServiceError) set `status`.
+  const declaredStatus = Number(err.statusCode ?? err.status);
+  let statusCode =
+    Number.isInteger(declaredStatus) &&
+    declaredStatus >= 400 &&
+    declaredStatus < 600
+      ? declaredStatus
+      : 500;
   let message = err.message || 'Internal Server Error';
   // Handle specific error types if needed (e.g., database errors, validation errors)
   switch (err.name) {
@@ -31,6 +37,11 @@ const errorHandler = (err: any, _req: any, res: any, _next: any) => {
           'Conflict: A resource with this unique identifier already exists.';
       }
       break;
+  }
+  if (statusCode >= 500) {
+    // A server-side failure message carries internals (SQL, hostnames) the
+    // client cannot act on.
+    message = 'Internal Server Error';
   }
   res.status(statusCode).json({
     error: message,

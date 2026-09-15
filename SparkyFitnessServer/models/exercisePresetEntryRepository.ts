@@ -53,6 +53,77 @@ async function createExercisePresetEntryWithClient(
   );
 }
 
+/**
+ * Inserts a session header keyed by the client's idempotency id. A repeated
+ * key returns the row the first request created (`created: false`) together
+ * with the fingerprint stored with it, so the caller can reject a key reused
+ * for a different payload.
+ */
+async function insertExercisePresetEntryIdempotentWithClient(
+  client: PoolClient,
+  userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  entryData: any,
+  createdByUserId: string
+): Promise<{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  entry: any;
+  created: boolean;
+  storedFingerprint: string | null;
+}> {
+  const inserted = await client.query(
+    `INSERT INTO exercise_preset_entries (user_id, workout_preset_id, name, description, entry_date, created_by_user_id, notes, source, client_request_id, client_request_fingerprint)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ON CONFLICT (user_id, client_request_id) WHERE client_request_id IS NOT NULL DO NOTHING
+     RETURNING id`,
+    [
+      userId,
+      entryData.workout_preset_id ?? null,
+      entryData.name,
+      entryData.description ?? null,
+      entryData.entry_date,
+      createdByUserId,
+      entryData.notes ?? null,
+      entryData.source ?? 'manual',
+      entryData.client_request_id,
+      entryData.client_request_fingerprint,
+    ]
+  );
+  if (inserted.rows.length > 0) {
+    return {
+      entry: await getExercisePresetEntryByIdWithClient(
+        client,
+        inserted.rows[0].id,
+        userId
+      ),
+      created: true,
+      storedFingerprint: entryData.client_request_fingerprint,
+    };
+  }
+  const existing = await client.query(
+    `SELECT id, client_request_fingerprint FROM exercise_preset_entries
+     WHERE user_id = $1 AND client_request_id = $2`,
+    [userId, entryData.client_request_id]
+  );
+  if (existing.rows.length === 0) {
+    throw Object.assign(
+      new Error(
+        'Another save with this client_request_id conflicted and its workout could not be loaded.'
+      ),
+      { status: 409 }
+    );
+  }
+  return {
+    entry: await getExercisePresetEntryByIdWithClient(
+      client,
+      existing.rows[0].id,
+      userId
+    ),
+    created: false,
+    storedFingerprint: existing.rows[0].client_request_fingerprint ?? null,
+  };
+}
+
 async function createExercisePresetEntry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   userId: any,
@@ -217,6 +288,30 @@ async function deleteExercisePresetEntry(id: any, userId: any) {
     client.release();
   }
 }
+/**
+ * Deletes a session header only when nothing still hangs off it: no exercise
+ * entries and no session-level activity details. Returns whether it was
+ * deleted.
+ */
+async function deleteSessionIfEmptyWithClient(
+  client: PoolClient,
+  sessionId: string,
+  userId: string
+): Promise<boolean> {
+  const result = await client.query(
+    `DELETE FROM exercise_preset_entries epe
+     WHERE epe.id = $1 AND epe.user_id = $2
+       AND NOT EXISTS (
+         SELECT 1 FROM exercise_entries ee WHERE ee.exercise_preset_entry_id = epe.id
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM exercise_entry_activity_details ad WHERE ad.exercise_preset_entry_id = epe.id
+       )
+     RETURNING id`,
+    [sessionId, userId]
+  );
+  return result.rows.length > 0;
+}
 async function deleteExercisePresetEntriesByEntrySourceAndDateWithClient(
   client: PoolClient,
   userId: string,
@@ -291,6 +386,8 @@ async function deleteExercisePresetEntriesByEntrySourceAndDate(
 }
 export { createExercisePresetEntry };
 export { createExercisePresetEntryWithClient };
+export { insertExercisePresetEntryIdempotentWithClient };
+export { deleteSessionIfEmptyWithClient };
 export { getExercisePresetEntryById };
 export { getExercisePresetEntryByIdWithClient };
 export { getExercisePresetEntriesByDate };
@@ -302,6 +399,8 @@ export { deleteExercisePresetEntriesByEntrySourceAndDateWithClient };
 export default {
   createExercisePresetEntry,
   createExercisePresetEntryWithClient,
+  insertExercisePresetEntryIdempotentWithClient,
+  deleteSessionIfEmptyWithClient,
   getExercisePresetEntryById,
   getExercisePresetEntryByIdWithClient,
   getExercisePresetEntriesByDate,
