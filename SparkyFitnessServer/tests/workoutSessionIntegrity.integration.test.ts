@@ -136,8 +136,11 @@ describe.runIf(RUN)('workout session integrity (real database)', () => {
         [EX_2, 'Integrity Test Lunge'],
         [EX_3, 'Integrity Test Leg Curl'],
       ] as const) {
+        // shared_with_public: true — the "scopes client_request_id per user"
+        // test logs these against USER_B too, whose RLS client otherwise
+        // cannot see a custom exercise owned by USER_A.
         await sys.query(
-          'INSERT INTO public.exercises (id, name, source, user_id, is_custom) VALUES ($1, $2, $3, $4, true)',
+          'INSERT INTO public.exercises (id, name, source, user_id, is_custom, shared_with_public) VALUES ($1, $2, $3, $4, true, true)',
           [id, name, 'test', USER_A]
         );
       }
