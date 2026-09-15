@@ -178,9 +178,14 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     user_oidc_links: 'owner',
     openfoodfacts_sync_queue: 'owner',
     user_mood_display_preferences: 'owner',
+    focus_domains: 'owner',
+    focuses: 'owner',
+    focus_checkins: 'owner',
+    calendar_feeds: 'owner',
     // diary
     exercise_entries: 'diary',
     exercise_preset_entries: 'diary',
+    planned_workouts: 'diary',
     user_water_containers: 'diary',
     water_intake: 'diary',
     water_intake_entries: 'diary',
@@ -743,7 +748,7 @@ describe.runIf(RUN)('RLS permission matrix', () => {
         const sys = await getSystemClient();
         try {
           const r = await sys.query(
-            "INSERT INTO public.exercises (user_id, name, shared_with_public) VALUES ($1, 'rls-matrix-exercise', false) RETURNING id",
+            "INSERT INTO public.exercises (user_id, name, source, shared_with_public) VALUES ($1, 'rls-matrix-exercise', 'test', false) RETURNING id",
             [OWNER]
           );
           id = r.rows[0].id;

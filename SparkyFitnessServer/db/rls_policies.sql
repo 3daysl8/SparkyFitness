@@ -78,7 +78,8 @@ BEGIN
     'exercise_entry_hr_zones',
     'health_metric_samples',
     'vitals_entries',
-    'daily_health_metrics'
+    'daily_health_metrics',
+    'planned_workouts'
   ]::text[])
   LOOP
     EXECUTE 'ALTER TABLE public.' || quote_ident(table_name) || ' ENABLE ROW LEVEL SECURITY;';
@@ -580,6 +581,10 @@ USING (
 -- The modify policy for exercise_entries is already handled by create_diary_policy('exercise_entries')
 
 SELECT create_diary_policy('exercise_preset_entries');
+-- Planned workouts (see migration 20260915230100_add_planned_workouts.sql).
+-- Diary tier — a diary delegate who can already write sessions can plan them
+-- too.
+SELECT create_diary_policy('planned_workouts');
 SELECT create_checkin_policy('sleep_entries');
 SELECT create_checkin_policy('sleep_entry_stages');
 SELECT create_diary_policy('water_intake');

@@ -64,6 +64,28 @@ export function resolveExerciseModality(
     : deriveExerciseModality(category);
 }
 
+/**
+ * Category used to classify a planned or completed workout for weekly-goal
+ * progress (see workouts/weeklyGoal.ts, phase 5). Distinct from
+ * ExerciseModality, which selects a per-set input UI, not a goal bucket.
+ */
+export const WORKOUT_TYPES = [
+  "strength",
+  "cardio",
+  "mobility",
+  "recovery",
+  "other",
+] as const;
+
+export type WorkoutType = (typeof WORKOUT_TYPES)[number];
+
+export function isWorkoutType(value: unknown): value is WorkoutType {
+  return (
+    typeof value === "string" &&
+    (WORKOUT_TYPES as readonly string[]).includes(value)
+  );
+}
+
 // Workout sources that support nested exercise editing after creation.
 const EDITABLE_SOURCES = new Set(["manual", "sparky", "workout plan"]);
 

@@ -157,6 +157,11 @@ export const createPresetSessionRequestSchema = z
     // repeated Finish tap or network retry returns the original session.
     client_request_id: z.string().uuid().optional(),
     workout_preset_id: z.number().int().nullable().optional(),
+    // The planned workout this session completes, if any (phase 2). The
+    // server links it in the same transaction as the session insert and
+    // never overwrites an existing link — a mismatch is saved unlinked with
+    // a warning rather than failing the save.
+    planned_workout_id: z.string().uuid().nullable().optional(),
     entry_date: dateStringSchema,
     name: z.string().min(1).optional(),
     description: z.string().nullable().optional(),
