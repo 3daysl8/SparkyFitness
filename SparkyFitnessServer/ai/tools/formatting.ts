@@ -126,6 +126,36 @@ export function formatList<T>(
     : text;
 }
 
+export type RecordValue =
+  string | number | boolean | null | undefined | readonly (string | number)[];
+
+/**
+ * Formats one saved record as `key: value` lines under a heading, followed by
+ * any warnings. Empty values are omitted, as in compactRecord.
+ */
+export function formatRecord(
+  title: string,
+  record: Record<string, RecordValue>,
+  warnings: readonly string[] = []
+): string {
+  const lines = Object.entries(record)
+    .filter(
+      ([, value]) =>
+        value !== null &&
+        value !== undefined &&
+        !(Array.isArray(value) && value.length === 0)
+    )
+    .map(
+      ([key, value]) =>
+        `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`
+    );
+  let text = `# ${title}\n\n${lines.join('\n')}`;
+  if (warnings.length > 0) {
+    text += `\n\n⚠️ Warnings:\n${warnings.map((w) => `- ${w}`).join('\n')}`;
+  }
+  return truncateIfNeeded(text);
+}
+
 /**
  * Formats a simple confirmation message.
  */

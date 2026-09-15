@@ -157,7 +157,12 @@ const getWorkoutPresetsSchema = z
 const logWorkoutPresetSchema = z
   .object({
     action: z.literal('log_workout_preset'),
-    preset_id: uuidSchema.optional().describe('UUID of the workout preset'),
+    preset_id: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Integer ID of the workout preset (from get_workout_presets)'),
     preset_name: z
       .string()
       .min(1)
@@ -430,7 +435,12 @@ export const manageExerciseInput = z.object({
       'Set details as array of objects or JSON string; per-set fields include rpe and notes'
     ),
   // presets
-  preset_id: uuidSchema.optional().describe('Workout preset UUID'),
+  preset_id: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Workout preset integer ID (from get_workout_presets)'),
   preset_name: z
     .string()
     .min(1)

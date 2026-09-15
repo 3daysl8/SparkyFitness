@@ -1,6 +1,15 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { todayInZone } from '@workspace/shared';
+import {
+  checkEntryPlausibility,
+  checkSessionPlausibility,
+  compareDays,
+  plausibilityKindFromModality,
+  setsDurationMinutes,
+  todayInZone,
+  type ExerciseModality,
+  type PlausibilityWarning,
+} from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import exerciseService from '../../services/exerciseService.js';
 import workoutPresetService from '../../services/workoutPresetService.js';
@@ -14,6 +23,7 @@ import {
   formatConfirmation,
   formatJsonResult,
   formatList,
+  formatRecord,
 } from './formatting.js';
 import { getResolvedExerciseCaloriesRange } from '../../services/exerciseCalorieRangeService.js';
 import {
@@ -113,6 +123,215 @@ function exerciseDateRange(
   const startDate = date || query.start_date || today;
   const endDate = date || query.end_date || startDate;
   return { startDate, endDate };
+}
+
+// A coach retrying after a slow response resends the same log; an identical
+// entry this recent is the same workout, not a second one.
+const RETRY_GUARD_WINDOW_MS = 6 * 60 * 60 * 1000;
+const ALREADY_LOGGED_ENTRY_NOTE =
+  'An identical entry was logged within the last 6 hours; nothing was duplicated.';
+const ALREADY_LOGGED_SESSION_NOTE =
+  'A session for this workout already exists on this date; nothing was duplicated.';
+
+function logMutation(
+  userId: string,
+  action: string,
+  ids: Record<string, unknown>
+) {
+  const detail = Object.entries(ids)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(' ');
+  log(
+    'info',
+    `[Exercise Tool] tool=sparky_manage_exercise action=${action} userId=${userId} ${detail}`
+  );
+}
+
+function futureEntryDateError(entryDate: string, tz: string): string | null {
+  const today = todayInZone(tz);
+  if (compareDays(entryDate, today) <= 0) return null;
+  return ERRORS.VALIDATION(
+    `entry_date ${entryDate} is in the future (today is ${today} in ${tz}). Only completed workouts can be logged, and dates are in the user's timezone.`
+  );
+}
+
+function toRoundedNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.round(n * 10) / 10 : undefined;
+}
+
+function normalizeSessionName(name: unknown): string {
+  return String(name ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function entryKind(entry: any) {
+  return plausibilityKindFromModality(
+    (entry?.modality ??
+      entry?.exercise_snapshot?.modality ??
+      null) as ExerciseModality | null
+  );
+}
+
+function describeWarning(
+  warning: PlausibilityWarning,
+  names: readonly string[] = []
+): string {
+  const name =
+    warning.entryIndex !== undefined ? names[warning.entryIndex] : undefined;
+  const label = name ? `${warning.code} (${name})` : warning.code;
+  const value = Math.round(warning.value * 10) / 10;
+  switch (warning.code) {
+    case 'entry_duration_high':
+      return `${label}: duration ${value} min exceeds ${warning.threshold} min`;
+    case 'entry_calories_high':
+      return `${label}: ${value} kcal exceeds ${warning.threshold} kcal`;
+    case 'calorie_rate_high':
+      return `${label}: ${value} kcal/min exceeds ${warning.threshold} kcal/min`;
+    case 'session_duration_high':
+      return `${label}: session total ${value} min exceeds ${warning.threshold} min`;
+  }
+}
+
+function formatEntryRecord(
+  title: string,
+  entry: any,
+  fallbackDate?: string,
+  alreadyLogged?: boolean
+): string {
+  const warnings = checkEntryPlausibility({
+    duration_minutes: toRoundedNumber(entry?.duration_minutes),
+    calories_burned: toRoundedNumber(entry?.calories_burned),
+    kind: entryKind(entry),
+  }).map((w) => describeWarning(w));
+  return formatRecord(
+    title,
+    {
+      id: entry?.id,
+      entry_date: isSet(entry?.entry_date)
+        ? dayString(entry.entry_date)
+        : fallbackDate,
+      exercise: entry?.exercise_name ?? entry?.name,
+      exercise_id: entry?.exercise_id,
+      duration_minutes: toRoundedNumber(entry?.duration_minutes),
+      calories_burned: toRoundedNumber(entry?.calories_burned),
+      sets: Array.isArray(entry?.sets) ? entry.sets.length : undefined,
+      session_id: entry?.exercise_preset_entry_id,
+      already_logged: alreadyLogged,
+      note: alreadyLogged ? ALREADY_LOGGED_ENTRY_NOTE : undefined,
+    },
+    warnings
+  );
+}
+
+function formatSessionRecord(
+  title: string,
+  session: any,
+  fallbackDate: string,
+  alreadyLogged: boolean
+): string {
+  const exercises: any[] = Array.isArray(session?.exercises)
+    ? session.exercises
+    : [];
+  const names = exercises.map((e) =>
+    String(e.exercise_name ?? e.name ?? e.exercise_snapshot?.name ?? '')
+  );
+  const total = (key: string) =>
+    toRoundedNumber(
+      exercises.reduce((sum, e) => sum + (Number(e[key]) || 0), 0)
+    );
+  const warnings = checkSessionPlausibility(
+    exercises.map((e) => ({
+      duration_minutes: toRoundedNumber(e.duration_minutes),
+      calories_burned: toRoundedNumber(e.calories_burned),
+      kind: entryKind(e),
+    }))
+  ).map((w) => describeWarning(w, names));
+  return formatRecord(
+    title,
+    {
+      session_id: session?.id,
+      entry_date: isSet(session?.entry_date)
+        ? dayString(session.entry_date)
+        : fallbackDate,
+      name: session?.name,
+      workout_preset_id: session?.workout_preset_id,
+      source: session?.source,
+      exercises: names.filter(Boolean),
+      exercise_count: exercises.length,
+      entry_ids: exercises.map((e) => e.id).filter(isSet),
+      duration_minutes: total('duration_minutes'),
+      calories_burned: total('calories_burned'),
+      sets: exercises.reduce(
+        (sum, e) => sum + (Array.isArray(e.sets) ? e.sets.length : 0),
+        0
+      ),
+      already_logged: alreadyLogged,
+      note: alreadyLogged ? ALREADY_LOGGED_SESSION_NOTE : undefined,
+    },
+    warnings
+  );
+}
+
+// A non-empty grouped session on that date for the same preset, or with the
+// same name (the app saves sessions with a NULL workout_preset_id).
+async function findLoggedPresetSession(
+  userId: string,
+  entryDate: string,
+  preset: { id: unknown; name?: unknown }
+) {
+  const grouped = await exerciseService.getExerciseEntriesByDate(
+    userId,
+    userId,
+    entryDate
+  );
+  const presetName = normalizeSessionName(preset.name);
+  return (Array.isArray(grouped) ? grouped : []).find(
+    (item: any) =>
+      item.type === 'preset' &&
+      Array.isArray(item.exercises) &&
+      item.exercises.length > 0 &&
+      ((isSet(item.workout_preset_id) &&
+        String(item.workout_preset_id) === String(preset.id)) ||
+        (presetName !== '' && normalizeSessionName(item.name) === presetName))
+  );
+}
+
+async function findRecentIdenticalEntry(
+  userId: string,
+  criteria: {
+    exerciseId: string;
+    entryDate: string;
+    durationMinutes: number;
+    setCount: number;
+  }
+) {
+  const grouped = await exerciseService.getExerciseEntriesByDate(
+    userId,
+    userId,
+    criteria.entryDate
+  );
+  const cutoff = Date.now() - RETRY_GUARD_WINDOW_MS;
+  return (Array.isArray(grouped) ? grouped : [])
+    .flatMap((item: any) =>
+      item.type === 'preset' ? (item.exercises ?? []) : [item]
+    )
+    .find((entry: any) => {
+      const createdAt = new Date(entry.created_at).getTime();
+      return (
+        String(entry.exercise_id) === criteria.exerciseId &&
+        Number.isFinite(createdAt) &&
+        createdAt >= cutoff &&
+        Math.abs(
+          (Number(entry.duration_minutes) || 0) - criteria.durationMinutes
+        ) < 0.01 &&
+        (Array.isArray(entry.sets) ? entry.sets.length : 0) ===
+          criteria.setCount
+      );
+    });
 }
 
 // Renders a row's bare-DATE entry_date as a calendar-day string for JSON
@@ -356,15 +575,17 @@ export function buildExerciseTools(userId: string, tz: string) {
 Actions:
 - search_exercises(searchTerm, muscleGroup?, equipment?, limit?, offset?)
 - create_exercise(name, category?, calories_per_hour?, description?, modality?:weight_reps|reps_only|duration|duration_distance)
-- log_exercise(entry_date, exercise_id?|exercise_name?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?:JSON string or array of [{reps,weight,duration,distance,rest_time,set_type,rpe,notes}]) — distance/avg_heart_rate/steps are for cardio
+- log_exercise(entry_date, exercise_id?|exercise_name?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?:JSON string or array of [{reps,weight,duration,distance,rest_time,set_type,rpe,notes}]) — distance/avg_heart_rate/steps are for cardio. Returns the saved entry; an identical entry logged in the last 6 hours is returned with already_logged: true instead of being duplicated
 - list_exercise_diary(entry_date)
 - get_workout_presets()
-- log_workout_preset(entry_date, preset_id?|preset_name?)
-- update_exercise_entry(entry_id, entry_date?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?) — only the provided fields change; sets, when provided, replace all existing sets
+- log_workout_preset(entry_date, preset_id?|preset_name?) — preset_id is the integer ID from get_workout_presets. If entry_date already has a non-empty session for this preset (same preset ID or same name, e.g. saved from the app), that session is returned with already_logged: true and nothing is created
+- update_exercise_entry(entry_id, entry_date?, duration_minutes?, calories_burned?, notes?, distance?, avg_heart_rate?, steps?, sets?) — only the provided fields change; sets, when provided, replace all existing sets. Returns the updated entry
 - delete_exercise_entry(entry_id)
 - get_exercise_details(exercise_id?|exercise_name?)
 - create_workout_preset(name, exercise_ids)
-- get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history`,
+- get_exercise_progress(exercise_id?|exercise_name?, start_date?, end_date?, limit?, offset?) — returns paginated performance history
+
+log_exercise and log_workout_preset only record completed workouts: entry_date must be today or earlier in the user's timezone. Returned records include plausibility warnings; confirm flagged values with the user.`,
       inputSchema: manageExerciseInput,
       execute: async (rawArgs) => {
         const normalized = normalizeActionArgs(
@@ -459,10 +680,17 @@ Actions:
                   shared_with_public: false,
                   source: 'manual',
                 }));
+              if (!existing) {
+                logMutation(userId, 'create_exercise', {
+                  exercise_id: exercise.id,
+                });
+              }
               return formatConfirmation(`Exercise "${exercise.name}" created.`);
             }
 
             case 'log_exercise': {
+              const futureError = futureEntryDateError(args.entry_date, tz);
+              if (futureError) return futureError;
               if (!args.exercise_id && !args.exercise_name) {
                 args.exercise_name = 'General Exercise';
               }
@@ -507,10 +735,30 @@ Actions:
                   exerciseId = created.id;
                 }
               }
-              // skipDuplicateCheck: logging the same exercise twice in a day
-              // must create two entries (MCP always inserted), not merge into
-              // the server's manual same-exercise/same-date upsert.
-              await exerciseService.createExerciseEntry(
+              const repoSets = parsedSets ? toRepoSets(parsedSets) : undefined;
+              const existingEntry = await findRecentIdenticalEntry(userId, {
+                exerciseId: String(exerciseId),
+                entryDate: args.entry_date,
+                durationMinutes:
+                  args.duration_minutes ?? setsDurationMinutes(repoSets),
+                setCount: repoSets?.length ?? 0,
+              });
+              if (existingEntry) {
+                logMutation(userId, 'log_exercise', {
+                  entry_id: existingEntry.id,
+                  already_logged: true,
+                });
+                return formatEntryRecord(
+                  `Exercise already logged for ${args.entry_date}`,
+                  existingEntry,
+                  args.entry_date,
+                  true
+                );
+              }
+              // skipDuplicateCheck: outside the retry guard, logging the same
+              // exercise twice in a day must create two entries (MCP always
+              // inserted), not merge into the server's manual upsert.
+              const entry = await exerciseService.createExerciseEntry(
                 userId,
                 userId,
                 {
@@ -523,12 +771,16 @@ Actions:
                   distance: args.distance,
                   avg_heart_rate: args.avg_heart_rate,
                   steps: args.steps,
-                  sets: parsedSets ? toRepoSets(parsedSets) : undefined,
+                  sets: repoSets,
                 },
                 { skipDuplicateCheck: true }
               );
-              return formatConfirmation(
-                `Exercise logged for ${args.entry_date}.`
+              logMutation(userId, 'log_exercise', { entry_id: entry?.id });
+              return formatEntryRecord(
+                `Exercise logged for ${args.entry_date}`,
+                entry,
+                args.entry_date,
+                false
               );
             }
 
@@ -609,26 +861,52 @@ Actions:
                   'Either preset_id or preset_name must be provided'
                 );
               }
-              let presetId = args.preset_id;
-              if (!presetId && args.preset_name) {
-                const preset =
-                  await workoutPresetRepository.getWorkoutPresetByName(
+              const futureError = futureEntryDateError(args.entry_date, tz);
+              if (futureError) return futureError;
+              const preset = args.preset_id
+                ? await workoutPresetRepository.getWorkoutPresetById(
+                    args.preset_id,
+                    userId
+                  )
+                : await workoutPresetRepository.getWorkoutPresetByName(
                     userId,
                     args.preset_name
                   );
-                if (!preset) {
-                  return ERRORS.NOT_FOUND('Resource', 'unknown');
-                }
-                presetId = preset.id;
+              if (!preset) {
+                return ERRORS.NOT_FOUND('Resource', 'unknown');
+              }
+              const existingSession = await findLoggedPresetSession(
+                userId,
+                args.entry_date,
+                preset
+              );
+              if (existingSession) {
+                logMutation(userId, 'log_workout_preset', {
+                  session_id: existingSession.id,
+                  already_logged: true,
+                });
+                return formatSessionRecord(
+                  `Workout already logged for ${args.entry_date}`,
+                  existingSession,
+                  args.entry_date,
+                  true
+                );
               }
               const session = await exerciseService.logWorkoutPresetGrouped(
                 userId,
                 userId,
-                presetId,
+                preset.id,
                 args.entry_date
               );
-              return formatConfirmation(
-                `Workout preset logged for ${args.entry_date}. ${session?.exercises.length ?? 0} exercises added.`
+              logMutation(userId, 'log_workout_preset', {
+                session_id: session?.id,
+                preset_id: preset.id,
+              });
+              return formatSessionRecord(
+                `Workout preset logged for ${args.entry_date}`,
+                session,
+                args.entry_date,
+                false
               );
             }
 
@@ -670,7 +948,14 @@ Actions:
                 }
                 throw error;
               }
-              return formatConfirmation('Exercise entry updated.');
+              logMutation(userId, 'update_exercise_entry', {
+                entry_id: args.entry_id,
+              });
+              const updatedEntry = await exerciseService.getExerciseEntryById(
+                userId,
+                args.entry_id
+              );
+              return formatEntryRecord('Exercise entry updated', updatedEntry);
             }
 
             case 'delete_exercise_entry': {
@@ -688,6 +973,9 @@ Actions:
                 }
                 throw error;
               }
+              logMutation(userId, 'delete_exercise_entry', {
+                entry_id: args.entry_id,
+              });
               return formatConfirmation('Exercise entry deleted.');
             }
 
@@ -726,6 +1014,9 @@ Actions:
                   })),
                 }
               );
+              logMutation(userId, 'create_workout_preset', {
+                preset_id: preset.id,
+              });
               return formatConfirmation(
                 `Workout preset "${preset.name}" created with ${preset.exercises.length} exercises.`
               );

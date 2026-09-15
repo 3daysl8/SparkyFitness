@@ -1,6 +1,7 @@
-import { vi, beforeEach, describe, expect, it } from 'vitest';
+import { vi, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { todayInZone } from '@workspace/shared';
 import { buildExerciseTools } from '../ai/tools/exerciseTools.js';
+import { log } from '../config/logging.js';
 import exerciseService from '../services/exerciseService.js';
 import workoutPresetService from '../services/workoutPresetService.js';
 import exerciseDb from '../models/exercise.js';
@@ -15,6 +16,7 @@ vi.mock('../services/exerciseService', () => ({
     createExercise: vi.fn(),
     createExerciseEntry: vi.fn(),
     getExerciseEntriesByDate: vi.fn(),
+    getExerciseEntryById: vi.fn(),
     updateExerciseEntry: vi.fn(),
     deleteExerciseEntry: vi.fn(),
     getExerciseById: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock('../models/exerciseEntry', () => ({
 vi.mock('../models/workoutPresetRepository', () => ({
   default: {
     getWorkoutPresetByName: vi.fn(),
+    getWorkoutPresetById: vi.fn(),
   },
 }));
 vi.mock('../services/exerciseCalorieRangeService', () => ({
@@ -65,6 +68,8 @@ const ENTRY_ID = '11111111-1111-4111-8111-111111111111';
 const EXERCISE_ID = '22222222-2222-4222-8222-222222222222';
 const EXERCISE_ID_2 = '33333333-3333-4333-8333-333333333333';
 const PRESET_ID = '44444444-4444-4444-8444-444444444444';
+// Read-back for a service that returned only the new entry's id.
+const LOGGED_ENTRY_TEXT = `# Exercise logged for 2026-06-10\n\nid: ${ENTRY_ID}\nentry_date: 2026-06-10\nalready_logged: false`;
 
 let tools: ReturnType<typeof buildExerciseTools>;
 
@@ -72,6 +77,9 @@ beforeEach(() => {
   // Default: no resolved rows, so the tool falls back to the raw per-day totals and the
   // projection goldens below stay meaningful. Resolution itself is covered separately.
   vi.mocked(getResolvedExerciseCaloriesRange).mockResolvedValue(new Map());
+  // Logging actions read the day's sessions first (duplicate guards); default
+  // to an empty day so implementations never leak between tests.
+  vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([]);
   vi.clearAllMocks();
   tools = buildExerciseTools('user-1', 'UTC');
 });
@@ -358,7 +366,7 @@ describe('log_exercise', () => {
       { action: 'log_exercise', entry_date: '2026-06-10' },
       opts
     );
-    expect(result).toBe('✅ Exercise logged for 2026-06-10.');
+    expect(result).toBe(LOGGED_ENTRY_TEXT);
     expect(exerciseService.createExercise).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({ name: 'General Exercise' })
@@ -410,7 +418,7 @@ describe('log_exercise', () => {
       opts
     );
 
-    expect(result).toBe('✅ Exercise logged for 2026-06-10.');
+    expect(result).toBe(LOGGED_ENTRY_TEXT);
     expect(exerciseService.searchExercises).not.toHaveBeenCalled();
     expect(exerciseService.createExerciseEntry).toHaveBeenCalledWith(
       'user-1',
@@ -518,7 +526,7 @@ describe('log_exercise', () => {
       opts
     );
 
-    expect(result).toBe('✅ Exercise logged for 2026-06-10.');
+    expect(result).toBe(LOGGED_ENTRY_TEXT);
     expect(exerciseService.createExercise).toHaveBeenCalledWith('user-1', {
       name: 'Underwater Hockey',
       category: 'custom',
@@ -654,12 +662,480 @@ describe('log_exercise', () => {
       opts
     );
 
-    expect(result).toBe('✅ Exercise logged for 2026-06-10.');
+    expect(result).toBe(LOGGED_ENTRY_TEXT);
     expect(exerciseService.createExerciseEntry).toHaveBeenCalledWith(
       'user-1',
       'user-1',
       expect.objectContaining({ sets: undefined }),
       { skipDuplicateCheck: true }
+    );
+  });
+});
+
+describe('log_workout_preset duplicate guard', () => {
+  const PRESET = { id: 3, name: 'Phase 1. Lower Body (A)' };
+  // Shape of the production incident: saved from the app (source sparky, no
+  // preset link), then the coach logged preset 3 by id two hours later.
+  const appSession = (overrides: Record<string, unknown> = {}) => ({
+    type: 'preset',
+    id: 'pe-app',
+    workout_preset_id: null,
+    name: 'Phase 1. Lower Body (A)',
+    description: null,
+    notes: null,
+    source: 'sparky',
+    created_at: '2026-09-14T06:10:00Z',
+    total_duration_minutes: 50,
+    exercises: [
+      {
+        id: 'ee-squat',
+        exercise_id: EXERCISE_ID,
+        name: 'Back Squat',
+        duration_minutes: 30,
+        calories_burned: 180,
+        sets: [{ id: 1 }, { id: 2 }, { id: 3 }],
+        exercise_snapshot: { modality: 'weight_reps' },
+        created_at: '2026-09-14T06:10:00Z',
+      },
+      {
+        id: 'ee-rdl',
+        exercise_id: EXERCISE_ID_2,
+        name: 'Romanian Deadlift',
+        duration_minutes: 20,
+        calories_burned: 120,
+        sets: [{ id: 4 }, { id: 5 }],
+        exercise_snapshot: { modality: 'weight_reps' },
+        created_at: '2026-09-14T06:10:00Z',
+      },
+    ],
+    ...overrides,
+  });
+
+  const logPreset = (preset_id: unknown, entry_date = '2026-09-14') =>
+    tools.sparky_manage_exercise.execute!(
+      { action: 'log_workout_preset', preset_id, entry_date } as never,
+      opts
+    );
+
+  beforeEach(() => {
+    vi.mocked(workoutPresetRepository.getWorkoutPresetById).mockResolvedValue(
+      PRESET
+    );
+    vi.mocked(exerciseService.logWorkoutPresetGrouped).mockImplementation(
+      async (_userId, _actingUserId, presetId, entryDate) =>
+        ({
+          type: 'preset',
+          id: 'pe-new',
+          entry_date: entryDate,
+          workout_preset_id: presetId,
+          name: PRESET.name,
+          source: 'manual',
+          exercises: [],
+        }) as never
+    );
+  });
+
+  it('returns the app-saved session instead of duplicating it (production incident)', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      appSession(),
+    ]);
+
+    const result = await logPreset(3);
+
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
+    expect(exerciseService.getExerciseEntriesByDate).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      '2026-09-14'
+    );
+    expect(result).toBe(
+      '# Workout already logged for 2026-09-14\n\n' +
+        'session_id: pe-app\n' +
+        'entry_date: 2026-09-14\n' +
+        'name: Phase 1. Lower Body (A)\n' +
+        'source: sparky\n' +
+        'exercises: Back Squat, Romanian Deadlift\n' +
+        'exercise_count: 2\n' +
+        'entry_ids: ee-squat, ee-rdl\n' +
+        'duration_minutes: 50\n' +
+        'calories_burned: 300\n' +
+        'sets: 5\n' +
+        'already_logged: true\n' +
+        'note: A session for this workout already exists on this date; nothing was duplicated.'
+    );
+  });
+
+  it('matches the session name ignoring case and extra whitespace', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      appSession({ name: '  phase 1.   LOWER body (a) ' }),
+    ]);
+
+    const result = await logPreset(3);
+
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
+    expect(result).toContain('already_logged: true');
+  });
+
+  it('matches a session linked to the same preset id under another name', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      appSession({ workout_preset_id: 3, name: 'Legs (renamed)' }),
+    ]);
+
+    const result = await logPreset(3);
+
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
+    expect(result).toContain('workout_preset_id: 3');
+    expect(result).toContain('already_logged: true');
+  });
+
+  it('logs normally over an empty session with the same name', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      appSession({ exercises: [] }),
+    ]);
+
+    const result = await logPreset(3);
+
+    expect(exerciseService.logWorkoutPresetGrouped).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      3,
+      '2026-09-14'
+    );
+    expect(result).toContain('# Workout preset logged for 2026-09-14');
+    expect(result).toContain('already_logged: false');
+  });
+
+  it('logs normally when the matching session is on a different date', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockImplementation(
+      async (_userId, _targetUserId, date) =>
+        date === '2026-09-14' ? [appSession()] : []
+    );
+
+    const result = await logPreset(3, '2026-09-13');
+
+    expect(exerciseService.getExerciseEntriesByDate).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      '2026-09-13'
+    );
+    expect(exerciseService.logWorkoutPresetGrouped).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      3,
+      '2026-09-13'
+    );
+    expect(result).toContain('already_logged: false');
+  });
+
+  it.each([3, '3'])('accepts integer preset_id %j', async (presetId) => {
+    await logPreset(presetId);
+
+    expect(workoutPresetRepository.getWorkoutPresetById).toHaveBeenCalledWith(
+      3,
+      'user-1'
+    );
+    expect(exerciseService.logWorkoutPresetGrouped).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      3,
+      '2026-09-14'
+    );
+  });
+
+  it('rejects a UUID preset_id with a validation error', async () => {
+    const result = await logPreset(PRESET_ID);
+
+    expect(result).toBe(
+      'Error [VALIDATION]: preset_id: Invalid input: expected number, received NaN'
+    );
+    expect(workoutPresetRepository.getWorkoutPresetById).not.toHaveBeenCalled();
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
+  });
+});
+
+describe('future entry_date refusal', () => {
+  const FUTURE_TEXT =
+    "Error [VALIDATION]: entry_date 2026-10-05 is in the future (today is 2026-10-04 in Australia/Sydney). Only completed workouts can be logged, and dates are in the user's timezone.";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // 00:30 on 2026-10-04 in Sydney, while it is still 2026-10-03 in UTC.
+    vi.setSystemTime(new Date('2026-10-03T14:30:00Z'));
+    tools = buildExerciseTools('user-1', 'Australia/Sydney');
+    vi.mocked(exerciseService.createExerciseEntry).mockResolvedValue({
+      id: ENTRY_ID,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const logExercise = (entry_date: string) =>
+    tools.sparky_manage_exercise.execute!(
+      {
+        action: 'log_exercise',
+        exercise_id: EXERCISE_ID,
+        entry_date,
+        duration_minutes: 30,
+      },
+      opts
+    );
+
+  it("allows today in the user's timezone", async () => {
+    const result = await logExercise('2026-10-04');
+
+    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
+    expect(result).toContain('# Exercise logged for 2026-10-04');
+  });
+
+  it('refuses a later date', async () => {
+    const result = await logExercise('2026-10-05');
+
+    expect(result).toBe(FUTURE_TEXT);
+    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
+  });
+
+  it('refuses the "tomorrow" keyword', async () => {
+    const result = await logExercise('tomorrow');
+
+    expect(result).toBe(FUTURE_TEXT);
+    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
+  });
+
+  it('refuses a future log_workout_preset before any lookup', async () => {
+    const result = await tools.sparky_manage_exercise.execute!(
+      { action: 'log_workout_preset', preset_id: 3, entry_date: '2026-10-05' },
+      opts
+    );
+
+    expect(result).toBe(FUTURE_TEXT);
+    expect(workoutPresetRepository.getWorkoutPresetById).not.toHaveBeenCalled();
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
+  });
+});
+
+describe('log_exercise retry guard', () => {
+  const earlierEntry = (
+    createdAt: string,
+    overrides: Record<string, unknown> = {}
+  ) => ({
+    type: 'individual',
+    id: 'ee-earlier',
+    exercise_id: EXERCISE_ID,
+    name: 'Bench Press',
+    entry_date: '2026-09-15',
+    duration_minutes: 30,
+    calories_burned: 150,
+    sets: [{ id: 1 }, { id: 2 }],
+    exercise_preset_entry_id: null,
+    exercise_snapshot: { modality: 'weight_reps' },
+    created_at: createdAt,
+    ...overrides,
+  });
+
+  const retry = () =>
+    tools.sparky_manage_exercise.execute!(
+      {
+        action: 'log_exercise',
+        exercise_id: EXERCISE_ID,
+        entry_date: '2026-09-15',
+        duration_minutes: 30,
+        sets: [
+          { reps: 10, weight: 60 },
+          { reps: 8, weight: 65 },
+        ],
+      },
+      opts
+    );
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-15T12:00:00Z'));
+    vi.mocked(exerciseService.createExerciseEntry).mockResolvedValue({
+      id: ENTRY_ID,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns an identical entry created 4 hours ago instead of inserting', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      earlierEntry('2026-09-15T08:00:00Z'),
+    ]);
+
+    const result = await retry();
+
+    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
+    expect(result).toBe(
+      '# Exercise already logged for 2026-09-15\n\n' +
+        'id: ee-earlier\n' +
+        'entry_date: 2026-09-15\n' +
+        'exercise: Bench Press\n' +
+        `exercise_id: ${EXERCISE_ID}\n` +
+        'duration_minutes: 30\n' +
+        'calories_burned: 150\n' +
+        'sets: 2\n' +
+        'already_logged: true\n' +
+        'note: An identical entry was logged within the last 6 hours; nothing was duplicated.'
+    );
+  });
+
+  it('matches an identical entry inside a grouped session', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      {
+        type: 'preset',
+        id: 'pe-1',
+        name: 'Push Day',
+        exercises: [
+          earlierEntry('2026-09-15T11:00:00Z', {
+            exercise_preset_entry_id: 'pe-1',
+          }),
+        ],
+      },
+    ]);
+
+    const result = await retry();
+
+    expect(exerciseService.createExerciseEntry).not.toHaveBeenCalled();
+    expect(result).toContain('session_id: pe-1');
+  });
+
+  it('inserts when the identical entry is older than 6 hours', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      earlierEntry('2026-09-15T05:59:00Z'),
+    ]);
+
+    const result = await retry();
+
+    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
+    expect(result).toContain('already_logged: false');
+  });
+
+  it('inserts when the set count differs', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      earlierEntry('2026-09-15T11:00:00Z', { sets: [{ id: 1 }] }),
+    ]);
+
+    await retry();
+
+    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('inserts when the duration differs', async () => {
+    vi.mocked(exerciseService.getExerciseEntriesByDate).mockResolvedValue([
+      earlierEntry('2026-09-15T11:00:00Z', { duration_minutes: 45 }),
+    ]);
+
+    await retry();
+
+    expect(exerciseService.createExerciseEntry).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('write read-backs', () => {
+  it('log_exercise returns the saved record with plausibility warnings', async () => {
+    vi.mocked(exerciseService.createExerciseEntry).mockResolvedValue({
+      id: ENTRY_ID,
+      exercise_id: EXERCISE_ID,
+      exercise_name: 'Walking',
+      entry_date: new Date(2026, 5, 10),
+      duration_minutes: 406,
+      calories_burned: 1200,
+      modality: null,
+      exercise_preset_entry_id: null,
+      sets: [],
+    });
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'log_exercise',
+        exercise_id: EXERCISE_ID,
+        entry_date: '2026-06-10',
+        duration_minutes: 406,
+        calories_burned: 1200,
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '# Exercise logged for 2026-06-10\n\n' +
+        `id: ${ENTRY_ID}\n` +
+        'entry_date: 2026-06-10\n' +
+        'exercise: Walking\n' +
+        `exercise_id: ${EXERCISE_ID}\n` +
+        'duration_minutes: 406\n' +
+        'calories_burned: 1200\n' +
+        'sets: 0\n' +
+        'already_logged: false\n\n' +
+        '⚠️ Warnings:\n' +
+        '- entry_duration_high: duration 406 min exceeds 180 min'
+    );
+    expect(log).toHaveBeenCalledWith(
+      'info',
+      `[Exercise Tool] tool=sparky_manage_exercise action=log_exercise userId=user-1 entry_id=${ENTRY_ID}`
+    );
+  });
+
+  it('log_workout_preset returns the new session with session warnings', async () => {
+    vi.mocked(workoutPresetRepository.getWorkoutPresetByName).mockResolvedValue(
+      { id: 7, name: 'Marathon Leg Day' }
+    );
+    vi.mocked(exerciseService.logWorkoutPresetGrouped).mockResolvedValue({
+      type: 'preset',
+      id: 'pe-9',
+      entry_date: '2026-06-10',
+      workout_preset_id: 7,
+      name: 'Marathon Leg Day',
+      source: 'manual',
+      exercises: [
+        {
+          id: 'ee-a',
+          exercise_id: EXERCISE_ID,
+          duration_minutes: 200,
+          calories_burned: 900,
+          sets: [{ id: 1 }, { id: 2 }],
+          exercise_snapshot: { name: 'Leg Press', modality: 'weight_reps' },
+        },
+        {
+          id: 'ee-b',
+          exercise_id: EXERCISE_ID_2,
+          duration_minutes: 100,
+          calories_burned: 500,
+          sets: [{ id: 3 }],
+          exercise_snapshot: { name: 'Lunge', modality: 'weight_reps' },
+        },
+      ],
+    } as never);
+
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'log_workout_preset',
+        preset_name: 'Marathon Leg Day',
+        entry_date: '2026-06-10',
+      },
+      opts
+    );
+
+    expect(result).toBe(
+      '# Workout preset logged for 2026-06-10\n\n' +
+        'session_id: pe-9\n' +
+        'entry_date: 2026-06-10\n' +
+        'name: Marathon Leg Day\n' +
+        'workout_preset_id: 7\n' +
+        'source: manual\n' +
+        'exercises: Leg Press, Lunge\n' +
+        'exercise_count: 2\n' +
+        'entry_ids: ee-a, ee-b\n' +
+        'duration_minutes: 300\n' +
+        'calories_burned: 1400\n' +
+        'sets: 3\n' +
+        'already_logged: false\n\n' +
+        '⚠️ Warnings:\n' +
+        '- entry_duration_high (Leg Press): duration 200 min exceeds 120 min\n' +
+        '- session_duration_high: session total 300 min exceeds 240 min'
     );
   });
 });
@@ -806,7 +1282,12 @@ describe('workout presets', () => {
     );
 
     expect(result).toBe(
-      '✅ Workout preset logged for 2026-06-10. 2 exercises added.'
+      '# Workout preset logged for 2026-06-10\n\nsession_id: pe-1\nentry_date: 2026-06-10\nexercise_count: 2\nduration_minutes: 0\ncalories_burned: 0\nsets: 0\nalready_logged: false'
+    );
+    expect(exerciseService.getExerciseEntriesByDate).toHaveBeenCalledWith(
+      'user-1',
+      'user-1',
+      '2026-06-10'
     );
     expect(workoutPresetRepository.getWorkoutPresetByName).toHaveBeenCalledWith(
       'user-1',
@@ -836,14 +1317,38 @@ describe('workout presets', () => {
     expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
   });
 
-  it('log_workout_preset maps a missing preset_id to not found', async () => {
+  it('log_workout_preset maps an unknown preset_id to not found', async () => {
+    vi.mocked(workoutPresetRepository.getWorkoutPresetById).mockResolvedValue(
+      undefined
+    );
+    const result = await tools.sparky_manage_exercise.execute!(
+      {
+        action: 'log_workout_preset',
+        preset_id: 99,
+        entry_date: '2026-06-10',
+      },
+      opts
+    );
+    expect(result).toBe(NOT_FOUND_RESOURCE_TEXT);
+    expect(workoutPresetRepository.getWorkoutPresetById).toHaveBeenCalledWith(
+      99,
+      'user-1'
+    );
+    expect(exerciseService.logWorkoutPresetGrouped).not.toHaveBeenCalled();
+  });
+
+  it('log_workout_preset maps a preset deleted mid-log to not found', async () => {
+    vi.mocked(workoutPresetRepository.getWorkoutPresetById).mockResolvedValue({
+      id: 99,
+      name: 'Gone',
+    });
     vi.mocked(exerciseService.logWorkoutPresetGrouped).mockRejectedValue(
       new Error('Workout preset not found.')
     );
     const result = await tools.sparky_manage_exercise.execute!(
       {
         action: 'log_workout_preset',
-        preset_id: PRESET_ID,
+        preset_id: 99,
         entry_date: '2026-06-10',
       },
       opts
@@ -891,6 +1396,18 @@ describe('update_exercise_entry / delete_exercise_entry', () => {
     vi.mocked(exerciseService.updateExerciseEntry).mockResolvedValue({
       id: ENTRY_ID,
     });
+    // The update returns only the id, so the tool re-reads the saved row.
+    vi.mocked(exerciseService.getExerciseEntryById).mockResolvedValue({
+      id: ENTRY_ID,
+      exercise_id: EXERCISE_ID,
+      exercise_name: 'Bench Press',
+      entry_date: '2026-06-10',
+      duration_minutes: 45,
+      calories_burned: 210,
+      modality: 'weight_reps',
+      exercise_preset_entry_id: null,
+      sets: [{ id: 1, set_number: 1, reps: 12 }],
+    });
 
     const result = await tools.sparky_manage_exercise.execute!(
       {
@@ -903,7 +1420,13 @@ describe('update_exercise_entry / delete_exercise_entry', () => {
       opts
     );
 
-    expect(result).toBe('✅ Exercise entry updated.');
+    expect(result).toBe(
+      `# Exercise entry updated\n\nid: ${ENTRY_ID}\nentry_date: 2026-06-10\nexercise: Bench Press\nexercise_id: ${EXERCISE_ID}\nduration_minutes: 45\ncalories_burned: 210\nsets: 1`
+    );
+    expect(exerciseService.getExerciseEntryById).toHaveBeenCalledWith(
+      'user-1',
+      ENTRY_ID
+    );
     expect(exerciseService.updateExerciseEntry).toHaveBeenCalledWith(
       'user-1',
       'user-1',

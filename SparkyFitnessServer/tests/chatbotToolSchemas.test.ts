@@ -303,6 +303,33 @@ describe('strict discriminated-union validation schemas', () => {
     ).toBe(true);
   });
 
+  it('manageExerciseSchema takes an integer preset_id and rejects a UUID', () => {
+    const base = { action: 'log_workout_preset', entry_date: '2026-06-11' };
+    for (const presetId of [3, '3']) {
+      const result = manageExerciseSchema.safeParse({
+        ...base,
+        preset_id: presetId,
+      });
+      expect(result.success).toBe(true);
+      if (result.success && result.data.action === 'log_workout_preset') {
+        expect(result.data.preset_id).toBe(3);
+      }
+    }
+    for (const presetId of ['44444444-4444-4444-8444-444444444444', 2.5, 0]) {
+      expect(
+        manageExerciseSchema.safeParse({ ...base, preset_id: presetId }).success
+      ).toBe(false);
+    }
+    expect(manageExerciseInput.safeParse({ preset_id: '3' }).success).toBe(
+      true
+    );
+    expect(
+      manageExerciseInput.safeParse({
+        preset_id: '44444444-4444-4444-8444-444444444444',
+      }).success
+    ).toBe(false);
+  });
+
   it('manageCheckinSchema accepts a valid log_biometrics input and coerces numbers', () => {
     const result = manageCheckinSchema.safeParse({
       action: 'log_biometrics',
