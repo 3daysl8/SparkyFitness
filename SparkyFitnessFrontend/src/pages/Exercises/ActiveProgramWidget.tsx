@@ -4,11 +4,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Settings2 } from 'lucide-react';
-import { dayOfWeek } from '@workspace/shared';
+import { dayOfWeek, orderedDaysOfWeek, todayInZone } from '@workspace/shared';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDateToYYYYMMDD } from '@/lib/utils';
+import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveWorkoutPlan } from '@/hooks/Exercises/useWorkoutPlans';
 import { useWorkoutPreset } from '@/hooks/Exercises/useWorkoutPresets';
+import { usePlannedWorkoutDayView } from '@/hooks/Exercises/usePlannedWorkouts';
 import { DAYS_OF_WEEK } from '@/constants/exercises';
 import {
   createWorkoutPlaybackRouteState,
@@ -20,10 +21,15 @@ import ManageSchedulesDialog from './ManageSchedulesDialog';
 const ActiveProgramWidget = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { timezone, firstDayOfWeek } = usePreferences();
   const navigate = useNavigate();
   const location = useLocation();
-  const today = formatDateToYYYYMMDD(new Date());
+  const today = useMemo(() => todayInZone(timezone), [timezone]);
   const todayDow = dayOfWeek(today);
+  const orderedDays = useMemo(() => {
+    const byId = new Map(DAYS_OF_WEEK.map((day) => [day.id, day]));
+    return orderedDaysOfWeek(firstDayOfWeek).map((id) => byId.get(id)!);
+  }, [firstDayOfWeek]);
   const [isManageOpen, setIsManageOpen] = useState(false);
 
   const { data: plan, isLoading } = useActiveWorkoutPlan(today, user?.id);
@@ -38,17 +44,25 @@ const ActiveProgramWidget = () => {
     return map;
   }, [plan]);
 
-  const todaysAssignments = assignmentsByDay.get(todayDow) ?? [];
+  // The grid above still reflects the template's static day-of-week
+  // assignments (what the plan *says* about each day), but the actual
+  // "Start Today's Workout" button resolves a real planned_workouts row —
+  // that's what carries the id the playback draft needs (see
+  // planned_workout_id) to auto-complete the plan on save. By the time this
+  // widget renders, the day-view read's lazy template sync should already
+  // have generated today's row if the template has an assignment for today.
+  const { data: todayPlannedView } = usePlannedWorkoutDayView(today, user?.id);
+  const todaysPlanned = todayPlannedView?.for_date ?? [];
   // The common case (per the spec) is one routine per day; when a day has
-  // several assignments, the first preset-backed one drives "Start Workout."
+  // several planned rows, the first preset-backed one drives "Start Workout."
   // A day scheduled with only a raw exercise (no preset) still displays, but
   // Start falls back to a blank workout rather than pre-populating it — full
   // fidelity for that ad-hoc path is a follow-up, not the common case here.
-  const startableAssignment = todaysAssignments.find(
-    (a) => a.workout_preset_id
-  );
+  const startablePlanned =
+    todaysPlanned.find((row) => row.workout_preset_id != null) ??
+    todaysPlanned[0];
   const { data: startablePreset } = useWorkoutPreset(
-    startableAssignment?.workout_preset_id
+    startablePlanned?.workout_preset_id ?? undefined
   );
 
   if (isLoading) {
@@ -97,17 +111,24 @@ const ActiveProgramWidget = () => {
   // rather than done silently.
   const handleStart = () => {
     const returnTo = `${location.pathname}${location.search}`;
-    if (startableAssignment && startablePreset) {
+    if (startablePlanned && startablePreset) {
       const routeState = createWorkoutPlaybackRouteState(
         startablePreset,
         today,
-        returnTo
+        returnTo,
+        startablePlanned.id
       );
       navigate(`/workout-playback?date=${today}`, { state: routeState });
       return;
     }
     navigate(`/workout-playback?date=${today}`, {
-      state: { returnTo, draft: createBlankWorkoutPlaybackDraft(today) },
+      state: {
+        returnTo,
+        draft: createBlankWorkoutPlaybackDraft(
+          today,
+          startablePlanned?.id ?? null
+        ),
+      },
     });
   };
 
@@ -129,7 +150,7 @@ const ActiveProgramWidget = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-7 gap-1.5">
-          {DAYS_OF_WEEK.map((day) => {
+          {orderedDays.map((day) => {
             const dayAssignments = assignmentsByDay.get(day.id) ?? [];
             const isToday = day.id === todayDow;
             const label =
@@ -169,7 +190,7 @@ const ActiveProgramWidget = () => {
           })}
         </div>
 
-        {todaysAssignments.length > 0 && (
+        {todaysPlanned.length > 0 && (
           <Button onClick={handleStart} className="w-full gap-2">
             <Play className="h-4 w-4" />
             {t(

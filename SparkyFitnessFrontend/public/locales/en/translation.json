@@ -1249,6 +1249,11 @@
       "saveButton": "Save Plan",
       "validationErrorTitle": "Validation Error",
       "validationErrorDescription": "Title and Date are required."
+    },
+    "workoutCard": {
+      "missedTitle": "{{count}} missed workouts",
+      "moveToToday": "Move to today",
+      "skip": "Skip"
     }
   },
   "workoutPresetsManager": {

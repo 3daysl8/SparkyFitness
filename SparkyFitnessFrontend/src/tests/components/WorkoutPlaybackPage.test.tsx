@@ -10,9 +10,11 @@ import type { CreatePresetSessionRequest } from '@workspace/shared';
 import WorkoutPlaybackPage from '@/pages/Exercises/WorkoutPlaybackPage';
 import type { WorkoutPreset } from '@/types/workout';
 import { createWorkoutPlaybackDraftFromPreset } from '@/utils/workoutPlayback';
+import { plannedWorkoutKeys } from '@/api/keys/exercises';
 
 const mockNavigate = jest.fn();
 const mockCreatePresetSession = jest.fn();
+const mockInvalidateQueries = jest.fn();
 const mockSearchParams = new URLSearchParams('date=2026-04-27');
 let mockLocationState: { returnTo?: string; draft?: unknown } | null = null;
 
@@ -24,6 +26,10 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useLocation: () => ({ state: mockLocationState }),
   useSearchParams: () => [mockSearchParams],
+}));
+
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
 }));
 
 jest.mock('@/contexts/PreferencesContext', () => ({
@@ -106,6 +112,7 @@ describe('WorkoutPlaybackPage', () => {
     mockNavigate.mockReset();
     mockCreatePresetSession.mockReset();
     mockUpsertHabitCheckin.mockReset();
+    mockInvalidateQueries.mockReset();
     window.localStorage.clear();
     mockLocationState = { returnTo: '/?date=2026-04-27' };
   });
@@ -351,6 +358,45 @@ describe('WorkoutPlaybackPage', () => {
         expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
       );
       expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
+    });
+  });
+
+  describe('planned workout completion', () => {
+    it('invalidates planned-workout queries after saving a draft that carries a planned_workout_id', async () => {
+      const draft = { ...completedDraft(), planned_workout_id: 'plan-1' };
+      mockLocationState = { returnTo: '/?date=2026-04-27', draft };
+      mockCreatePresetSession.mockResolvedValue(undefined);
+
+      render(<WorkoutPlaybackPage />);
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+
+      await waitFor(() =>
+        expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
+      );
+      expect(sentPayload(0).planned_workout_id).toBe('plan-1');
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({
+        queryKey: plannedWorkoutKeys.all,
+      });
+    });
+
+    it('does not touch planned-workout queries for a draft with no planned_workout_id', async () => {
+      mockLocationState = {
+        returnTo: '/?date=2026-04-27',
+        draft: completedDraft(),
+      };
+      mockCreatePresetSession.mockResolvedValue(undefined);
+
+      render(<WorkoutPlaybackPage />);
+      fireEvent.click(
+        screen.getAllByRole('button', { name: /finish workout/i })[0]!
+      );
+
+      await waitFor(() =>
+        expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
+      );
+      expect(mockInvalidateQueries).not.toHaveBeenCalled();
     });
   });
 

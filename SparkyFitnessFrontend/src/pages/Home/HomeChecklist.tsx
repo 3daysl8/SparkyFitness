@@ -1,10 +1,18 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   todayInZone,
   addDays,
   dayOfWeek,
+  orderedDaysOfWeek,
   getDueDosesForDate,
   formatDose,
 } from '@workspace/shared';
@@ -39,6 +47,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertTriangle,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -60,8 +69,11 @@ import {
   useTodayFocusSnapshot,
 } from '@/hooks/useFocus';
 import { useExerciseEntries } from '@/hooks/Exercises/useExerciseEntries';
-import { useActiveWorkoutPlan } from '@/hooks/Exercises/useWorkoutPlans';
-import { useWorkoutPreset } from '@/hooks/Exercises/useWorkoutPresets';
+import {
+  usePlannedWorkoutDayView,
+  useMovePlannedWorkoutMutation,
+  useSkipPlannedWorkoutMutation,
+} from '@/hooks/Exercises/usePlannedWorkouts';
 import {
   useWaterIntakeQuery,
   useWaterGoalQuery,
@@ -76,29 +88,25 @@ import {
 } from '@/hooks/useMedications';
 import type { RecurringFocus } from '@/types/focus';
 import type { MedicationDetail, MedicationEntry } from '@/types/medications';
-import {
-  loadWorkoutPlaybackDraftFromStorage,
-  getWorkoutPlaybackStats,
-  createWorkoutPlaybackRouteState,
-  createBlankWorkoutPlaybackDraft,
-  type WorkoutPlaybackDraft,
-} from '@/utils/workoutPlayback';
-import {
-  hasLoggedWorkout,
-  summarizeWorkoutSessions,
-} from '@/utils/workoutSessionSummary';
-import { formatWeight } from '@/utils/numberFormatting';
+import { hasLoggedWorkout } from '@/utils/workoutSessionSummary';
 import { entryMatchesDue } from '@/utils/medicationUtils';
 import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
 import AgendaCard from '@/pages/Home/AgendaCard';
 import ToDoCard from '@/pages/Home/ToDoCard';
 import CheckTarget from '@/pages/Home/CheckTarget';
 import EmptyState from '@/pages/Home/EmptyState';
+import WorkoutCard from '@/pages/Home/WorkoutCard';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function sundayOf(date: string): string {
-  return addDays(date, -dayOfWeek(date));
+/** Start-of-week day-string containing `date`, for a week that begins on
+ * `firstDayOfWeek` (0 = Sunday .. 6 = Saturday) rather than always Sunday.
+ * Generalizes the old Sunday-only anchor so the strip can be reordered per
+ * the user's preference — see orderedDaysOfWeek's own doc for why the
+ * underlying data model still always treats 0 as Sunday. */
+function startOfWeekFor(date: string, firstDayOfWeek: number): string {
+  const offset = (dayOfWeek(date) - firstDayOfWeek + 7) % 7;
+  return addDays(date, -offset);
 }
 
 function quickStepFor(target: number | null): number {
@@ -182,11 +190,20 @@ const DayPill = forwardRef<
 function WeekStrip({
   selectedDate,
   onSelect,
+  firstDayOfWeek,
 }: {
   selectedDate: string;
   onSelect: (date: string) => void;
+  firstDayOfWeek: number;
 }) {
-  const weekStart = useMemo(() => sundayOf(selectedDate), [selectedDate]);
+  const orderedDayIds = useMemo(
+    () => orderedDaysOfWeek(firstDayOfWeek),
+    [firstDayOfWeek]
+  );
+  const weekStart = useMemo(
+    () => startOfWeekFor(selectedDate, firstDayOfWeek),
+    [selectedDate, firstDayOfWeek]
+  );
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
     [weekStart]
@@ -219,7 +236,7 @@ function WeekStrip({
               key={day}
               ref={selected ? selectedPillRef : undefined}
               day={day}
-              label={WEEKDAY_LABELS[idx] ?? ''}
+              label={WEEKDAY_LABELS[orderedDayIds[idx] ?? 0] ?? ''}
               selected={selected}
               onSelect={onSelect}
             />
@@ -235,214 +252,6 @@ function WeekStrip({
         <ChevronRight className="h-4 w-4" />
       </Button>
     </div>
-  );
-}
-
-function useActiveWorkoutDraft(selectedDate: string) {
-  const [draft, setDraft] = useState<WorkoutPlaybackDraft | null>(() =>
-    loadWorkoutPlaybackDraftFromStorage(selectedDate)
-  );
-
-  useEffect(() => {
-    const recheck = () =>
-      setDraft(loadWorkoutPlaybackDraftFromStorage(selectedDate));
-    recheck();
-    window.addEventListener('storage', recheck);
-    document.addEventListener('visibilitychange', recheck);
-    return () => {
-      window.removeEventListener('storage', recheck);
-      document.removeEventListener('visibilitychange', recheck);
-    };
-  }, [selectedDate]);
-
-  return draft;
-}
-
-function WorkoutCard({ selectedDate }: { selectedDate: string }) {
-  const navigate = useNavigate();
-  const { activeUserId } = useActiveUser();
-  const { weightUnit, timezone } = usePreferences();
-  const { data: exerciseEntries = [] } = useExerciseEntries(
-    selectedDate,
-    activeUserId ?? undefined
-  );
-  const activeDraft = useActiveWorkoutDraft(selectedDate);
-  const todayIso = useMemo(() => todayInZone(timezone), [timezone]);
-  const isToday = selectedDate === todayIso;
-  const { data: activePlan } = useActiveWorkoutPlan(
-    selectedDate,
-    isToday ? (activeUserId ?? undefined) : undefined
-  );
-  const todaysAssignments = isToday
-    ? (activePlan?.assignments ?? []).filter(
-        (a) => a.day_of_week === dayOfWeek(selectedDate)
-      )
-    : [];
-  const scheduledAssignment = todaysAssignments.find(
-    (a) => a.workout_preset_id
-  );
-  // Called unconditionally (rules-of-hooks) even though its result is only
-  // used by the "scheduled today" branch below, which may not be reached.
-  const { data: scheduledPreset } = useWorkoutPreset(
-    scheduledAssignment?.workout_preset_id
-  );
-
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    if (!activeDraft) return;
-    const interval = window.setInterval(() => setNowTick(Date.now()), 30000);
-    return () => window.clearInterval(interval);
-  }, [activeDraft]);
-
-  const cardClassName =
-    'relative flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors';
-
-  if (activeDraft) {
-    const startedMs = Date.parse(activeDraft.started_at);
-    const elapsedMinutes = Number.isNaN(startedMs)
-      ? 0
-      : Math.max(0, Math.floor((nowTick - startedMs) / 60000));
-    const stats = getWorkoutPlaybackStats(activeDraft);
-
-    return (
-      <button
-        onClick={() => navigate(`/workout-playback?date=${selectedDate}`)}
-        className={cn(
-          cardClassName,
-          'border-metric-workout/40 bg-metric-workout/10'
-        )}
-      >
-        <span className="absolute right-2.5 top-2.5 h-2 w-2 animate-pulse rounded-full bg-metric-workout" />
-        <CircularProgress
-          value={stats.completionRate * 100}
-          size={52}
-          strokeWidth={4}
-          className="text-metric-workout"
-        >
-          <Dumbbell className="h-5 w-5 text-metric-workout" />
-        </CircularProgress>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Workout</p>
-          <p className="text-sm font-semibold text-metric-workout">
-            ⚡ Active ({elapsedMinutes} min{elapsedMinutes === 1 ? '' : 's'})
-          </p>
-        </div>
-      </button>
-    );
-  }
-
-  const summary = summarizeWorkoutSessions(exerciseEntries);
-
-  if (summary.count > 0) {
-    return (
-      <button
-        onClick={() => navigate('/workouts')}
-        className={cn(
-          cardClassName,
-          'border-metric-workout/30 bg-metric-workout/10'
-        )}
-      >
-        <CircularProgress
-          value={100}
-          size={52}
-          strokeWidth={4}
-          className="text-metric-workout"
-        >
-          <Dumbbell className="h-5 w-5 text-metric-workout" />
-        </CircularProgress>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Workout</p>
-          <p className="max-w-[110px] truncate text-sm font-semibold text-metric-workout">
-            {summary.name}
-          </p>
-          <p className="text-[10px] text-muted-foreground">
-            {summary.durationMinutes} min
-            {summary.durationMinutes === 1 ? '' : 's'} •{' '}
-            {formatWeight(summary.volumeKg, weightUnit)}
-          </p>
-        </div>
-      </button>
-    );
-  }
-
-  if (todaysAssignments.length > 0) {
-    const routineName =
-      scheduledAssignment?.workout_preset_name ||
-      todaysAssignments[0]?.exercise_name ||
-      'Workout';
-    const exerciseCount = scheduledPreset?.exercises?.length;
-
-    const handleStartScheduled = () => {
-      if (scheduledAssignment && scheduledPreset) {
-        const routeState = createWorkoutPlaybackRouteState(
-          scheduledPreset,
-          selectedDate,
-          '/'
-        );
-        navigate(`/workout-playback?date=${selectedDate}`, {
-          state: routeState,
-        });
-        return;
-      }
-      navigate(`/workout-playback?date=${selectedDate}`, {
-        state: {
-          returnTo: '/',
-          draft: createBlankWorkoutPlaybackDraft(selectedDate),
-        },
-      });
-    };
-
-    return (
-      <button
-        onClick={handleStartScheduled}
-        className={cn(
-          cardClassName,
-          'border-metric-workout/30 bg-metric-workout/10'
-        )}
-      >
-        <CircularProgress
-          value={0}
-          size={52}
-          strokeWidth={4}
-          className="text-metric-workout"
-        >
-          <Dumbbell className="h-5 w-5 text-metric-workout" />
-        </CircularProgress>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Workout</p>
-          <p className="max-w-[110px] truncate text-sm font-semibold text-metric-workout">
-            {routineName}
-          </p>
-          {exerciseCount !== undefined && (
-            <p className="text-[10px] text-muted-foreground">
-              {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
-            </p>
-          )}
-        </div>
-      </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={() =>
-        navigate('/workouts', { state: { openStartWorkout: true } })
-      }
-      className={cn(cardClassName, 'border-border hover:bg-muted/50')}
-    >
-      <CircularProgress
-        value={0}
-        size={52}
-        strokeWidth={4}
-        className="text-metric-workout"
-      >
-        <Dumbbell className="h-5 w-5 text-muted-foreground" />
-      </CircularProgress>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">Workout</p>
-        <p className="text-sm font-semibold">+ Start Workout</p>
-      </div>
-    </button>
   );
 }
 
@@ -572,6 +381,83 @@ function MetricCards({ selectedDate }: { selectedDate: string }) {
       <WaterCard selectedDate={selectedDate} userId={userId} />
       <SleepCard selectedDate={selectedDate} />
     </div>
+  );
+}
+
+/**
+ * Detail + actions for unaddressed missed workouts (WorkoutCard's own tile
+ * only shows a compact count) — a global signal computed relative to today,
+ * so it only ever renders while selectedDate is actually today (browsing a
+ * different date would make "you missed X" read as a non-sequitur). Per
+ * Isaac's product decision, a missed plan only ever moves via this explicit
+ * action — it is never auto-moved off its original date.
+ */
+function MissedWorkoutsNudge({ selectedDate }: { selectedDate: string }) {
+  const { t } = useTranslation();
+  const { activeUserId } = useActiveUser();
+  const { timezone, formatDate } = usePreferences();
+  const todayIso = useMemo(() => todayInZone(timezone), [timezone]);
+  const isToday = selectedDate === todayIso;
+  const { data: dayView } = usePlannedWorkoutDayView(
+    selectedDate,
+    activeUserId ?? undefined
+  );
+  const moveMutation = useMovePlannedWorkoutMutation();
+  const skipMutation = useSkipPlannedWorkoutMutation();
+
+  const missed = dayView?.missed ?? [];
+  if (!isToday || missed.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="border-amber-500/30 bg-amber-500/5">
+      <CardContent className="space-y-2 p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
+          <AlertTriangle className="h-4 w-4" />
+          {t('exercise.workoutCard.missedTitle', {
+            count: missed.length,
+            defaultValue: '{{count}} missed workouts',
+          })}
+        </div>
+        {missed.map((row) => (
+          <div
+            key={row.id}
+            className="flex items-center justify-between gap-2 rounded-lg border bg-card/60 p-2"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{row.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatDate(row.planned_date)}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  moveMutation.mutate({
+                    id: row.id,
+                    data: { planned_date: todayIso },
+                  })
+                }
+                disabled={moveMutation.isPending || skipMutation.isPending}
+              >
+                {t('exercise.workoutCard.moveToToday', 'Move to today')}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => skipMutation.mutate(row.id)}
+                disabled={moveMutation.isPending || skipMutation.isPending}
+              >
+                {t('exercise.workoutCard.skip', 'Skip')}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -893,7 +779,7 @@ function SupplementsSnapshotCard({ selectedDate }: { selectedDate: string }) {
 
 export default function HomeChecklist() {
   const { t } = useTranslation();
-  const { timezone } = usePreferences();
+  const { timezone, firstDayOfWeek } = usePreferences();
   const { data: domains = [] } = useFocusDomains();
   const domainColor = useMemo(() => {
     const map = new Map(domains.map((d) => [d.id, d.color]));
@@ -902,6 +788,35 @@ export default function HomeChecklist() {
 
   const todayIso = useMemo(() => todayInZone(timezone), [timezone]);
   const [selectedDate, setSelectedDate] = useState(todayIso);
+
+  // Roll selectedDate forward at the user's local midnight, but only while
+  // they're still viewing "today" — deliberately browsing another date must
+  // never be yanked back to it. lastKnownTodayRef anchors what "today" was as
+  // of the last check, so the comparison is against the *previous* boundary,
+  // not a value recomputed fresh every tick. Mirrors useActiveWorkoutDraft's
+  // "recheck on an interval + visibilitychange" pattern below.
+  const lastKnownTodayRef = useRef(todayIso);
+  const checkMidnightRollover = useCallback(() => {
+    const currentToday = todayInZone(timezone);
+    if (currentToday === lastKnownTodayRef.current) {
+      return;
+    }
+    const previousToday = lastKnownTodayRef.current;
+    lastKnownTodayRef.current = currentToday;
+    setSelectedDate((current) =>
+      current === previousToday ? currentToday : current
+    );
+  }, [timezone]);
+
+  useEffect(() => {
+    checkMidnightRollover();
+    const interval = window.setInterval(checkMidnightRollover, 60000);
+    document.addEventListener('visibilitychange', checkMidnightRollover);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', checkMidnightRollover);
+    };
+  }, [checkMidnightRollover]);
 
   const { data: snapshot, isLoading } = useTodayFocusSnapshot(selectedDate);
   const createFocus = useCreateFocus();
@@ -1014,8 +929,13 @@ export default function HomeChecklist() {
 
   return (
     <div className="space-y-4">
-      <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
+      <WeekStrip
+        selectedDate={selectedDate}
+        onSelect={setSelectedDate}
+        firstDayOfWeek={firstDayOfWeek}
+      />
       <MetricCards selectedDate={selectedDate} />
+      <MissedWorkoutsNudge selectedDate={selectedDate} />
       <AgendaCard selectedDate={selectedDate} />
 
       <SupplementsSnapshotCard selectedDate={selectedDate} />

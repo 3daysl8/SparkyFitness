@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import {
   useCreatePresetSessionMutation,
   useWorkoutExerciseStats,
 } from '@/hooks/Exercises/useExerciseEntries';
+import { plannedWorkoutKeys } from '@/hooks/Exercises/usePlannedWorkouts';
 import { useTodayFocusSnapshot, useUpsertFocusCheckin } from '@/hooks/useFocus';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
@@ -173,6 +175,7 @@ const WorkoutPlaybackPage = () => {
   // written back to storage by a debounced save.
   const sessionSavedRef = useRef(false);
 
+  const queryClient = useQueryClient();
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
   const { data: todaySnapshot } = useTodayFocusSnapshot(draft?.entry_date);
@@ -610,6 +613,15 @@ const WorkoutPlaybackPage = () => {
     sessionSavedRef.current = true;
     clearWorkoutPlaybackDraftFromStorage(draftToSave.entry_date);
 
+    // The backend links (and auto-completes) the plan in the same
+    // transaction as the session insert — refresh the planned-workout cache
+    // so the Home dashboard / Active Program Widget reflect that completion
+    // as soon as the user navigates back, rather than showing the stale
+    // planned/started state until the next natural refetch.
+    if (draftToSave.planned_workout_id) {
+      void queryClient.invalidateQueries({ queryKey: plannedWorkoutKeys.all });
+    }
+
     // Best-effort: auto-check any "Workout"/"Gym" daily habit for this
     // day. A failure here must not block the already-saved workout from
     // navigating away — only boolean/none-target habits have a "done"
@@ -649,6 +661,7 @@ const WorkoutPlaybackPage = () => {
     createPresetSession,
     draft,
     elapsedSeconds,
+    queryClient,
     stats,
     t,
     timezone,
