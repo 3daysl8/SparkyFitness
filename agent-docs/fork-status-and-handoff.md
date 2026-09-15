@@ -4,9 +4,43 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight right now — the app is in a clean, fully-deployed state as of
-2026-09-14 (frontend rebuilt/deployed twice today; backend unchanged since its own deploy
-earlier the same day).**
+**Committed locally but NOT pushed or deployed yet, 2026-09-15** (commit `8201df73d` on
+`main`): `sparky_manage_workout_plans` gained two new MCP actions so Hermes can now change
+day-by-day workout scheduling itself instead of only reading it —
+
+- `set_day_assignment` (plan_id, day_of_week, + exactly one of preset_id/preset_name or
+  exercise_id/exercise_name) — assigns a saved preset or a single exercise to a day,
+  **replacing** anything already assigned to that day (not adding alongside it — deliberate,
+  confirmed with Isaac before building).
+- `clear_day_assignment` (plan_id, day_of_week) — removes whatever's assigned, making it a
+  rest day.
+
+`day_of_week` accepts 0=Sunday..6=Saturday or a day name ("Monday", "Mon", case-insensitive).
+
+**Real gotcha found and handled, worth knowing if you touch this tool again**:
+`workoutPlanTemplateService.updateWorkoutPlanTemplate` does a **full replace**, not a patch —
+both the plan's top-level fields (`plan_name`/`description`/`start_date`/`end_date`/
+`is_active`, each defaulted to blank/`false`/today if omitted) and the entire `assignments`
+array (anything whose `id` isn't in the payload gets deleted). Both new actions read the whole
+plan first via `getWorkoutPlanTemplateById` and echo every other field and every other day's
+assignment back unchanged before adding/removing just the target day. This was live-verified
+against the real dev DB (not just unit tests) with a throwaway preset+plan+exercise, created
+and cleaned up via a one-off `tsx` script run inside `docker-sparkyfitness-server-1` — confirmed
+`plan_name`/`description`/`start_date`/`is_active` all survive a single-day edit, confirmed
+"replace" semantics actually replace (not append), and confirmed the MISSING_PARAMS/NOT_FOUND
+error paths. `findExerciseByExactName` was exported from `exerciseTools.ts` (was file-local) so
+`workoutPlanTools.ts` could reuse it for `exercise_name` resolution instead of duplicating it.
+
+Full backend suite (2860/2860, up from 2853 — 9 new tests) + `tsc -b` + `eslint
+--max-warnings 0` all clean. Files: `ai/tools/workoutPlanTools.ts`,
+`ai/tools/schemas/workoutPlans.ts`, `ai/tools/exerciseTools.ts` (one-line export),
+`tests/chatbotToolsWorkoutPlans.test.ts`.
+
+**Still open**: not pushed to GitHub, not deployed to Pi5, and the Hermes MCP tool list on Pi5
+won't see these two new actions until a backend rebuild+redeploy happens there (this was only
+built/tested against the local dev stack on Kingdom). Also still untouched: the proactive
+Hermes morning-briefing automation, the phantom-diary-entries decision, and the passkey RP ID
+console error — all still open from the previous handoff, see "Not yet done" below.
 
 **Process note, worth knowing before starting concurrent work**: this session discovered that
 `C:\dev\SparkyFitness` on Kingdom is a single shared working directory — a *different* concurrent
