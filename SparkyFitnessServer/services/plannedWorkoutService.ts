@@ -75,12 +75,13 @@ async function getPlannedWorkoutById(
 async function createPlannedWorkout(
   userId: string,
   data: PlannedWorkoutCreateInput,
-  today: string
+  today: string,
+  origin: 'manual' | 'coach' = 'manual'
 ) {
   const row = await plannedWorkoutRepository.createPlannedWorkout(
     userId,
     data,
-    'manual'
+    origin
   );
   return { ...row, is_missed: isMissed(row, today) };
 }
@@ -140,6 +141,24 @@ async function startPlannedWorkout(userId: string, id: string, today: string) {
     throw createServiceError(
       409,
       `Cannot start a plan that is already ${existing.status}.`
+    );
+  }
+  return { ...row, is_missed: isMissed(row, today) };
+}
+
+async function revertPlannedWorkout(userId: string, id: string, today: string) {
+  const row = await plannedWorkoutRepository.revertPlannedWorkout(userId, id);
+  if (!row) {
+    const existing = await plannedWorkoutRepository.getPlannedWorkoutById(
+      userId,
+      id
+    );
+    if (!existing) {
+      throw createServiceError(404, 'Planned workout not found.');
+    }
+    throw createServiceError(
+      409,
+      `Cannot revert a plan that is already ${existing.status}.`
     );
   }
   return { ...row, is_missed: isMissed(row, today) };
@@ -476,6 +495,7 @@ export {
   updatePlannedWorkout,
   movePlannedWorkout,
   startPlannedWorkout,
+  revertPlannedWorkout,
   skipPlannedWorkout,
   completePlannedWorkout,
   deletePlannedWorkout,
@@ -490,6 +510,7 @@ export default {
   updatePlannedWorkout,
   movePlannedWorkout,
   startPlannedWorkout,
+  revertPlannedWorkout,
   skipPlannedWorkout,
   completePlannedWorkout,
   deletePlannedWorkout,

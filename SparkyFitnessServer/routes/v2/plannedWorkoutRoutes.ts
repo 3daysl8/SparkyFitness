@@ -345,6 +345,36 @@ router.post('/:id/start', startHandler);
 
 /**
  * @swagger
+ * /v2/planned-workouts/{id}/revert:
+ *   post:
+ *     summary: Revert a started plan back to planned
+ *     tags: [Fitness & Workouts]
+ *     description: Undoes start — clears started_at and returns the plan to the planned state. Only a currently-started plan can be reverted.
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200: { description: Reverted }
+ *       404: { description: Not found }
+ *       409: { description: The plan is not currently started }
+ */
+const revertHandler: RequestHandler = async (req, res, next) => {
+  try {
+    if (!requireUuid(res, req.params.id)) return;
+    const today = await todayFor(req.userId);
+    const row = await plannedWorkoutService.revertPlannedWorkout(
+      req.userId,
+      req.params.id,
+      today
+    );
+    res.status(200).json(toResponse(row as PlannedWorkoutRowWithMissed));
+  } catch (error) {
+    next(error);
+  }
+};
+router.post('/:id/revert', revertHandler);
+
+/**
+ * @swagger
  * /v2/planned-workouts/{id}/skip:
  *   post:
  *     summary: Mark a planned workout skipped

@@ -15,6 +15,7 @@ vi.mock('../models/plannedWorkoutRepository.js', () => ({
     createPlannedWorkout: vi.fn(),
     updatePlannedWorkout: vi.fn(),
     startPlannedWorkout: vi.fn(),
+    revertPlannedWorkout: vi.fn(),
     skipPlannedWorkout: vi.fn(),
     completePlannedWorkoutWithSession: vi.fn(),
     deletePlannedWorkout: vi.fn(),
@@ -209,7 +210,51 @@ describe('plannedWorkoutService', () => {
     });
   });
 
-  describe('startPlannedWorkout / skipPlannedWorkout', () => {
+  describe('createPlannedWorkout', () => {
+    it('defaults origin to manual when not given', async () => {
+      vi.mocked(
+        plannedWorkoutRepository.createPlannedWorkout
+      ).mockResolvedValue(baseRow);
+
+      await plannedWorkoutService.createPlannedWorkout(
+        USER_ID,
+        { planned_date: '2026-07-10', title: 'Leg Day' },
+        TODAY
+      );
+
+      expect(
+        plannedWorkoutRepository.createPlannedWorkout
+      ).toHaveBeenCalledWith(
+        USER_ID,
+        { planned_date: '2026-07-10', title: 'Leg Day' },
+        'manual'
+      );
+    });
+
+    it('passes through an explicit coach origin', async () => {
+      vi.mocked(
+        plannedWorkoutRepository.createPlannedWorkout
+      ).mockResolvedValue({ ...baseRow, origin: 'coach' });
+
+      const result = await plannedWorkoutService.createPlannedWorkout(
+        USER_ID,
+        { planned_date: '2026-07-10', title: 'Leg Day' },
+        TODAY,
+        'coach'
+      );
+
+      expect(
+        plannedWorkoutRepository.createPlannedWorkout
+      ).toHaveBeenCalledWith(
+        USER_ID,
+        { planned_date: '2026-07-10', title: 'Leg Day' },
+        'coach'
+      );
+      expect(result.origin).toBe('coach');
+    });
+  });
+
+  describe('startPlannedWorkout / revertPlannedWorkout / skipPlannedWorkout', () => {
     it('throws 409 when starting a plan that is not in the planned state', async () => {
       vi.mocked(plannedWorkoutRepository.startPlannedWorkout).mockResolvedValue(
         null
@@ -223,6 +268,52 @@ describe('plannedWorkoutService', () => {
       ).rejects.toMatchObject({
         status: 409,
         message: 'Cannot start a plan that is already skipped.',
+      });
+    });
+
+    it('reverts a started plan back to planned', async () => {
+      vi.mocked(
+        plannedWorkoutRepository.revertPlannedWorkout
+      ).mockResolvedValue({ ...baseRow, status: 'planned', started_at: null });
+
+      const result = await plannedWorkoutService.revertPlannedWorkout(
+        USER_ID,
+        PLAN_ID,
+        TODAY
+      );
+
+      expect(result.status).toBe('planned');
+      expect(
+        plannedWorkoutRepository.revertPlannedWorkout
+      ).toHaveBeenCalledWith(USER_ID, PLAN_ID);
+    });
+
+    it('throws 404 when reverting a plan that does not exist', async () => {
+      vi.mocked(
+        plannedWorkoutRepository.revertPlannedWorkout
+      ).mockResolvedValue(null);
+      vi.mocked(
+        plannedWorkoutRepository.getPlannedWorkoutById
+      ).mockResolvedValue(null);
+
+      await expect(
+        plannedWorkoutService.revertPlannedWorkout(USER_ID, PLAN_ID, TODAY)
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('throws 409 when reverting a plan that is not currently started', async () => {
+      vi.mocked(
+        plannedWorkoutRepository.revertPlannedWorkout
+      ).mockResolvedValue(null);
+      vi.mocked(
+        plannedWorkoutRepository.getPlannedWorkoutById
+      ).mockResolvedValue({ ...baseRow, status: 'planned' });
+
+      await expect(
+        plannedWorkoutService.revertPlannedWorkout(USER_ID, PLAN_ID, TODAY)
+      ).rejects.toMatchObject({
+        status: 409,
+        message: 'Cannot revert a plan that is already planned.',
       });
     });
 

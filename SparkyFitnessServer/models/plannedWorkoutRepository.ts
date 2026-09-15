@@ -212,6 +212,32 @@ async function startPlannedWorkout(
   }
 }
 
+/**
+ * Undoes start: only a currently-started row reverts to planned, with
+ * started_at cleared. Lets a coaching-tool caller (or a future frontend
+ * affordance) back out of a start() that shouldn't have happened, instead of
+ * leaving the row stranded in 'started' with no way back — see Phase 4's
+ * MCP start/revert pairing.
+ */
+async function revertPlannedWorkout(
+  userId: string,
+  id: string
+): Promise<PlannedWorkoutRow | null> {
+  const client = await getClient(userId);
+  try {
+    const result = await client.query(
+      `UPDATE planned_workouts
+       SET status = 'planned', started_at = NULL
+       WHERE id = $1 AND user_id = $2 AND status = 'started'
+       RETURNING ${PLANNED_WORKOUT_COLS}`,
+      [id, userId]
+    );
+    return result.rows[0] ?? null;
+  } finally {
+    client.release();
+  }
+}
+
 async function skipPlannedWorkout(
   userId: string,
   id: string
@@ -473,6 +499,7 @@ export default {
   createPlannedWorkout,
   updatePlannedWorkout,
   startPlannedWorkout,
+  revertPlannedWorkout,
   skipPlannedWorkout,
   completePlannedWorkoutWithSession,
   deletePlannedWorkout,
