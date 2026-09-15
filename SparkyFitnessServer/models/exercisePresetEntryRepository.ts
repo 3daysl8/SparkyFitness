@@ -312,6 +312,43 @@ async function deleteSessionIfEmptyWithClient(
   );
   return result.rows.length > 0;
 }
+/**
+ * Marks a planned workout completed by the session just created, in the
+ * caller's transaction. Scoped by user_id so a cross-user id can't link (the
+ * WHERE clause is the ownership check); the `completed_session_id IS NULL`
+ * guard means an already-linked plan is left alone rather than overwritten.
+ * Returns `linked: false` with a reason instead of throwing — the session
+ * itself must still save either way.
+ */
+async function linkPlannedWorkoutWithClient(
+  client: PoolClient,
+  userId: string,
+  plannedWorkoutId: string,
+  sessionId: string
+): Promise<{ linked: boolean; warning?: string }> {
+  const result = await client.query(
+    `UPDATE planned_workouts
+     SET status = 'completed', completed_at = NOW(), completed_session_id = $3
+     WHERE id = $1 AND user_id = $2 AND completed_session_id IS NULL
+     RETURNING id`,
+    [plannedWorkoutId, userId, sessionId]
+  );
+  if (result.rows.length > 0) {
+    return { linked: true };
+  }
+  const existing = await client.query(
+    'SELECT id FROM planned_workouts WHERE id = $1 AND user_id = $2',
+    [plannedWorkoutId, userId]
+  );
+  return {
+    linked: false,
+    warning:
+      existing.rows.length === 0
+        ? 'Planned workout not found; session saved without linking it.'
+        : 'Planned workout was already completed by another session; this session was saved without linking it.',
+  };
+}
+
 async function deleteExercisePresetEntriesByEntrySourceAndDateWithClient(
   client: PoolClient,
   userId: string,
@@ -388,6 +425,7 @@ export { createExercisePresetEntry };
 export { createExercisePresetEntryWithClient };
 export { insertExercisePresetEntryIdempotentWithClient };
 export { deleteSessionIfEmptyWithClient };
+export { linkPlannedWorkoutWithClient };
 export { getExercisePresetEntryById };
 export { getExercisePresetEntryByIdWithClient };
 export { getExercisePresetEntriesByDate };
@@ -401,6 +439,7 @@ export default {
   createExercisePresetEntryWithClient,
   insertExercisePresetEntryIdempotentWithClient,
   deleteSessionIfEmptyWithClient,
+  linkPlannedWorkoutWithClient,
   getExercisePresetEntryById,
   getExercisePresetEntryByIdWithClient,
   getExercisePresetEntriesByDate,

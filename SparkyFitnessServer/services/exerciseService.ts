@@ -1986,6 +1986,7 @@ async function createGroupedWorkoutSessionWithStatus(
     const {
       client_request_id,
       workout_preset_id,
+      planned_workout_id = null,
       entry_date,
       name,
       description,
@@ -2104,6 +2105,25 @@ async function createGroupedWorkoutSessionWithStatus(
         'info',
         `Replayed grouped workout save ${client_request_id} for user ${userId}; returning existing session ${presetEntry.id}.`
       );
+    }
+    // Only a first (non-replayed) save attempts the link — a replay reaches
+    // an already-completed plan via the same path a second linking attempt
+    // would, and linkPlannedWorkoutWithClient's own guard already refuses to
+    // overwrite it, so skipping here just avoids a redundant query.
+    if (inserted.created && planned_workout_id) {
+      const linkResult =
+        await exercisePresetEntryRepository.linkPlannedWorkoutWithClient(
+          client,
+          userId,
+          planned_workout_id,
+          presetEntry.id
+        );
+      if (!linkResult.linked) {
+        log(
+          'warn',
+          `Session ${presetEntry.id} for user ${userId}: ${linkResult.warning}`
+        );
+      }
     }
     const groupedSession = await getGroupedExerciseSessionByIdWithClient(
       client,
