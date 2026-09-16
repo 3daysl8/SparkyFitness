@@ -4,7 +4,99 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16** (`9b5066f6c` on `main`):
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16** (`165c3910d` on `main`):
+**Phase 4 of the workout-mapping plan** (full plan:
+`C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
+merged, and live. Backend/MCP-only, on top of Phase 2's `planned_workouts` domain and Phase 3's
+planning UI: the new `sparky_manage_planned_workouts` MCP tool, plus the revert-from-`started`
+endpoint Phase 3 flagged as a gap.
+
+**Contract**: `revertPlannedWorkout` (started→planned) added at repo/service/REST layers — closes
+the started/discard gap from Phase 3 (the frontend still never calls `start` proactively, so it has
+no need for revert either; this was purely to unblock MCP, where an agent-initiated `start` is a
+real, expected path). `createPlannedWorkout` now takes an explicit `origin` param so MCP-created
+rows tag `'coach'` instead of the frontend's `'manual'`.
+
+**New tool `sparky_manage_planned_workouts`**: `list_planned`, `get_day`, `create`, `update`,
+`move`, `delete`, `start` (today-only — refuses a plan dated any other day, matching the frontend's
+own constraint), `revert`, `complete` (links an already-logged session to a plan after the fact;
+distinct from the auto-complete-on-save path a plan-launched frontend session already gets), `skip`.
+Every write returns the saved record plus a structured `[Planned Workout Tool] ... userId=...`
+log line. Service errors carry a numeric `.status` (400/404/409) and are mapped 1:1 to
+VALIDATION/NOT_FOUND/CONFLICT — the first domain in this codebase to do that instead of the
+free-text substring matching every sibling tool still uses.
+
+**`sparky_manage_workout_plans` touch-up**: `set_day_assignment`/`clear_day_assignment` now echo
+the next 4 weeks of the resulting `planned_workouts` schedule in their response, since editing a
+template assignment silently resyncs those rows server-side (Phase 2's sync engine) — an agent
+editing a schedule couldn't previously see the effect of its own edit without a separate
+`list_planned` call.
+
+**Drive-by**: fixed one pre-existing eslint warning in `chatService.test.ts` that was blocking a
+clean `lint` run.
+
+Verified: `tsc --noEmit` clean, `eslint --max-warnings 0` clean, full backend suite **249 suites /
+3018 tests passing**. Live-verified against the real dev DB via the actual MCP HTTP transport (not
+just unit tests or a one-off script) — signed up a throwaway account, called `tools/list` and
+confirmed `sparky_manage_planned_workouts` present, then ran `create` (bare title, no
+preset/exercise) → `start` → `revert` → confirmed a redundant `revert` correctly 409s
+(`CONFLICT`) → `complete`, then confirmed a second `complete` on the same plan also 409s
+(`already_linked`). Then repeated the `tools/list` + `create`→`start`→`revert`→`complete` shape of
+check against **production** post-deploy with a second disposable account.
+
+**Real gotcha found while live-verifying, worth knowing before calling `complete` again**:
+`completePlannedWorkoutWithSession`'s `session_id` must be an `exercise_preset_entries` id (a
+workout **session** — what `log_workout_preset` or a real preset-based playback creates), not the
+`exercise_entries` id that plain `log_exercise` returns. The first attempt used a `log_exercise`
+id and got a correctly-worded but easy-to-misread `NOT_FOUND: Session not found, or it does not
+belong to you` — nothing was broken, the id was just the wrong table. If Hermes ever calls
+`complete` itself, point it at a preset-session id, not a bare exercise-entry id.
+
+**Second gotcha, demo-account-specific**: `demoRestrictionGuard` blocks the **entire** `/mcp`
+prefix for the demo account on any method — there is no way to exercise the MCP surface, including
+`tools/list`, as the demo user. Any future MCP live-verification needs a real (throwaway) signup
+account instead, same as this session used.
+
+**Third gotcha, cleanup-specific**: unlike almost every other `user_id`-keyed table (`ON DELETE
+CASCADE` throughout), `exercises.user_id` has **no FK constraint at all** — deleting a throwaway
+test user leaves their custom exercises behind as orphaned rows (harmless — `shared_with_public`
+defaults false, so nothing else can see them — but not auto-cleaned). Delete any custom exercises
+a throwaway account created *before* deleting the user row, or clean them up separately after,
+the way this session did.
+
+No migration this phase (confirmed via diff against the pre-Phase-4 commit) — `shared/` untouched
+too, so no `--no-cache` dev-image rebuild was needed, just a `docker restart` of the bind-mounted
+dev backend container.
+
+Deployed to Pi5: backend image tagged `pre-165c3910d` before rebuild, `pg_dump -Fc` backup taken
+and verified restorable (`pg_restore --list` inside the db container, 1004 TOC entries — pg_restore
+isn't installed on the Pi5 host itself, only inside the postgres container), copied into
+`backup/` (the `sudo mv` dance, per the existing gotcha below — direct redirect into `backup/`
+still 403s), `--no-cache` build of the backend only (repo-root context, per the standing Dockerfile
+gotcha below) from `/home/pi1/sparkyfitness-build`, confirmed the built image actually contains
+`plannedWorkoutTools.ts` (`docker create` + `docker cp` + grep, since this fork ships TypeScript
+straight into the image rather than a compiled JS bundle) before deploying, `docker compose up -d
+--force-recreate sparkyfitness-server` from `/home/pi1/sparkyfitness` (the separate runtime compose
+dir — `/home/pi1/sparkyfitness-build` is build-only, never where `docker compose` itself runs),
+confirmed `{"status":"UP"}` and the container `healthy`, confirmed the new tool live in
+production's real `tools/list` response over the actual `https://sparkyfitness.tail854f4e.ts.net`
+domain via a disposable account (cleaned up immediately after, cascade-deleted down to 0 rows same
+as the dev-DB check), `docker builder prune -af` after (2.9GB reclaimed). Frontend untouched, not
+redeployed. Hermes was not stopped/restarted for this deploy (single-service backend
+`--force-recreate`, and Hermes' MCP client re-fetches `tools/list` per session regardless — no
+reconfiguration needed for it to see the new tool on its next call).
+
+**Not done yet, deliberately out of scope for this phase**: no frontend UI for revert — Phase 4 was
+backend/MCP-only by design, and the frontend still never calls `start` proactively (Phase 3's
+standing decision), so it has no path that would ever need to call `revert` either.
+
+**Next**: Phase 5 (weekly-goal tracking) and Phase 6's data-repair script for the 5 known-bad
+production phantom rows — see "Not yet done" item 0 below, still untouched, still real
+safety-critical work deserving its own focused session.
+
+---
+
+**Previous entry, also shipped 2026-09-16** (`9b5066f6c` on `main`):
 **Phase 3 of the workout-mapping plan** (full plan:
 `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
 merged, and live. Frontend-only, built on top of Phase 2's `planned_workouts` backend: a real
