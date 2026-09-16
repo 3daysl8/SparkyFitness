@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { addDays, daysBetween, todayInZone } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import plannedWorkoutService from '../../services/plannedWorkoutService.js';
+import weeklyWorkoutGoalService from '../../services/weeklyWorkoutGoalService.js';
 import workoutPresetRepository from '../../models/workoutPresetRepository.js';
 import type { PlannedWorkoutPatchInput } from '../../models/plannedWorkoutRepository.js';
 import type { PlannedWorkoutRow } from '../../services/plannedWorkoutService.types.js';
@@ -132,6 +133,38 @@ async function resolveOptionalWorkoutTarget(
   return { ok: true, workout_preset_id: null, exercise_id: exerciseId };
 }
 
+function toWeeklyProgressFields(progress: {
+  week_start: string;
+  week_end: string;
+  target_total: number | null;
+  target_strength: number | null;
+  target_cardio: number | null;
+  cardio_min_minutes: number;
+  strength_counting: string;
+  completed_total: number;
+  completed_strength: number;
+  completed_cardio: number;
+  total_met: boolean | null;
+  strength_met: boolean | null;
+  cardio_met: boolean | null;
+}) {
+  return {
+    week_start: progress.week_start,
+    week_end: progress.week_end,
+    strength_counting: progress.strength_counting,
+    cardio_min_minutes: progress.cardio_min_minutes,
+    completed_total: progress.completed_total,
+    target_total: progress.target_total,
+    total_met: progress.total_met,
+    completed_strength: progress.completed_strength,
+    target_strength: progress.target_strength,
+    strength_met: progress.strength_met,
+    completed_cardio: progress.completed_cardio,
+    target_cardio: progress.target_cardio,
+    cardio_met: progress.cardio_met,
+  };
+}
+
 function formatPlannedWorkoutLine(row: PlannedWorkoutRowWithMissed): string {
   const time = row.planned_time ? ` at ${row.planned_time}` : '';
   const label = row.is_missed ? 'missed' : row.status;
@@ -198,6 +231,7 @@ Actions:
 - action: 'revert' (fields: id) — undoes start, back to planned. Use this instead of leaving a mistaken start() in place.
 - action: 'complete' (fields: id, session_id) — links an already-logged session to this plan. Refuses a future planned_date and never overwrites an existing link. (A session logged with planned_workout_id set completes its plan automatically — this action is for linking an existing session after the fact.)
 - action: 'skip' (fields: id) — marks a planned or started workout skipped.
+- action: 'get_weekly_progress' (fields: date?) — sessions/week progress against the user's weekly workout-goal targets (total/strength/cardio, if set) for the 7-day week containing date (defaults to today), aligned to the user's first day of week. A cardio session only counts once it meets the user's minimum cardio duration.
 
 Every write returns the saved record. Dates accept YYYY-MM-DD or "today"/"yesterday"/"tomorrow".`,
       inputSchema: managePlannedWorkoutsInput,
@@ -407,6 +441,19 @@ Every write returns the saved record. Dates accept YYYY-MM-DD or "today"/"yester
               )) as PlannedWorkoutRowWithMissed;
               logMutation(userId, 'skip', { id: args.id });
               return formatRecord('Workout skipped', toRecordFields(row));
+            }
+
+            case 'get_weekly_progress': {
+              const date = args.date || today;
+              const progress =
+                await weeklyWorkoutGoalService.getWeeklyWorkoutGoalProgress(
+                  userId,
+                  date
+                );
+              return formatRecord(
+                `Weekly Workout Goal Progress: ${progress.week_start} to ${progress.week_end}`,
+                toWeeklyProgressFields(progress)
+              );
             }
 
             default:

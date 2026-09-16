@@ -1,8 +1,8 @@
 import {
-  dayOfWeek,
   addDays,
   localDateToDay,
   standardDrinks,
+  weekBounds,
   DEFAULT_STANDARD_DRINK_GRAMS,
   type AlcoholWeekResponse,
   type AlcoholDayTotal,
@@ -37,10 +37,7 @@ export async function getAlcoholWeek(
       ? Number(prefs.weekly_alcohol_limit_g)
       : null;
 
-  const dow = dayOfWeek(date);
-  const offset = (dow - firstDayOfWeek + 7) % 7;
-  const weekStart = addDays(date, -offset);
-  const weekEnd = addDays(weekStart, 6);
+  const { weekStart, weekEnd } = weekBounds(date, firstDayOfWeek);
 
   // Exactly one range query for the week
   const rows = await reportRepository.getDailyNutritionTotalsRange(

@@ -72,6 +72,7 @@ import medicationRoutesV2 from './routes/v2/medicationRoutes.js';
 import focusRoutesV2 from './routes/v2/focusRoutes.js';
 import calendarRoutesV2 from './routes/v2/calendarRoutes.js';
 import reportRoutesV2 from './routes/v2/reportRoutes.js';
+import weeklyWorkoutGoalRoutesV2 from './routes/v2/weeklyWorkoutGoalRoutes.js';
 import nutritionKineticsRoutesV2 from './routes/v2/nutritionKineticsRoutes.js';
 import plannedWorkoutRoutesV2 from './routes/v2/plannedWorkoutRoutes.js';
 import backupRoutes from './routes/backupRoutes.js';
@@ -665,6 +666,12 @@ app.use('/api/v2/measurements', waterIntakeRoutesV2);
 app.use('/api/v2/medications', medicationRoutesV2);
 app.use('/api/v2/focus', focusRoutesV2);
 app.use('/api/v2/calendar', calendarRoutesV2);
+// Mounted ahead of reportRoutesV2 at the same '/api/v2/reports' prefix: this
+// router's own diary-tier check runs and this handler responds before
+// reportRoutesV2's unconditional router.use(checkPermissionMiddleware('reports'))
+// would otherwise run for the same path. See weeklyWorkoutGoalRoutes.ts for why
+// the tier differs from its sibling routes in that file.
+app.use('/api/v2/reports', weeklyWorkoutGoalRoutesV2);
 app.use('/api/v2/reports', reportRoutesV2);
 app.use('/api/v2/nutrition', nutritionKineticsRoutesV2);
 app.use('/api/v2/planned-workouts', plannedWorkoutRoutesV2);

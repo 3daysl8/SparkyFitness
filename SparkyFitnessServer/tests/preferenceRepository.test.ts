@@ -326,4 +326,90 @@ describe('preferenceRepository bootstrapUserTimezoneIfUnset', () => {
       'target_bedtime = COALESCE($52, user_preferences.target_bedtime)'
     );
   });
+
+  it('round-trips weekly workout goal preferences through upsert and load', async () => {
+    const row = {
+      user_id: 'user-1',
+      weekly_workout_target_total: 4,
+      weekly_workout_target_strength: 2,
+      weekly_workout_target_cardio: 2,
+      weekly_cardio_min_minutes: 25,
+      weekly_strength_counting: 'explicit_only',
+    };
+    mockClient.query.mockResolvedValueOnce({ rows: [row] });
+    mockClient.query.mockResolvedValueOnce({ rows: [row] });
+
+    await preferenceRepository.upsertUserPreferences({
+      user_id: 'user-1',
+      weekly_workout_target_total: 4,
+      weekly_workout_target_strength: 2,
+      weekly_workout_target_cardio: 2,
+      weekly_cardio_min_minutes: 25,
+      weekly_strength_counting: 'explicit_only',
+    });
+    const result = await preferenceRepository.getUserPreferences('user-1');
+
+    expect(result.weekly_workout_target_total).toBe(4);
+    expect(result.weekly_cardio_min_minutes).toBe(25);
+    expect(result.weekly_strength_counting).toBe('explicit_only');
+    const [sql, params] = mockClient.query.mock.calls[0];
+    expect(sql).toContain('weekly_workout_target_total');
+    expect(sql).toContain('weekly_strength_counting');
+    expect(params).toContain(4);
+    expect(params).toContain(25);
+    expect(params).toContain('explicit_only');
+  });
+
+  it('leaves a stored weekly_cardio_min_minutes/weekly_strength_counting alone when an upsert omits them', async () => {
+    // Same shape as chart_scale_mode/food_search_all_providers_default above:
+    // these are NOT NULL columns the VALUES clause defaults (20 /
+    // 'any_strength') for a fresh insert, so the conflict branch must read
+    // $58/$59 directly rather than EXCLUDED, or an omitting upsert would
+    // clobber a stored non-default value back to the default.
+    mockClient.query.mockResolvedValueOnce({ rows: [{ user_id: 'user-1' }] });
+
+    await preferenceRepository.upsertUserPreferences({
+      user_id: 'user-1',
+      show_net_carbs: true,
+    });
+
+    const [sql] = mockClient.query.mock.calls[0];
+    expect(sql).toContain(
+      'weekly_cardio_min_minutes = COALESCE($58, user_preferences.weekly_cardio_min_minutes)'
+    );
+    expect(sql).toContain(
+      'weekly_strength_counting = COALESCE($59, user_preferences.weekly_strength_counting)'
+    );
+    expect(sql).not.toContain('EXCLUDED.weekly_cardio_min_minutes');
+    expect(sql).not.toContain('EXCLUDED.weekly_strength_counting');
+  });
+
+  it('leaves stored nullable weekly workout targets alone when an upsert omits them', async () => {
+    mockClient.query.mockResolvedValueOnce({ rows: [{ user_id: 'user-1' }] });
+
+    await preferenceRepository.upsertUserPreferences({
+      user_id: 'user-1',
+      show_net_carbs: true,
+    });
+
+    const [sql] = mockClient.query.mock.calls[0];
+    expect(sql).toContain(
+      'weekly_workout_target_total = COALESCE(EXCLUDED.weekly_workout_target_total, user_preferences.weekly_workout_target_total)'
+    );
+  });
+
+  it('writes weekly_workout_target_total at $55 on the UPDATE branch', async () => {
+    mockClient.query.mockResolvedValueOnce({ rows: [{ user_id: 'user-1' }] });
+
+    await preferenceRepository.updateUserPreferences('user-1', {
+      weekly_workout_target_total: 5,
+    });
+
+    const [sql, params] = mockClient.query.mock.calls[0];
+    expect(sql).toContain(
+      'weekly_workout_target_total = COALESCE($55, weekly_workout_target_total)'
+    );
+    // Zero-based index 54 == $55.
+    expect(params[54]).toBe(5);
+  });
 });

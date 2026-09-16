@@ -133,6 +133,11 @@ async function updateUserPreferences(userId: any, preferenceData: any) {
         calorie_safety_floor_value = COALESCE($46, calorie_safety_floor_value),
         chart_scale_mode = COALESCE($53, chart_scale_mode),
         water_goal_ml = COALESCE($54, water_goal_ml),
+        weekly_workout_target_total = COALESCE($55, weekly_workout_target_total),
+        weekly_workout_target_strength = COALESCE($56, weekly_workout_target_strength),
+        weekly_workout_target_cardio = COALESCE($57, weekly_workout_target_cardio),
+        weekly_cardio_min_minutes = COALESCE($58, weekly_cardio_min_minutes),
+        weekly_strength_counting = COALESCE($59, weekly_strength_counting),
         updated_at = now()
       WHERE user_id = $28
       RETURNING *`,
@@ -191,6 +196,11 @@ async function updateUserPreferences(userId: any, preferenceData: any) {
         preferenceData.target_bedtime,
         preferenceData.chart_scale_mode,
         preferenceData.water_goal_ml,
+        preferenceData.weekly_workout_target_total,
+        preferenceData.weekly_workout_target_strength,
+        preferenceData.weekly_workout_target_cardio,
+        preferenceData.weekly_cardio_min_minutes,
+        preferenceData.weekly_strength_counting,
       ]
     );
     return result.rows[0];
@@ -287,6 +297,11 @@ async function upsertUserPreferences(preferenceData: any) {
        target_bedtime,
        chart_scale_mode,
        water_goal_ml,
+       weekly_workout_target_total,
+       weekly_workout_target_strength,
+       weekly_workout_target_cardio,
+       weekly_cardio_min_minutes,
+       weekly_strength_counting,
        created_at, updated_at
      ) VALUES (
        $1, COALESCE($2, 'yyyy-MM-dd'), COALESCE($44, 'HH:mm'), COALESCE($3, 'lbs'), COALESCE($4, 'in'), COALESCE($5, 'km'),
@@ -326,6 +341,11 @@ async function upsertUserPreferences(preferenceData: any) {
        COALESCE($52::time without time zone, '22:30'),
        COALESCE($53, 'time'),
        $54,
+       $55,
+       $56,
+       $57,
+       COALESCE($58, 20),
+       COALESCE($59, 'any_strength'),
        now(), now()
      )
      ON CONFLICT (user_id) DO UPDATE SET
@@ -384,6 +404,16 @@ async function upsertUserPreferences(preferenceData: any) {
        -- Read $53 directly rather than EXCLUDED, for the same reason as $47.
        chart_scale_mode = COALESCE($53, user_preferences.chart_scale_mode),
        water_goal_ml = COALESCE(EXCLUDED.water_goal_ml, user_preferences.water_goal_ml),
+       weekly_workout_target_total = COALESCE(EXCLUDED.weekly_workout_target_total, user_preferences.weekly_workout_target_total),
+       weekly_workout_target_strength = COALESCE(EXCLUDED.weekly_workout_target_strength, user_preferences.weekly_workout_target_strength),
+       weekly_workout_target_cardio = COALESCE(EXCLUDED.weekly_workout_target_cardio, user_preferences.weekly_workout_target_cardio),
+       -- Read $58/$59 directly rather than EXCLUDED, for the same reason as $47
+       -- above: the VALUES clause defaults these NOT NULL columns (20 /
+       -- 'any_strength') for a fresh insert, so EXCLUDED is never NULL and an
+       -- upsert that omits the field would clobber a stored non-default value
+       -- back to the default.
+       weekly_cardio_min_minutes = COALESCE($58, user_preferences.weekly_cardio_min_minutes),
+       weekly_strength_counting = COALESCE($59, user_preferences.weekly_strength_counting),
        updated_at = now()
      RETURNING *`,
       [
@@ -441,6 +471,11 @@ async function upsertUserPreferences(preferenceData: any) {
         preferenceData.target_bedtime,
         preferenceData.chart_scale_mode,
         preferenceData.water_goal_ml,
+        preferenceData.weekly_workout_target_total,
+        preferenceData.weekly_workout_target_strength,
+        preferenceData.weekly_workout_target_cardio,
+        preferenceData.weekly_cardio_min_minutes,
+        preferenceData.weekly_strength_counting,
       ]
     );
     return result.rows[0];
