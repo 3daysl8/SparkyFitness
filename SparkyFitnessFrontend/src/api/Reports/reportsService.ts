@@ -3,6 +3,7 @@ import { ExerciseDashboardData, ReportResponse } from '@/types/reports';
 import type {
   AlcoholWeekResponse,
   HydrationNutritionRangeResponse,
+  WeeklyWorkoutGoalProgressResponse,
 } from '@workspace/shared';
 
 export const loadReportsData = async (
@@ -54,6 +55,21 @@ export const getAlcoholWeekReport = async (
   if (userId) params.append('userId', userId);
   const response = await apiCall(
     `/v2/reports/alcohol-week?${params.toString()}`,
+    {
+      method: 'GET',
+    }
+  );
+  return response;
+};
+
+export const getWeeklyWorkoutGoalProgress = async (
+  date: string,
+  userId?: string
+): Promise<WeeklyWorkoutGoalProgressResponse> => {
+  const params = new URLSearchParams({ date });
+  if (userId) params.append('userId', userId);
+  const response = await apiCall(
+    `/v2/reports/weekly-workout-goal?${params.toString()}`,
     {
       method: 'GET',
     }

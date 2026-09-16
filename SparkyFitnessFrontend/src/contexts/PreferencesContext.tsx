@@ -42,6 +42,7 @@ import {
   DEFAULT_CHART_SCALE_MODE,
   type ChartScaleMode,
   type UserPreferences as SharedUserPreferences,
+  type WeeklyStrengthCounting,
 } from '@workspace/shared';
 
 import {
@@ -78,6 +79,13 @@ export type WaterDisplayUnit = 'ml' | 'oz' | 'liter';
 
 // Conversion constant
 const KCAL_TO_KJ = 4.184;
+
+// shared/src/workouts/weeklyGoal.ts keeps its own cardio-minutes/strength-
+// counting defaults private to resolveWeeklyGoalPolicy (not exported for
+// reuse), so they're mirrored here. Keep in sync with that module and the
+// weekly_cardio_min_minutes/weekly_strength_counting column defaults.
+const DEFAULT_WEEKLY_CARDIO_MIN_MINUTES = 20;
+const DEFAULT_WEEKLY_STRENGTH_COUNTING: WeeklyStrengthCounting = 'any_strength';
 
 interface NutrientPreference {
   view_group: string;
@@ -147,10 +155,20 @@ interface PreferencesContextType {
   weeklyAlcoholLimitG: number | null;
   caffeineHalfLifeHours: number;
   targetBedtime: string;
+  weeklyWorkoutTargetTotal: number | null;
+  weeklyWorkoutTargetStrength: number | null;
+  weeklyWorkoutTargetCardio: number | null;
+  weeklyCardioMinMinutes: number;
+  weeklyStrengthCounting: WeeklyStrengthCounting;
   setCaffeineHalfLifeHours: (hours: number) => void;
   setTargetBedtime: (bedtime: string) => void;
   setWeeklyAlcoholLimitG: (limit: number | null) => void;
   setStandardDrinkGrams: (grams: number) => void;
+  setWeeklyWorkoutTargetTotal: (target: number | null) => void;
+  setWeeklyWorkoutTargetStrength: (target: number | null) => void;
+  setWeeklyWorkoutTargetCardio: (target: number | null) => void;
+  setWeeklyCardioMinMinutes: (minutes: number) => void;
+  setWeeklyStrengthCounting: (mode: WeeklyStrengthCounting) => void;
   setMeasurementDecimalPlaces: (places: number) => void;
   setGoalMode: (mode: GoalMode) => void;
   setGoalModeCalculationMethod: (method: GoalModeCalculationMethod) => void;
@@ -278,6 +296,11 @@ export interface DefaultPreferences {
   weekly_alcohol_limit_g?: number | null;
   caffeine_half_life_hours?: number;
   target_bedtime?: string;
+  weekly_workout_target_total?: number | null;
+  weekly_workout_target_strength?: number | null;
+  weekly_workout_target_cardio?: number | null;
+  weekly_cardio_min_minutes?: number;
+  weekly_strength_counting?: WeeklyStrengthCounting;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(
@@ -404,6 +427,17 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
   const [caffeineHalfLifeHours, setCaffeineHalfLifeHoursState] =
     useState<number>(DEFAULT_CAFFEINE_HALF_LIFE_HOURS);
   const [targetBedtime, setTargetBedtimeState] = useState<string>('22:30');
+  const [weeklyWorkoutTargetTotal, setWeeklyWorkoutTargetTotalState] = useState<
+    number | null
+  >(null);
+  const [weeklyWorkoutTargetStrength, setWeeklyWorkoutTargetStrengthState] =
+    useState<number | null>(null);
+  const [weeklyWorkoutTargetCardio, setWeeklyWorkoutTargetCardioState] =
+    useState<number | null>(null);
+  const [weeklyCardioMinMinutes, setWeeklyCardioMinMinutesState] =
+    useState<number>(DEFAULT_WEEKLY_CARDIO_MIN_MINUTES);
+  const [weeklyStrengthCounting, setWeeklyStrengthCountingState] =
+    useState<WeeklyStrengthCounting>(DEFAULT_WEEKLY_STRENGTH_COUNTING);
 
   const fetchUserPreferences = useCallback(async () => {
     try {
@@ -679,6 +713,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
         standard_drink_grams: DEFAULT_STANDARD_DRINK_GRAMS,
         caffeine_half_life_hours: DEFAULT_CAFFEINE_HALF_LIFE_HOURS,
         target_bedtime: '22:30',
+        weekly_cardio_min_minutes: DEFAULT_WEEKLY_CARDIO_MIN_MINUTES,
+        weekly_strength_counting: DEFAULT_WEEKLY_STRENGTH_COUNTING,
       };
       await upsertUserPreferences(defaultPrefs);
     } catch (err) {
@@ -832,6 +868,31 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
           data.target_bedtime
             ? String(data.target_bedtime).slice(0, 5)
             : '22:30'
+        );
+        setWeeklyWorkoutTargetTotalState(
+          data.weekly_workout_target_total != null
+            ? Number(data.weekly_workout_target_total)
+            : null
+        );
+        setWeeklyWorkoutTargetStrengthState(
+          data.weekly_workout_target_strength != null
+            ? Number(data.weekly_workout_target_strength)
+            : null
+        );
+        setWeeklyWorkoutTargetCardioState(
+          data.weekly_workout_target_cardio != null
+            ? Number(data.weekly_workout_target_cardio)
+            : null
+        );
+        setWeeklyCardioMinMinutesState(
+          data.weekly_cardio_min_minutes != null
+            ? Number(data.weekly_cardio_min_minutes)
+            : DEFAULT_WEEKLY_CARDIO_MIN_MINUTES
+        );
+        setWeeklyStrengthCountingState(
+          data.weekly_strength_counting === 'explicit_only'
+            ? 'explicit_only'
+            : DEFAULT_WEEKLY_STRENGTH_COUNTING
         );
       } else {
         await createDefaultPreferences();
@@ -1028,6 +1089,22 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
           newPrefs?.targetBedtime !== undefined
             ? newPrefs.targetBedtime
             : targetBedtime,
+        weekly_workout_target_total:
+          newPrefs?.weeklyWorkoutTargetTotal !== undefined
+            ? newPrefs.weeklyWorkoutTargetTotal
+            : weeklyWorkoutTargetTotal,
+        weekly_workout_target_strength:
+          newPrefs?.weeklyWorkoutTargetStrength !== undefined
+            ? newPrefs.weeklyWorkoutTargetStrength
+            : weeklyWorkoutTargetStrength,
+        weekly_workout_target_cardio:
+          newPrefs?.weeklyWorkoutTargetCardio !== undefined
+            ? newPrefs.weeklyWorkoutTargetCardio
+            : weeklyWorkoutTargetCardio,
+        weekly_cardio_min_minutes:
+          newPrefs?.weeklyCardioMinMinutes ?? weeklyCardioMinMinutes,
+        weekly_strength_counting:
+          newPrefs?.weeklyStrengthCounting ?? weeklyStrengthCounting,
       };
 
       try {
@@ -1096,6 +1173,11 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       weeklyAlcoholLimitG,
       caffeineHalfLifeHours,
       targetBedtime,
+      weeklyWorkoutTargetTotal,
+      weeklyWorkoutTargetStrength,
+      weeklyWorkoutTargetCardio,
+      weeklyCardioMinMinutes,
+      weeklyStrengthCounting,
       updatePreferences,
       loadPreferences,
     ]
@@ -1273,6 +1355,46 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
     [saveAllPreferences]
   );
 
+  const setWeeklyWorkoutTargetTotal = useCallback(
+    (target: number | null) => {
+      setWeeklyWorkoutTargetTotalState(target);
+      saveAllPreferences({ weeklyWorkoutTargetTotal: target });
+    },
+    [saveAllPreferences]
+  );
+
+  const setWeeklyWorkoutTargetStrength = useCallback(
+    (target: number | null) => {
+      setWeeklyWorkoutTargetStrengthState(target);
+      saveAllPreferences({ weeklyWorkoutTargetStrength: target });
+    },
+    [saveAllPreferences]
+  );
+
+  const setWeeklyWorkoutTargetCardio = useCallback(
+    (target: number | null) => {
+      setWeeklyWorkoutTargetCardioState(target);
+      saveAllPreferences({ weeklyWorkoutTargetCardio: target });
+    },
+    [saveAllPreferences]
+  );
+
+  const setWeeklyCardioMinMinutes = useCallback(
+    (minutes: number) => {
+      setWeeklyCardioMinMinutesState(minutes);
+      saveAllPreferences({ weeklyCardioMinMinutes: minutes });
+    },
+    [saveAllPreferences]
+  );
+
+  const setWeeklyStrengthCounting = useCallback(
+    (mode: WeeklyStrengthCounting) => {
+      setWeeklyStrengthCountingState(mode);
+      saveAllPreferences({ weeklyStrengthCounting: mode });
+    },
+    [saveAllPreferences]
+  );
+
   // --- Effects ---
 
   useEffect(() => {
@@ -1393,10 +1515,20 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       weeklyAlcoholLimitG,
       caffeineHalfLifeHours,
       targetBedtime,
+      weeklyWorkoutTargetTotal,
+      weeklyWorkoutTargetStrength,
+      weeklyWorkoutTargetCardio,
+      weeklyCardioMinMinutes,
+      weeklyStrengthCounting,
       setCaffeineHalfLifeHours,
       setTargetBedtime,
       setWeeklyAlcoholLimitG,
       setStandardDrinkGrams,
+      setWeeklyWorkoutTargetTotal,
+      setWeeklyWorkoutTargetStrength,
+      setWeeklyWorkoutTargetCardio,
+      setWeeklyCardioMinMinutes,
+      setWeeklyStrengthCounting,
       setMeasurementDecimalPlaces: setMeasurementDecimalPlacesState,
       setChartScaleMode: setChartScaleModeState,
       setGoalMode,
@@ -1505,10 +1637,20 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({
       weeklyAlcoholLimitG,
       caffeineHalfLifeHours,
       targetBedtime,
+      weeklyWorkoutTargetTotal,
+      weeklyWorkoutTargetStrength,
+      weeklyWorkoutTargetCardio,
+      weeklyCardioMinMinutes,
+      weeklyStrengthCounting,
       setCaffeineHalfLifeHours,
       setTargetBedtime,
       setWeeklyAlcoholLimitG,
       setStandardDrinkGrams,
+      setWeeklyWorkoutTargetTotal,
+      setWeeklyWorkoutTargetStrength,
+      setWeeklyWorkoutTargetCardio,
+      setWeeklyCardioMinMinutes,
+      setWeeklyStrengthCounting,
       setGoalMode,
       setGoalModeCalculationMethod,
       setGoalModeCustomPercentage,

@@ -6,6 +6,7 @@ import {
   getExerciseDashboardData,
   getAlcoholWeekReport,
   getHydrationNutritionRange,
+  getWeeklyWorkoutGoalProgress,
   loadReportsData,
 } from '@/api/Reports/reportsService';
 import { parseStressMeasurement } from '@/utils/reportUtil';
@@ -151,6 +152,31 @@ export const useAlcoholWeekReport = (
       errorMessage: t(
         'reports.failedToLoadAlcoholWeek',
         'Failed to load weekly alcohol data.'
+      ),
+    },
+  });
+};
+
+/**
+ * Current-week progress against the user's weekly workout goals for
+ * whichever date falls in that week (mirrors useAlcoholWeekReport's
+ * date-in-week convention). `date` is typically the dashboard's
+ * selectedDate, not necessarily today.
+ */
+export const useWeeklyWorkoutGoal = (
+  date: string,
+  userId?: string | null,
+  enabled: boolean = true
+) => {
+  const { t } = useTranslation();
+  return useQuery({
+    queryKey: reportKeys.weeklyWorkoutGoal(date, userId ?? undefined),
+    queryFn: () => getWeeklyWorkoutGoalProgress(date, userId ?? undefined),
+    enabled: Boolean(date) && enabled,
+    meta: {
+      errorMessage: t(
+        'reports.failedToLoadWeeklyWorkoutGoal',
+        'Failed to load weekly workout goal.'
       ),
     },
   });

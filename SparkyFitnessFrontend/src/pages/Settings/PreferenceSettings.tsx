@@ -16,18 +16,38 @@ import { Switch } from '@/components/ui/switch';
 import { Save, Settings as SettingsIcon } from 'lucide-react';
 import { AccordionTrigger, AccordionContent } from '@/components/ui/accordion'; // Import Accordion components
 import { useTranslation } from 'react-i18next';
-import { STANDARD_DRINK_PRESETS } from '@workspace/shared';
+import {
+  STANDARD_DRINK_PRESETS,
+  WEEKLY_STRENGTH_COUNTING_MODES,
+} from '@workspace/shared';
 import {
   usePreferences,
   WeightUnit,
   MeasurementUnit,
 } from '@/contexts/PreferencesContext';
-import type { ChartScaleMode } from '@workspace/shared';
+import type { ChartScaleMode, WeeklyStrengthCounting } from '@workspace/shared';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { DayOfWeek } from '@/types/settings';
 import { TimezoneSelect } from './TimezoneSelect';
+
+// Short, human copy for the two counting modes -- keyed the same way
+// firstDayOfWeek's day list below pairs a translation key with its English
+// fallback, so a dynamic t(tKey, label) call still resolves at runtime.
+const WEEKLY_STRENGTH_COUNTING_COPY: Record<
+  WeeklyStrengthCounting,
+  { tKey: string; label: string }
+> = {
+  any_strength: {
+    tKey: 'settings.preferences.weeklyStrengthCountingAnyStrength',
+    label: 'Count any strength-looking session',
+  },
+  explicit_only: {
+    tKey: 'settings.preferences.weeklyStrengthCountingExplicitOnly',
+    label: "Only count sessions I've explicitly tagged as strength",
+  },
+};
 
 export const PreferenceSettings = () => {
   const { t } = useTranslation();
@@ -70,6 +90,16 @@ export const PreferenceSettings = () => {
     setCaffeineHalfLifeHours,
     targetBedtime,
     setTargetBedtime,
+    weeklyWorkoutTargetTotal,
+    setWeeklyWorkoutTargetTotal,
+    weeklyWorkoutTargetStrength,
+    setWeeklyWorkoutTargetStrength,
+    weeklyWorkoutTargetCardio,
+    setWeeklyWorkoutTargetCardio,
+    weeklyCardioMinMinutes,
+    setWeeklyCardioMinMinutes,
+    weeklyStrengthCounting,
+    setWeeklyStrengthCounting,
     saveAllPreferences,
   } = usePreferences();
 
@@ -104,6 +134,11 @@ export const PreferenceSettings = () => {
         weeklyAlcoholLimitG,
         caffeineHalfLifeHours,
         targetBedtime,
+        weeklyWorkoutTargetTotal,
+        weeklyWorkoutTargetStrength,
+        weeklyWorkoutTargetCardio,
+        weeklyCardioMinMinutes,
+        weeklyStrengthCounting,
       });
       toast({
         title: t('settings.preferences.successTitle', 'Success'),
@@ -406,6 +441,150 @@ export const PreferenceSettings = () => {
               value={targetBedtime}
               onChange={(e) => setTargetBedtime(e.target.value)}
             />
+          </div>
+          <div>
+            <Label htmlFor="weekly_workout_target_total">
+              {t(
+                'settings.preferences.weeklyWorkoutTargetTotal',
+                'Weekly Workout Target (Sessions)'
+              )}
+            </Label>
+            <Input
+              id="weekly_workout_target_total"
+              type="number"
+              min={1}
+              step="1"
+              placeholder={t(
+                'settings.preferences.noWeeklyWorkoutGoal',
+                'No goal set'
+              )}
+              value={
+                weeklyWorkoutTargetTotal != null
+                  ? String(weeklyWorkoutTargetTotal)
+                  : ''
+              }
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                const parsed = parseInt(val, 10);
+                if (!val || !Number.isFinite(parsed) || parsed <= 0) {
+                  setWeeklyWorkoutTargetTotal(null);
+                } else {
+                  setWeeklyWorkoutTargetTotal(parsed);
+                }
+              }}
+            />
+          </div>
+          <div>
+            <Label htmlFor="weekly_workout_target_strength">
+              {t(
+                'settings.preferences.weeklyWorkoutTargetStrength',
+                'Weekly Strength Target (Sessions)'
+              )}
+            </Label>
+            <Input
+              id="weekly_workout_target_strength"
+              type="number"
+              min={1}
+              step="1"
+              placeholder={t(
+                'settings.preferences.noWeeklyWorkoutGoal',
+                'No goal set'
+              )}
+              value={
+                weeklyWorkoutTargetStrength != null
+                  ? String(weeklyWorkoutTargetStrength)
+                  : ''
+              }
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                const parsed = parseInt(val, 10);
+                if (!val || !Number.isFinite(parsed) || parsed <= 0) {
+                  setWeeklyWorkoutTargetStrength(null);
+                } else {
+                  setWeeklyWorkoutTargetStrength(parsed);
+                }
+              }}
+            />
+          </div>
+          <div>
+            <Label htmlFor="weekly_workout_target_cardio">
+              {t(
+                'settings.preferences.weeklyWorkoutTargetCardio',
+                'Weekly Cardio Target (Sessions)'
+              )}
+            </Label>
+            <Input
+              id="weekly_workout_target_cardio"
+              type="number"
+              min={1}
+              step="1"
+              placeholder={t(
+                'settings.preferences.noWeeklyWorkoutGoal',
+                'No goal set'
+              )}
+              value={
+                weeklyWorkoutTargetCardio != null
+                  ? String(weeklyWorkoutTargetCardio)
+                  : ''
+              }
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                const parsed = parseInt(val, 10);
+                if (!val || !Number.isFinite(parsed) || parsed <= 0) {
+                  setWeeklyWorkoutTargetCardio(null);
+                } else {
+                  setWeeklyWorkoutTargetCardio(parsed);
+                }
+              }}
+            />
+          </div>
+          <div>
+            <Label htmlFor="weekly_cardio_min_minutes">
+              {t(
+                'settings.preferences.weeklyCardioMinMinutes',
+                'Cardio Minimum Session Length (Minutes)'
+              )}
+            </Label>
+            <Input
+              id="weekly_cardio_min_minutes"
+              type="number"
+              min={1}
+              step="1"
+              value={weeklyCardioMinMinutes}
+              onChange={(e) =>
+                setWeeklyCardioMinMinutes(
+                  Math.max(1, parseInt(e.target.value, 10) || 20)
+                )
+              }
+            />
+          </div>
+          <div>
+            <Label htmlFor="weekly_strength_counting">
+              {t(
+                'settings.preferences.weeklyStrengthCounting',
+                'Strength Session Counting'
+              )}
+            </Label>
+            <Select
+              value={weeklyStrengthCounting}
+              onValueChange={(value) =>
+                setWeeklyStrengthCounting(value as WeeklyStrengthCounting)
+              }
+            >
+              <SelectTrigger id="weekly_strength_counting">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WEEKLY_STRENGTH_COUNTING_MODES.map((mode) => (
+                  <SelectItem key={mode} value={mode}>
+                    {t(
+                      WEEKLY_STRENGTH_COUNTING_COPY[mode].tKey,
+                      WEEKLY_STRENGTH_COUNTING_COPY[mode].label
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label htmlFor="measurement_decimal_places">
