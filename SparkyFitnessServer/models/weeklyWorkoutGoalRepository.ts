@@ -36,11 +36,22 @@ const NON_EMPTY_PRESET_SESSION = `(
  * needs: the session's own workout_type tag, its preset's workout_type (if
  * started from one), and each child exercise's workout_type/modality/duration.
  *
- * A session with zero exercise_entries (but a real activity-detail row, e.g. a
- * raw provider sync with no structured entries) still appears, with an empty
- * `exercises` array — it can only classify via the session/preset tag, and
- * still counts toward completed_total either way (computeWeeklyProgress's
- * total is type-agnostic).
+ * "Session" here matches the established definition in
+ * exerciseEntryHistoryService.ts's countExerciseEntrySessions/
+ * getExerciseEntryHistorySessions (NON_EMPTY_PRESET_SESSION UNION ALL
+ * standalone exercise_entries): a non-empty exercise_preset_entries row, OR a
+ * plain exercise_entries row with no preset parent (exercise_preset_entry_id
+ * IS NULL) -- the shape `log_exercise` writes for a bare, non-preset log.
+ * Querying only exercise_preset_entries (an earlier version of this function)
+ * silently excluded every standalone log_exercise entry from every leg of
+ * weekly-goal counting, found live against a real dev-DB entry rather than by
+ * the mocked-repository unit tests, which shared the same blind spot.
+ *
+ * A preset session with zero exercise_entries (but a real activity-detail
+ * row, e.g. a raw provider sync with no structured entries) still appears,
+ * with an empty `exercises` array — it can only classify via the session/
+ * preset tag, and still counts toward completed_total either way
+ * (computeWeeklyProgress's total is type-agnostic).
  */
 async function getWeeklySessions(
   userId: string,
@@ -72,7 +83,25 @@ async function getWeeklySessions(
          AND epe.entry_date BETWEEN $2 AND $3
          AND ${NON_EMPTY_PRESET_SESSION}
        GROUP BY epe.id, epe.workout_type, wp.workout_type
-       ORDER BY epe.entry_date ASC, epe.created_at ASC`,
+
+       UNION ALL
+
+       SELECT
+         standalone.id,
+         NULL::text AS session_workout_type,
+         NULL::text AS preset_workout_type,
+         json_build_array(
+           json_build_object(
+             'workout_type', e.workout_type,
+             'modality', e.modality,
+             'duration_minutes', standalone.duration_minutes
+           )
+         ) AS exercises
+       FROM exercise_entries standalone
+       LEFT JOIN exercises e ON e.id = standalone.exercise_id
+       WHERE standalone.user_id = $1
+         AND standalone.entry_date BETWEEN $2 AND $3
+         AND standalone.exercise_preset_entry_id IS NULL`,
       [userId, weekStart, weekEnd]
     );
     return result.rows;
