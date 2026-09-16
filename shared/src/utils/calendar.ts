@@ -1,4 +1,4 @@
-import { addDays } from "./timezone.ts";
+import { addDays, dayOfWeek } from "./timezone.ts";
 
 // ---------------------------------------------------------------------------
 // Month-grid construction (no timezone needed — pure day-string arithmetic)
@@ -55,4 +55,25 @@ export function buildMonthGrid(
  */
 export function orderedDaysOfWeek(firstDayOfWeek: number): number[] {
   return Array.from({ length: 7 }, (_, i) => (firstDayOfWeek + i) % 7);
+}
+
+export interface WeekBounds {
+  weekStart: string;
+  weekEnd: string;
+}
+
+/**
+ * The 7-day window containing `date`, aligned to the user's preferred first
+ * day of the week. Extracted from alcoholWeekService's inline calculation
+ * (phase 5) so every weekly rollup (alcohol, workout goals, future ones)
+ * shares one boundary implementation.
+ *
+ * @param date - calendar day string YYYY-MM-DD
+ * @param firstDayOfWeek - 0 = Sunday, 1 = Monday, ... 6 = Saturday
+ */
+export function weekBounds(date: string, firstDayOfWeek: number): WeekBounds {
+  const offset = (dayOfWeek(date) - firstDayOfWeek + 7) % 7;
+  const weekStart = addDays(date, -offset);
+  const weekEnd = addDays(weekStart, 6);
+  return { weekStart, weekEnd };
 }

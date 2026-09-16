@@ -6,6 +6,7 @@ import {
   MIN_CALORIE_SAFETY_FLOOR,
 } from "../../constants/calorieConstants.ts";
 import { CHART_SCALE_MODES } from "../../constants/chartConstants.ts";
+import { WEEKLY_STRENGTH_COUNTING_MODES } from "../../workouts/weeklyGoal.ts";
 
 export const SUPPORTED_TIME_FORMATS = ["HH:mm", "h:mm A", "h:mm a"] as const;
 
@@ -82,6 +83,11 @@ export const userPreferencesSchema = z.object({
   caffeine_half_life_hours: z.number().min(2).max(8),
   target_bedtime: z.string(),
   water_goal_ml: z.number().positive().nullable().optional(),
+  weekly_workout_target_total: z.number().int().positive().nullable(),
+  weekly_workout_target_strength: z.number().int().positive().nullable(),
+  weekly_workout_target_cardio: z.number().int().positive().nullable(),
+  weekly_cardio_min_minutes: z.number().int().positive(),
+  weekly_strength_counting: z.enum(WEEKLY_STRENGTH_COUNTING_MODES),
 });
 
 export const userPreferencesInitializerSchema = z.object({
@@ -162,6 +168,28 @@ export const userPreferencesInitializerSchema = z.object({
   caffeine_half_life_hours: z.number().min(2).max(8).optional(),
   target_bedtime: z.string().optional(),
   water_goal_ml: z.number().positive().nullable().optional(),
+  weekly_workout_target_total: z
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional(),
+  weekly_workout_target_strength: z
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional(),
+  weekly_workout_target_cardio: z
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional(),
+  weekly_cardio_min_minutes: z.number().int().positive().optional(),
+  weekly_strength_counting: z
+    .enum(WEEKLY_STRENGTH_COUNTING_MODES)
+    .optional(),
 });
 
 export const userPreferencesMutatorSchema = z.object({
@@ -242,6 +270,28 @@ export const userPreferencesMutatorSchema = z.object({
   caffeine_half_life_hours: z.number().min(2).max(8).optional(),
   target_bedtime: z.string().optional(),
   water_goal_ml: z.number().positive().nullable().optional(),
+  weekly_workout_target_total: z
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional(),
+  weekly_workout_target_strength: z
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional(),
+  weekly_workout_target_cardio: z
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional(),
+  weekly_cardio_min_minutes: z.number().int().positive().optional(),
+  weekly_strength_counting: z
+    .enum(WEEKLY_STRENGTH_COUNTING_MODES)
+    .optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
