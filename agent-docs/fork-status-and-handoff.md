@@ -4,7 +4,120 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16** (`165c3910d` on `main`):
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16** (`5fcbf4519` on `main`):
+**Phase 5 of the workout-mapping plan** (full plan:
+`C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
+merged, and live: weekly workout goals (total/strength/cardio session targets, a cardio-minutes
+floor, and an any_strength/explicit_only counting-mode switch), built contract-first + two parallel
+worktree lanes (5A backend, 5B frontend) the same way as phases 2-4.
+
+**Contract**: migration `20260916100000_add_weekly_workout_goals.sql` adds
+`user_preferences.weekly_workout_target_total/strength/cardio` (nullable, positive CHECK — NULL
+means no goal set), `weekly_cardio_min_minutes` (NOT NULL DEFAULT 20), `weekly_strength_counting`
+(NOT NULL DEFAULT `'any_strength'`, CHECK IN `('any_strength','explicit_only')`). New pure module
+`shared/src/workouts/weeklyGoal.ts`: `resolveWeeklyGoalPolicy` (raw prefs → policy with defaults),
+`classifySession` (session tag → preset tag → duration-weighted majority across exercise tags →,
+under `any_strength` only, a last-resort exercise-modality guess; `explicit_only` returns `null`
+instead of guessing), `computeWeeklyProgress` (total is type-agnostic; cardio only counts once a
+session's duration meets `cardio_min_minutes`). `weekBounds(date, firstDayOfWeek)` extracted into
+`shared/src/utils/calendar.ts` from `alcoholWeekService.ts`'s own inline calc, now shared by both.
+
+**Lane 5A (backend)**: new `services/weeklyWorkoutGoalService.ts` + `models/
+weeklyWorkoutGoalRepository.ts` + `GET /api/v2/reports/weekly-workout-goal?date=`, deliberately its
+**own router** mounted ahead of `reportRoutesV2` at the same `/api/v2/reports` prefix and gated on
+the **`diary`** tier (not `reportRoutes.ts`'s `reports` tier) — matches every other route reading
+this same session data (`exerciseEntryRoutes`, `plannedWorkoutRoutes`); `reportRoutes.ts`'s
+`router.use(checkPermissionMiddleware('reports'))` runs unconditionally for every request that
+reaches it, so a route added there couldn't opt out of that tier. New MCP action
+`get_weekly_progress` on the existing `sparky_manage_planned_workouts` tool (no new tool).
+`alcoholWeekService.ts` refactored onto the shared `weekBounds`. Along the way, fixed a real
+latent bug in `preferenceRepository.upsertUserPreferences`: the two NOT-NULL-defaulted columns
+(`weekly_cardio_min_minutes`/`weekly_strength_counting`) would have silently reverted to their
+defaults on any settings save that omitted them, the same bug class already documented for
+`chart_scale_mode` — fixed by reading the "was this key present" flag directly in the ON CONFLICT
+branch instead of a plain `COALESCE`.
+
+**Lane 5B (frontend)**: "Weekly Workout Goals" block in `PreferenceSettings.tsx` (5 fields, `<Select>`
+for counting mode) + matching `PreferencesContext.tsx` plumbing; a compact `WeeklyGoalChip` on
+`pages/Home/WorkoutCard.tsx` ("This week: 4/4 · S 2/2 · C 2/1", one line appended under the existing
+text stack in each of the card's status branches, colored to the workout accent once every *set*
+leg is met, hidden entirely when no leg has a target) — chosen over a second progress ring since the
+tile is one of three in a `grid-cols-3` row with no room for multiple rings. New `api/Reports/
+reportsService.ts`/`hooks/Reports/useReports.ts` additions (`getWeeklyWorkoutGoalProgress`/
+`useWeeklyWorkoutGoal`), matching the existing alcohol-week client/hook exactly rather than the
+per-feature file split the lane brief suggested — checked the real convention first.
+
+**A real bug found live, not by either lane's unit tests**: `weeklyWorkoutGoalRepository
+.getWeeklySessions` originally queried only `exercise_preset_entries`, so a workout logged via a
+bare `log_exercise` MCP call (or the app's own single-exercise manual log) — `exercise_entries` with
+`exercise_preset_entry_id IS NULL`, a completely normal, common shape — was invisible to every leg
+of weekly-goal counting, including the type-agnostic total. The codebase's own established
+definition of "a session" (`exerciseEntryHistoryService.ts`'s `NON_EMPTY_PRESET_SESSION` UNION ALL
+standalone `exercise_entries`) already covered this; the new repository just hadn't matched it.
+Found by signing up a throwaway dev account, logging a bare exercise over the real MCP HTTP
+transport, and seeing `completed_total` stay 0 — the mocked-repository unit tests couldn't catch it
+because their mocks already assumed the incomplete query shape. Fixed with a `UNION ALL` matching
+the established pattern, and locked in with a new `weeklyWorkoutGoal.integration.test.ts` against
+the real dev DB proving both branches count and that `any_strength`/`explicit_only` behave correctly
+against real Postgres data (not just mocks).
+
+**Gotcha found during dev-stack verification, worth remembering**: after editing a file directly
+(not through a shell command) while the dev backend container was already running, `nodemon`
+*appeared* to restart (fresh startup lines in `docker logs --tail`) but was actually just showing
+the tail of the **original** startup — the edit was never picked up. A real `docker restart
+docker-sparkyfitness-server-1` was needed before the fix took effect. If a code change doesn't seem
+to take effect on this dev stack even after `docker logs` shows a "clean" nodemon startup, restart
+the container explicitly rather than trusting the log tail — Windows bind-mount file-change events
+into the container are not fully reliable.
+
+**Second gotcha, cleanup-specific**: like `exercises.user_id`, `user_preferences.user_id` has **no
+FK at all** to `"user"(id)` (confirmed via `pg_constraint` — zero FKs targeting `"user"`) — a raw
+`DELETE FROM "user"` during throwaway-account cleanup leaves an orphaned `user_preferences` row
+behind. Delete `user_preferences` explicitly (before or after the user row) when cleaning up a
+throwaway account by hand, the same way `exercises` already needs to be. Also confirmed (by
+accident, then fixed): the generic `PUT`/`POST /api/user-preferences` endpoints can never clear a
+nullable preference field back to `NULL` once set — `COALESCE($n, column)` treats an explicit
+`null` in the payload the same as "not provided." This is pre-existing and applies equally to
+`weekly_alcohol_limit_g`/`water_goal_ml`/the three new weekly targets, not a phase 5 regression; if
+a future session wants a real "clear to unset" UX for any of these, it needs the same explicit
+"key present" pattern already used for `default_barcode_provider_id`/`active_ai_service_id`, not a
+plain `COALESCE`.
+
+Verified: `tsc -b` clean across shared/backend/frontend, backend lint clean, frontend lint+knip
+clean (zero new flags), full backend suite **252 suites / 3052 tests** passing (vitest), full
+frontend suite **115 suites / 1065 tests** passing (jest), all 6 DB-backed integration suites
+(`rlsPermissionMatrix`, `schemaParity`, `exerciseEntryStats`, `workoutSessionIntegrity`,
+`plannedWorkoutSync`, the new `weeklyWorkoutGoal`) green against the dev DB, `pnpm run
+test:migrations` idempotent re-run clean, RLS still enabled on `user_preferences`. Live-verified in
+the local dev stack via a disposable signup account over the real MCP HTTP transport (not just REST)
+— set goals, logged a standalone exercise, confirmed `any_strength` vs `explicit_only` both count
+and classify correctly against real data — then in the browser via Playwright against the seeded
+demo account (Settings block renders and persists all 5 fields; Home chip renders "This week: 4/4 ·
+S 2/2 · C 2/1" in the workout accent color when every set leg is met, and disappears entirely once
+targets are cleared back to unset) — demo account's own real data confirmed untouched afterward.
+Then repeated the full disposable-account MCP round trip against **production** post-deploy,
+cascade-cleaned to 0 rows across `user`/`exercises`/`user_preferences`/`exercise_entries`
+afterward; confirmed the new tool description and REST endpoint live on the real
+`https://sparkyfitness.tail854f4e.ts.net` domain, and confirmed the redeployed frontend serves a
+clean login page post-deploy.
+
+Deployed to Pi5: both images tagged `pre-0c96a3046` before rebuild, `pg_dump -Fc` backup taken and
+verified restorable (`pg_restore --list`, 1004 TOC entries), copied to
+`C:\dev\SparkyFitness-backups\db\`, `--no-cache` build of both images (repo-root context) from
+`/home/pi1/sparkyfitness-build`, confirmed the built backend image actually contains the fixed
+`weeklyWorkoutGoalRepository.ts` (`docker create`+`docker cp`+grep) and the built frontend image
+contains the new translation keys before deploying, Hermes stopped before and restarted after (a
+two-service deploy, same as Phase 3), `docker compose up -d --force-recreate` both services,
+confirmed both `healthy` and the migration columns present, `docker builder prune -af` (3.9GB
+reclaimed).
+
+**Not done yet, deliberately out of scope**: Phase 6's data-repair script for the 5 known-bad
+production phantom rows — still open, still untouched, still real safety-critical work deserving
+its own focused session.
+
+---
+
+**Previous entry, also shipped 2026-09-16** (`165c3910d` on `main`):
 **Phase 4 of the workout-mapping plan** (full plan:
 `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
 merged, and live. Backend/MCP-only, on top of Phase 2's `planned_workouts` domain and Phase 3's
