@@ -10,6 +10,8 @@ import {
   DEFAULT_CUSTOM_CALORIE_SAFETY_FLOOR,
   CHART_SCALE_MODES,
   DEFAULT_CHART_SCALE_MODE,
+  WEEKLY_STRENGTH_COUNTING_MODES,
+  isWeeklyStrengthCounting,
   type UserPreferencesMutator,
 } from '@workspace/shared';
 
@@ -28,6 +30,17 @@ type CalorieSafetyFloorPreferenceInput = Partial<
 >;
 type ChartScaleModePreferenceInput = Partial<
   Pick<UserPreferencesMutator, 'chart_scale_mode'>
+>;
+/** The subset of preference fields `validateWeeklyGoalPreferences` inspects. */
+type WeeklyGoalPreferenceInput = Partial<
+  Pick<
+    UserPreferencesMutator,
+    | 'weekly_workout_target_total'
+    | 'weekly_workout_target_strength'
+    | 'weekly_workout_target_cardio'
+    | 'weekly_cardio_min_minutes'
+    | 'weekly_strength_counting'
+  >
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function validateTimezone(preferenceData: any) {
@@ -155,6 +168,65 @@ async function validateChartScaleMode(
     );
   }
 }
+// A positive-or-null integer target; nullable fields clear the goal, so
+// `null` and `undefined` are both left alone here and only a genuinely
+// provided invalid value throws.
+function validatePositiveIntegerTarget(
+  fieldName: string,
+  value: number | null | undefined
+) {
+  if (value === undefined || value === null) return;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw Object.assign(
+      new Error(
+        `Invalid ${fieldName}: '${value}'. Must be a positive integer.`
+      ),
+      { status: 400 }
+    );
+  }
+}
+
+async function validateWeeklyGoalPreferences(
+  preferenceData: WeeklyGoalPreferenceInput
+) {
+  validatePositiveIntegerTarget(
+    'weekly_workout_target_total',
+    preferenceData.weekly_workout_target_total
+  );
+  validatePositiveIntegerTarget(
+    'weekly_workout_target_strength',
+    preferenceData.weekly_workout_target_strength
+  );
+  validatePositiveIntegerTarget(
+    'weekly_workout_target_cardio',
+    preferenceData.weekly_workout_target_cardio
+  );
+  // Unlike the three targets above, this one is NOT NULL in the DB (default
+  // 20) -- a genuinely provided null is also invalid, not a "clear" signal.
+  if (preferenceData.weekly_cardio_min_minutes !== undefined) {
+    const value = preferenceData.weekly_cardio_min_minutes;
+    if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+      throw Object.assign(
+        new Error(
+          `Invalid weekly_cardio_min_minutes: '${value}'. Must be a positive integer.`
+        ),
+        { status: 400 }
+      );
+    }
+  }
+  if (
+    preferenceData.weekly_strength_counting !== undefined &&
+    !isWeeklyStrengthCounting(preferenceData.weekly_strength_counting)
+  ) {
+    throw Object.assign(
+      new Error(
+        `Invalid weekly_strength_counting: '${preferenceData.weekly_strength_counting}'. Must be one of: ${WEEKLY_STRENGTH_COUNTING_MODES.join(', ')}.`
+      ),
+      { status: 400 }
+    );
+  }
+}
+
 function getDefaultPreferences() {
   return {
     calorie_goal_adjustment_mode: 'dynamic',
@@ -180,6 +252,7 @@ async function updateUserPreferences(
     await validateGoalMode(preferenceData);
     await validateCalorieSafetyFloor(preferenceData);
     await validateChartScaleMode(preferenceData);
+    await validateWeeklyGoalPreferences(preferenceData);
     const updatedPreferences = await preferenceRepository.updateUserPreferences(
       targetUserId,
       preferenceData
@@ -285,6 +358,7 @@ async function upsertUserPreferences(
     await validateGoalMode(preferenceData);
     await validateCalorieSafetyFloor(preferenceData);
     await validateChartScaleMode(preferenceData);
+    await validateWeeklyGoalPreferences(preferenceData);
     preferenceData.user_id = authenticatedUserId; // Ensure user_id is set from authenticated user
     // Provide a default for calorie_goal_adjustment_mode if it's not present
     if (!preferenceData.calorie_goal_adjustment_mode) {

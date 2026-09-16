@@ -16,6 +16,12 @@ vi.mock('../services/plannedWorkoutService.js', () => ({
   },
 }));
 
+vi.mock('../services/weeklyWorkoutGoalService.js', () => ({
+  default: {
+    getWeeklyWorkoutGoalProgress: vi.fn(),
+  },
+}));
+
 vi.mock('../models/workoutPresetRepository.js', () => ({
   default: {
     getWorkoutPresetByName: vi.fn(),
@@ -31,6 +37,7 @@ vi.mock('../config/logging.js', () => ({
 }));
 
 import plannedWorkoutService from '../services/plannedWorkoutService.js';
+import weeklyWorkoutGoalService from '../services/weeklyWorkoutGoalService.js';
 import workoutPresetRepository from '../models/workoutPresetRepository.js';
 import { findExerciseByExactName } from '../ai/tools/exerciseTools.js';
 import { buildPlannedWorkoutTools } from '../ai/tools/plannedWorkoutTools.js';
@@ -60,6 +67,10 @@ const svc = plannedWorkoutService as unknown as {
 
 const presetRepo = workoutPresetRepository as unknown as {
   getWorkoutPresetByName: ReturnType<typeof vi.fn>;
+};
+
+const weeklyGoalSvc = weeklyWorkoutGoalService as unknown as {
+  getWeeklyWorkoutGoalProgress: ReturnType<typeof vi.fn>;
 };
 
 const findExerciseMock = findExerciseByExactName as unknown as ReturnType<
@@ -593,6 +604,94 @@ describe('sparky_manage_planned_workouts', () => {
       );
       expect(result).toContain('# Workout skipped');
       expect(result).toContain('status: skipped');
+    });
+  });
+
+  describe('get_weekly_progress', () => {
+    const PROGRESS = {
+      week_start: '2026-07-06',
+      week_end: '2026-07-12',
+      target_total: 3,
+      target_strength: 2,
+      target_cardio: 1,
+      cardio_min_minutes: 20,
+      strength_counting: 'any_strength' as const,
+      completed_total: 2,
+      completed_strength: 1,
+      completed_cardio: 0,
+      total_met: false,
+      strength_met: false,
+      cardio_met: false,
+    };
+
+    it('defaults to today when no date is given', async () => {
+      weeklyGoalSvc.getWeeklyWorkoutGoalProgress.mockResolvedValue(PROGRESS);
+      const result = await getTool().execute!(
+        { action: 'get_weekly_progress' },
+        opts
+      );
+      expect(weeklyGoalSvc.getWeeklyWorkoutGoalProgress).toHaveBeenCalledWith(
+        USER_ID,
+        '2026-07-10'
+      );
+      expect(result).toContain(
+        '# Weekly Workout Goal Progress: 2026-07-06 to 2026-07-12'
+      );
+      expect(result).toContain('completed_total: 2');
+      expect(result).toContain('target_total: 3');
+      expect(result).toContain('completed_strength: 1');
+      expect(result).toContain('target_strength: 2');
+      expect(result).toContain('completed_cardio: 0');
+      expect(result).toContain('target_cardio: 1');
+      expect(result).toContain('cardio_min_minutes: 20');
+      expect(result).toContain('strength_counting: any_strength');
+    });
+
+    it('uses an explicit date instead of today', async () => {
+      weeklyGoalSvc.getWeeklyWorkoutGoalProgress.mockResolvedValue(PROGRESS);
+      await getTool().execute!(
+        { action: 'get_weekly_progress', date: '2026-07-01' },
+        opts
+      );
+      expect(weeklyGoalSvc.getWeeklyWorkoutGoalProgress).toHaveBeenCalledWith(
+        USER_ID,
+        '2026-07-01'
+      );
+    });
+
+    it('omits target/met fields for goals that are not set', async () => {
+      weeklyGoalSvc.getWeeklyWorkoutGoalProgress.mockResolvedValue({
+        ...PROGRESS,
+        target_total: null,
+        target_strength: null,
+        target_cardio: null,
+        total_met: null,
+        strength_met: null,
+        cardio_met: null,
+      });
+      const result = await getTool().execute!(
+        { action: 'get_weekly_progress' },
+        opts
+      );
+      expect(result).not.toContain('target_total');
+      expect(result).not.toContain('target_strength');
+      expect(result).not.toContain('target_cardio');
+      expect(result).not.toContain('total_met');
+      expect(result).not.toContain('strength_met');
+      expect(result).not.toContain('cardio_met');
+      // The type-agnostic counts are still shown.
+      expect(result).toContain('completed_total: 2');
+    });
+
+    it('returns DB_ERROR for an unexpected, non-status error', async () => {
+      weeklyGoalSvc.getWeeklyWorkoutGoalProgress.mockRejectedValue(
+        new Error('boom')
+      );
+      const result = await getTool().execute!(
+        { action: 'get_weekly_progress' },
+        opts
+      );
+      expect(result).toBe(DB_ERROR_TEXT);
     });
   });
 

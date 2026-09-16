@@ -73,6 +73,7 @@ export const PLANNED_WORKOUT_ACTIONS = [
   'revert',
   'complete',
   'skip',
+  'get_weekly_progress',
 ] as const;
 
 const listPlannedSchema = z
@@ -93,6 +94,18 @@ const getDaySchema = z
     date: optionalDateSchema.describe('Date to inspect (defaults to today)'),
   })
   .strict();
+
+const getWeeklyProgressSchema = z
+  .object({
+    action: z.literal('get_weekly_progress'),
+    date: optionalDateSchema.describe(
+      'Any date within the target week (defaults to today)'
+    ),
+  })
+  .strict()
+  .describe(
+    "Weekly workout-goal progress (sessions/week targets for total/strength/cardio) for the 7-day week containing `date`, aligned to the user's first day of week."
+  );
 
 const createSchema = z
   .object({
@@ -196,6 +209,7 @@ export const managePlannedWorkoutsSchema = z.discriminatedUnion('action', [
   revertSchema,
   completeSchema,
   skipSchema,
+  getWeeklyProgressSchema,
 ]);
 
 export type ManagePlannedWorkoutsInput = z.infer<
