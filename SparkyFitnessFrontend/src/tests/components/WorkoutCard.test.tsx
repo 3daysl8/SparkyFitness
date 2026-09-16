@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { todayInZone } from '@workspace/shared';
-import type { ExerciseSessionResponse } from '@workspace/shared';
+import type {
+  ExerciseSessionResponse,
+  WeeklyWorkoutGoalProgressResponse,
+} from '@workspace/shared';
 import WorkoutCard from '@/pages/Home/WorkoutCard';
 
 const mockNavigate = jest.fn();
@@ -14,6 +17,10 @@ const PAST_DATE = '2020-01-01';
 jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
+
+jest.mock('react-i18next', () =>
+  jest.requireActual('@/tests/mocks/reactI18next')
+);
 
 jest.mock('@/contexts/PreferencesContext', () => ({
   usePreferences: () => ({ weightUnit: 'kg', timezone: 'UTC' }),
@@ -39,6 +46,33 @@ jest.mock('@/hooks/Exercises/usePlannedWorkouts', () => ({
     mockUsePlannedWorkoutDayView(...args),
 }));
 
+const mockUseWeeklyWorkoutGoal = jest.fn();
+jest.mock('@/hooks/Reports/useReports', () => ({
+  useWeeklyWorkoutGoal: (...args: unknown[]) =>
+    mockUseWeeklyWorkoutGoal(...args),
+}));
+
+function weeklyGoal(
+  overrides: Partial<WeeklyWorkoutGoalProgressResponse> = {}
+): WeeklyWorkoutGoalProgressResponse {
+  return {
+    week_start: '2026-09-13',
+    week_end: '2026-09-19',
+    target_total: null,
+    target_strength: null,
+    target_cardio: null,
+    cardio_min_minutes: 20,
+    strength_counting: 'any_strength',
+    completed_total: 0,
+    completed_strength: 0,
+    completed_cardio: 0,
+    total_met: null,
+    strength_met: null,
+    cardio_met: null,
+    ...overrides,
+  };
+}
+
 describe('WorkoutCard', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
@@ -47,6 +81,7 @@ describe('WorkoutCard', () => {
     mockUsePlannedWorkoutDayView
       .mockReset()
       .mockReturnValue({ data: undefined });
+    mockUseWeeklyWorkoutGoal.mockReset().mockReturnValue({ data: undefined });
     window.localStorage.clear();
   });
 
@@ -182,5 +217,96 @@ describe('WorkoutCard', () => {
 
     expect(screen.getByText('+ Start Workout')).toBeInTheDocument();
     expect(screen.queryByText(/Missed/)).not.toBeInTheDocument();
+  });
+
+  describe('weekly goal chip', () => {
+    // No preferences set at all is the common case (most users never open the
+    // goal settings) -- the chip must add nothing for them, not three blank
+    // rows of "0/null".
+    it('renders nothing when no weekly goal is set', () => {
+      mockUseWeeklyWorkoutGoal.mockReturnValue({ data: weeklyGoal() });
+
+      render(<WorkoutCard selectedDate={TODAY} />);
+
+      expect(screen.queryByText(/This week/)).not.toBeInTheDocument();
+    });
+
+    it('shows only the total leg when only a total target is set', () => {
+      mockUseWeeklyWorkoutGoal.mockReturnValue({
+        data: weeklyGoal({
+          target_total: 4,
+          completed_total: 2,
+          total_met: false,
+        }),
+      });
+
+      render(<WorkoutCard selectedDate={TODAY} />);
+
+      expect(screen.getByText('This week: 2/4')).toBeInTheDocument();
+    });
+
+    it('shows every leg that has a target, and hides one that does not', () => {
+      // Strength has no target set -- its "S x/y" segment must not appear
+      // even though strength/cardio classification is otherwise computed.
+      mockUseWeeklyWorkoutGoal.mockReturnValue({
+        data: weeklyGoal({
+          target_total: 4,
+          completed_total: 3,
+          total_met: false,
+          target_strength: null,
+          completed_strength: 1,
+          strength_met: null,
+          target_cardio: 1,
+          completed_cardio: 1,
+          cardio_met: true,
+        }),
+      });
+
+      render(<WorkoutCard selectedDate={TODAY} />);
+
+      expect(screen.getByText('This week: 3/4 · C 1/1')).toBeInTheDocument();
+      expect(screen.queryByText(/S \d\/\d/)).not.toBeInTheDocument();
+    });
+
+    it('colors the chip as met once every set target is reached', () => {
+      mockUseWeeklyWorkoutGoal.mockReturnValue({
+        data: weeklyGoal({
+          target_total: 4,
+          completed_total: 4,
+          total_met: true,
+          target_strength: 2,
+          completed_strength: 2,
+          strength_met: true,
+        }),
+      });
+
+      render(<WorkoutCard selectedDate={TODAY} />);
+
+      const chip = screen.getByText('This week: 4/4 · S 2/2');
+      expect(chip).toHaveClass('text-metric-workout');
+    });
+
+    it('renders on the scheduled-plan tile too, not just the fallback', () => {
+      mockUsePlannedWorkoutDayView.mockReturnValue({
+        data: {
+          for_date: [
+            { id: 'plan-1', title: 'Push Day', workout_preset_id: null },
+          ],
+          missed: [],
+        },
+      });
+      mockUseWeeklyWorkoutGoal.mockReturnValue({
+        data: weeklyGoal({
+          target_total: 4,
+          completed_total: 1,
+          total_met: false,
+        }),
+      });
+
+      render(<WorkoutCard selectedDate={TODAY} />);
+
+      expect(screen.getByText('Push Day')).toBeInTheDocument();
+      expect(screen.getByText('This week: 1/4')).toBeInTheDocument();
+    });
   });
 });

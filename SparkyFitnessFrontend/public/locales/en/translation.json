@@ -1253,7 +1253,11 @@
     "workoutCard": {
       "missedTitle": "{{count}} missed workouts",
       "moveToToday": "Move to today",
-      "skip": "Skip"
+      "skip": "Skip",
+      "weeklyGoalThisWeek": "This week",
+      "weeklyGoalTotal": "{{completed}}/{{target}}",
+      "weeklyGoalStrength": "S {{completed}}/{{target}}",
+      "weeklyGoalCardio": "C {{completed}}/{{target}}"
     }
   },
   "workoutPresetsManager": {
@@ -1570,6 +1574,14 @@
       "noWeeklyLimit": "No limit set",
       "caffeineHalfLife": "Caffeine Half-Life (Hours)",
       "targetBedtime": "Target Bedtime",
+      "weeklyWorkoutTargetTotal": "Weekly Workout Target (Sessions)",
+      "weeklyWorkoutTargetStrength": "Weekly Strength Target (Sessions)",
+      "weeklyWorkoutTargetCardio": "Weekly Cardio Target (Sessions)",
+      "noWeeklyWorkoutGoal": "No goal set",
+      "weeklyCardioMinMinutes": "Cardio Minimum Session Length (Minutes)",
+      "weeklyStrengthCounting": "Strength Session Counting",
+      "weeklyStrengthCountingAnyStrength": "Count any strength-looking session",
+      "weeklyStrengthCountingExplicitOnly": "Only count sessions I've explicitly tagged as strength",
       "stonesLbs": "Stones & Pounds (st/lb)",
       "successDescription": "Preferences saved.",
       "successTitle": "Success",
@@ -3590,6 +3602,7 @@
       "title": "Hydration"
     },
     "failedToLoadAlcoholWeek": "Failed to load weekly alcohol data.",
+    "failedToLoadWeeklyWorkoutGoal": "Failed to load weekly workout goal.",
     "failedToLoadHydrationTrend": "Failed to load hydration trend data.",
     "errorToastTitle": "Error",
     "signInMessage": "Please sign in to view reports.",

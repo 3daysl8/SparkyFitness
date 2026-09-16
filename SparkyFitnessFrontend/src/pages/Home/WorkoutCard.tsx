@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { todayInZone } from '@workspace/shared';
+import { useTranslation } from 'react-i18next';
+import {
+  todayInZone,
+  type WeeklyWorkoutGoalProgressResponse,
+} from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { cn } from '@/lib/utils';
@@ -9,6 +13,7 @@ import { Dumbbell, AlertTriangle } from 'lucide-react';
 import { useExerciseEntries } from '@/hooks/Exercises/useExerciseEntries';
 import { useWorkoutPreset } from '@/hooks/Exercises/useWorkoutPresets';
 import { usePlannedWorkoutDayView } from '@/hooks/Exercises/usePlannedWorkouts';
+import { useWeeklyWorkoutGoal } from '@/hooks/Reports/useReports';
 import {
   loadWorkoutPlaybackDraftFromStorage,
   getWorkoutPlaybackStats,
@@ -18,6 +23,71 @@ import {
 } from '@/utils/workoutPlayback';
 import { summarizeWorkoutSessions } from '@/utils/workoutSessionSummary';
 import { formatWeight } from '@/utils/numberFormatting';
+
+/**
+ * Compact "This week: 2/4 · S 1/2 · C 1/1" line summarizing progress against
+ * whichever weekly targets are actually set -- a leg with no target is
+ * omitted entirely (a user who only set a total goal never sees blank
+ * strength/cardio rows), and the whole chip renders nothing for a user who
+ * hasn't set any weekly goal at all. Colored to match this card's own
+ * metric-workout accent once every set leg is met, muted otherwise. Kept as
+ * its own component (rather than inline JSX) so it can be reused unchanged
+ * across this file's several early-return card variants below.
+ */
+function WeeklyGoalChip({
+  progress,
+}: {
+  progress: WeeklyWorkoutGoalProgressResponse | undefined;
+}) {
+  const { t } = useTranslation();
+  if (!progress) return null;
+
+  const legs = [
+    {
+      active: progress.target_total !== null,
+      met: progress.total_met,
+      text: t('exercise.workoutCard.weeklyGoalTotal', {
+        defaultValue: '{{completed}}/{{target}}',
+        completed: progress.completed_total,
+        target: progress.target_total,
+      }),
+    },
+    {
+      active: progress.target_strength !== null,
+      met: progress.strength_met,
+      text: t('exercise.workoutCard.weeklyGoalStrength', {
+        defaultValue: 'S {{completed}}/{{target}}',
+        completed: progress.completed_strength,
+        target: progress.target_strength,
+      }),
+    },
+    {
+      active: progress.target_cardio !== null,
+      met: progress.cardio_met,
+      text: t('exercise.workoutCard.weeklyGoalCardio', {
+        defaultValue: 'C {{completed}}/{{target}}',
+        completed: progress.completed_cardio,
+        target: progress.target_cardio,
+      }),
+    },
+  ].filter((leg) => leg.active);
+
+  if (legs.length === 0) return null;
+
+  const allMet = legs.every((leg) => leg.met === true);
+
+  return (
+    <p
+      className={cn(
+        'text-[9px] font-medium leading-tight',
+        allMet ? 'text-metric-workout' : 'text-muted-foreground'
+      )}
+    >
+      {t('exercise.workoutCard.weeklyGoalThisWeek', 'This week')}:{' '}
+      {legs.map((leg) => leg.text).join(' · ')}
+    </p>
+  );
+}
 
 /** Mirrors an in-progress playback draft persisted to localStorage for this
  * date, re-checked on storage events and tab-visibility changes (the same
@@ -76,6 +146,13 @@ export default function WorkoutCard({
     primaryPlanned?.workout_preset_id ?? undefined
   );
 
+  // Keyed off selectedDate like the rest of this component, not necessarily
+  // today -- browsing a past/future date shows that date's own week.
+  const { data: weeklyGoal } = useWeeklyWorkoutGoal(
+    selectedDate,
+    activeUserId ?? undefined
+  );
+
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     if (!activeDraft) return;
@@ -115,6 +192,7 @@ export default function WorkoutCard({
           <p className="text-sm font-semibold text-metric-workout">
             ⚡ Active ({elapsedMinutes} min{elapsedMinutes === 1 ? '' : 's'})
           </p>
+          <WeeklyGoalChip progress={weeklyGoal} />
         </div>
       </button>
     );
@@ -149,6 +227,7 @@ export default function WorkoutCard({
             {summary.durationMinutes === 1 ? '' : 's'} •{' '}
             {formatWeight(summary.volumeKg, weightUnit)}
           </p>
+          <WeeklyGoalChip progress={weeklyGoal} />
         </div>
       </button>
     );
@@ -176,6 +255,7 @@ export default function WorkoutCard({
               {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
             </p>
           )}
+          <WeeklyGoalChip progress={weeklyGoal} />
         </div>
       </>
     );
@@ -254,6 +334,7 @@ export default function WorkoutCard({
           <p className="text-sm font-semibold text-amber-700">
             {missed.length} Missed
           </p>
+          <WeeklyGoalChip progress={weeklyGoal} />
         </div>
       </div>
     );
@@ -277,6 +358,7 @@ export default function WorkoutCard({
       <div>
         <p className="text-xs font-medium text-muted-foreground">Workout</p>
         <p className="text-sm font-semibold">+ Start Workout</p>
+        <WeeklyGoalChip progress={weeklyGoal} />
       </div>
     </button>
   );
