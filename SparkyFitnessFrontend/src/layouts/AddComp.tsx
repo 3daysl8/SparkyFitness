@@ -57,8 +57,8 @@ const AddComp: React.FC<AddCompProps> = ({
           &times;
         </button>
 
-        <h2 className="text-2xl font-bold text-foreground mb-4 text-center mt-2">
-          {title || t('addComp.addNew', 'Add New')}
+        <h2 className="text-xl font-bold text-foreground mb-4 text-center mt-2">
+          {title || t('addComp.quickActions', 'Quick Actions')}
         </h2>
 
         {/* Regular grid items */}

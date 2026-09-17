@@ -4,6 +4,7 @@
     "saving": "Saving...",
     "cancel": "Cancel",
     "done": "Done",
+    "signOut": "Sign Out",
     "saveChanges": "Save Changes",
     "active": "Active",
     "pickADate": "Pick a Date",
@@ -5962,5 +5963,30 @@
       "addDaily": "Add Daily Habit",
       "allSet": "All 3 levels active and aligned"
     }
+  },
+  "nav": {
+    "home": "Home",
+    "workouts": "Workouts",
+    "focus": "Focus & Goals",
+    "checkin": "Check-In",
+    "progress": "Progress",
+    "reports": "Reports",
+    "settings": "Settings",
+    "admin": "Admin",
+    "userMenu": "User account menu",
+    "ariaLabel": "Main navigation"
+  },
+  "addComp": {
+    "addNew": "Add New",
+    "quickActions": "Quick Actions"
+  },
+  "userMenu": {
+    "profileInfo": "Profile & Info",
+    "loginSecurity": "Login & Passkeys",
+    "wellness": "Wellness & Tracking",
+    "developerIntegrations": "Developer & Integrations",
+    "adminDashboard": "Admin Dashboard",
+    "familyProfiles": "Family Profiles",
+    "myProfile": "My Profile"
   }
 }

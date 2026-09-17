@@ -7,7 +7,6 @@ import {
   Home,
   Activity, // Used for Check-In
   BarChart3,
-  Settings as SettingsIcon,
   Dumbbell, // Used for Workouts
   Compass, // Used for Focus
   Shield,
@@ -20,7 +19,7 @@ import SparkyChat from '../pages/Chat/SparkyChat';
 import AddComp from '@/layouts/AddComp';
 import ThemeToggle from '@/components/ThemeToggle';
 import GlobalSyncButton from '@/components/GlobalSyncButton';
-import ProfileSwitcher from '@/components/ProfileSwitcher';
+import UserAccountMenu from '@/components/UserAccountMenu';
 import GitHubStarCounter from '@/components/GitHubStarCounter';
 import GitHubSponsorButton from '@/components/GitHubSponsorButton';
 import GlobalNotificationIcon from '@/components/GlobalNotificationIcon';
@@ -45,12 +44,8 @@ const MainLayout: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const {
-    isActingOnBehalf,
-    hasPermission,
-    hasWritePermission,
-    activeUserName,
-  } = useActiveUser();
+  const { isActingOnBehalf, hasPermission, hasWritePermission } =
+    useActiveUser();
   const { getDateRelationToToday, loggingLevel } = usePreferences();
   debug(loggingLevel, 'MainLayout: Component rendered.');
 
@@ -61,23 +56,44 @@ const MainLayout: React.FC = () => {
     if (!isActingOnBehalf) {
       items.push(
         {
-          value: 'checkin',
-          label: t('nav.checkin', 'Check-In'),
+          value: '/checkin',
+          label: t('nav.checkin', 'Daily Check-In'),
           icon: Activity,
         },
-        { value: 'focus', label: t('nav.focus', 'Focus'), icon: Compass }
+        {
+          value: '/workouts',
+          label: t('nav.workouts', 'Start Workout'),
+          icon: Dumbbell,
+        },
+        {
+          value: '/focus',
+          label: t('nav.focus', 'Focus & Goals'),
+          icon: Compass,
+        },
+        {
+          value: '/reports',
+          label: t('nav.progress', 'Progress & History'),
+          icon: BarChart3,
+        }
       );
     } else {
       if (hasWritePermission('checkin')) {
         items.push({
-          value: 'checkin',
-          label: t('nav.checkin', 'Check-In'),
+          value: '/checkin',
+          label: t('nav.checkin', 'Daily Check-In'),
           icon: Activity,
+        });
+      }
+      if (hasPermission('reports')) {
+        items.push({
+          value: '/reports',
+          label: t('nav.reports', 'Reports'),
+          icon: BarChart3,
         });
       }
     }
     return items;
-  }, [isActingOnBehalf, hasWritePermission, t]);
+  }, [isActingOnBehalf, hasWritePermission, hasPermission, t]);
 
   const availableTabs = useMemo(() => {
     debug(loggingLevel, 'MainLayout: Calculating available tabs (desktop).', {
@@ -96,14 +112,9 @@ const MainLayout: React.FC = () => {
         },
         { value: '/focus', label: t('nav.focus', 'Focus'), icon: Compass },
         {
-          value: '/checkin',
-          label: t('nav.checkin', 'Check-In'),
-          icon: Activity,
-        },
-        {
-          value: '/settings',
-          label: t('nav.settings', 'Settings'),
-          icon: SettingsIcon,
+          value: '/reports',
+          label: t('nav.progress', 'Progress'),
+          icon: BarChart3,
         }
       );
     } else {
@@ -160,10 +171,11 @@ const MainLayout: React.FC = () => {
           label: t('common.add', 'Add'),
           icon: isAddCompOpen ? X : Plus,
         },
+        { value: '/focus', label: t('nav.focus', 'Focus'), icon: Compass },
         {
-          value: '/settings',
-          label: t('nav.settings', 'Settings'),
-          icon: SettingsIcon,
+          value: '/reports',
+          label: t('nav.progress', 'Progress'),
+          icon: BarChart3,
         }
       );
     } else {
@@ -223,19 +235,24 @@ const MainLayout: React.FC = () => {
       return true;
     }
     const currentPath = location.pathname;
-    // Match exactly or as prefix (e.g. /medications/log should match /medications)
-    return availableTabs.some((tab) => {
-      if (tab.value === '/') {
+    return (
+      availableTabs.some((tab) => {
+        if (tab.value === '/') {
+          return (
+            currentPath === '/' ||
+            currentPath === '/workout-playback' ||
+            currentPath.startsWith('/workout-playback/')
+          );
+        }
         return (
-          currentPath === '/' ||
-          currentPath === '/workout-playback' ||
-          currentPath.startsWith('/workout-playback/')
+          currentPath === tab.value || currentPath.startsWith(tab.value + '/')
         );
-      }
-      return (
-        currentPath === tab.value || currentPath.startsWith(tab.value + '/')
-      );
-    });
+      }) ||
+      currentPath === '/settings' ||
+      currentPath.startsWith('/settings') ||
+      currentPath === '/checkin' ||
+      currentPath.startsWith('/checkin')
+    );
   }, [isActingOnBehalf, availableTabs, location.pathname]);
 
   useEffect(() => {
@@ -279,15 +296,10 @@ const MainLayout: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <ProfileSwitcher />
-            <span className="text-sm text-muted-foreground hidden sm:inline">
-              {t('layout.welcome', 'Welcome {{activeUserName}}', {
-                activeUserName,
-              })}
-            </span>
             <GlobalSyncButton />
             <ThemeToggle />
             <GlobalNotificationIcon />
+            <UserAccountMenu />
           </div>
         </div>
 
