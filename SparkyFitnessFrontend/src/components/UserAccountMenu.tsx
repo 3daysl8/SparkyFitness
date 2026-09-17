@@ -17,6 +17,7 @@ import {
   User,
   KeyRound,
   Heart,
+  Bell,
   Settings as SettingsIcon,
   Users,
   Shield,
@@ -158,6 +159,16 @@ export const UserAccountMenu: React.FC = () => {
         >
           <Heart className="mr-2 h-4 w-4 text-muted-foreground" />
           <span>{t('userMenu.wellness', 'Wellness & Tracking')}</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={() =>
+            navigate('/settings?tab=wellness&section=notifications-reminders')
+          }
+          className="cursor-pointer"
+        >
+          <Bell className="mr-2 h-4 w-4 text-muted-foreground" />
+          <span>{t('userMenu.reminders', 'Reminders & Alerts')}</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem

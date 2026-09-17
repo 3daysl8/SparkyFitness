@@ -11,8 +11,8 @@ jest.mock('react-i18next', () => ({
 }));
 
 const mockCreateMutate = jest.fn(
-  (_body: unknown, options?: { onSuccess?: () => void }) =>
-    options?.onSuccess?.()
+  (_body: unknown, options?: { onSuccess?: (data?: unknown) => void }) =>
+    options?.onSuccess?.({ id: 'new-med-1', name: 'Test Med' })
 );
 const mockUpdateMutate = jest.fn(
   (_args: unknown, options?: { onSuccess?: () => void }) =>
@@ -24,10 +24,19 @@ jest.mock('@/hooks/useMedications', () => ({
     mutate: mockCreateMutate,
     isPending: false,
   }),
+  useCreateMedicationWithSchedulesMutation: () => ({
+    mutate: mockCreateMutate,
+    isPending: false,
+  }),
   useUpdateMedicationMutation: () => ({
     mutate: mockUpdateMutate,
     isPending: false,
   }),
+}));
+
+const mockAddSchedule = jest.fn().mockResolvedValue({});
+jest.mock('@/api/Medications/medicationService', () => ({
+  addSchedule: (...args: unknown[]) => mockAddSchedule(...args),
 }));
 
 const sampleMed = {
@@ -40,6 +49,20 @@ const sampleMed = {
   dose_amount: 5,
   dose_unit: 'g',
   is_active: true,
+  schedules: [
+    {
+      id: 's-1',
+      schedule_type_id: 'daily',
+      time_of_day: '08:00',
+      with_meal: null,
+    },
+    {
+      id: 's-2',
+      schedule_type_id: 'daily',
+      time_of_day: '20:00',
+      with_meal: 'with',
+    },
+  ],
 } as unknown as Medication;
 
 function openDialog(buttonText = /Add/i) {
@@ -54,16 +77,24 @@ function submitForm() {
   fireEvent.click(btn);
 }
 
-function lastCreateBody(): Partial<Medication> {
+function lastCreatePayload(): {
+  medication: Partial<Medication>;
+  schedules: Array<{ schedule_type_id: string; time_of_day?: string }>;
+} {
   const call = mockCreateMutate.mock.calls.at(-1);
   if (!call) throw new Error('createMutation.mutate was not called');
-  return call[0] as Partial<Medication>;
+  return call[0] as {
+    medication: Partial<Medication>;
+    schedules: Array<{ schedule_type_id: string; time_of_day?: string }>;
+  };
 }
 
 describe('AddMedicationDialog', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-  it('renders and allows adding a supplement', async () => {
+  it('renders and allows adding a supplement with daily schedule', async () => {
     render(<AddMedicationDialog defaultIsSupplement />);
     openDialog();
     fireEvent.change(screen.getByPlaceholderText(/Creatine Monohydrate/i), {
@@ -77,18 +108,25 @@ describe('AddMedicationDialog', () => {
     await waitFor(() => {
       expect(mockCreateMutate).toHaveBeenCalledTimes(1);
     });
-    expect(lastCreateBody()).toMatchObject({
+    expect(lastCreatePayload().medication).toMatchObject({
       name: 'Vitamin D3',
       dose_amount: 5000,
       is_supplement: true,
     });
+    expect(lastCreatePayload().schedules).toEqual([
+      expect.objectContaining({
+        schedule_type_id: 'daily',
+        time_of_day: '08:00',
+      }),
+    ]);
   });
 
-  it('renders with editMed pre-filled', () => {
+  it('renders with editMed pre-filled including 2x daily schedule', () => {
     render(<AddMedicationDialog editMed={sampleMed} />);
     openDialog();
     expect(screen.getByPlaceholderText(/Creatine Monohydrate/i)).toHaveValue(
       'Creatine Monohydrate'
     );
+    expect(screen.getByText('Schedule & Daily Timing')).toBeInTheDocument();
   });
 });

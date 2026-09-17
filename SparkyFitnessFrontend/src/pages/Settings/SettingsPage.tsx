@@ -10,6 +10,7 @@ import {
   User,
   Database,
   Heart,
+  Bell,
 } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import FamilyAccessManager from './FamilyAccessManager';
@@ -27,6 +28,7 @@ import { DeveloperResources } from './DevloperResources';
 import { AccountSecurity } from './AccountSecurity';
 import { ApiSettings } from './ApiSettings';
 import { WaterTrackingSettings } from './WaterTrackingSettings';
+import { NotificationSettings } from './NotificationSettings';
 import CalendarFeedSettings from './CalendarFeedSettings';
 import { PreferenceSettings } from './PreferenceSettings';
 import { ProfileInformation } from './ProfileInformation';
@@ -44,6 +46,7 @@ const SECTION_TO_TAB_MAP: Record<string, string> = {
   'account-security': 'profile-account',
   'family-access': 'profile-account',
   'data-management': 'profile-account',
+  'notifications-reminders': 'wellness',
   'water-tracking': 'wellness',
   'custom-categories': 'wellness',
   'food-and-exercise-data-providers': 'developer-integrations',
@@ -196,6 +199,24 @@ const Settings = () => {
             className="w-full"
             defaultValue={defaultExpanded}
           >
+            <AccordionItem
+              value="notifications-reminders"
+              className="border rounded-lg mb-4"
+            >
+              <AccordionTrigger
+                className="flex items-center gap-2 p-4 hover:no-underline"
+                description={t(
+                  'settings.notifications.description',
+                  'Configure protocol reminders, check-in alerts, and timer feedback'
+                )}
+              >
+                <Bell className="h-5 w-5" />
+                {t('settings.notifications.title', 'Reminders & Notifications')}
+              </AccordionTrigger>
+              <AccordionContent className="p-4 pt-0">
+                <NotificationSettings />
+              </AccordionContent>
+            </AccordionItem>
             <AccordionItem
               value="water-tracking"
               className="border rounded-lg mb-4"

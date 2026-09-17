@@ -191,3 +191,36 @@ export const useDeleteScheduleMutation = () => {
     },
   });
 };
+
+export interface CreateMedicationWithSchedulesInput {
+  medication: Partial<Medication> & { name: string };
+  schedules: Array<Partial<MedicationSchedule> & { schedule_type_id: string }>;
+}
+
+export const useCreateMedicationWithSchedulesMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      medication,
+      schedules,
+    }: CreateMedicationWithSchedulesInput) => {
+      const createdMed = await medicationService.createMedication(medication);
+      if (createdMed?.id && schedules.length > 0) {
+        await Promise.all(
+          schedules.map((sched) =>
+            medicationService.addSchedule(createdMed.id, sched)
+          )
+        );
+      }
+      return createdMed;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['medications'] });
+      invalidateReports(queryClient);
+    },
+    meta: {
+      errorMessage: 'Could not add medication.',
+      successMessage: 'Medication added.',
+    },
+  });
+};
