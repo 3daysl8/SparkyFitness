@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { DateRangePickerWithPresets } from '@/components/ui/DateRangeWithPresets';
 import { Button } from '@/components/ui/button';
 import {
-  BarChart3,
+  Droplet,
   TrendingUp,
   Dumbbell,
   BedDouble,
@@ -33,8 +33,8 @@ const ReportsControls = ({
   const reportTypes = [
     {
       id: 'charts',
-      label: t('reports.nutrientsTab', 'Nutrients'),
-      icon: BarChart3,
+      label: t('reports.hydrationTab', 'Hydration'),
+      icon: Droplet,
     },
     {
       id: 'measurements',

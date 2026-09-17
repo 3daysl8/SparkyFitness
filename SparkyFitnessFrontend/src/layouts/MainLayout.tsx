@@ -9,7 +9,6 @@ import {
   BarChart3,
   Dumbbell, // Used for Workouts
   Compass, // Used for Focus
-  Shield,
   Plus,
   X,
 } from 'lucide-react';
@@ -25,7 +24,6 @@ import GitHubSponsorButton from '@/components/GitHubSponsorButton';
 import GlobalNotificationIcon from '@/components/GlobalNotificationIcon';
 import { BrandMark } from '@/components/BrandMark';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -41,7 +39,6 @@ interface AddCompItem {
 
 const MainLayout: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { isActingOnBehalf, hasPermission, hasWritePermission } =
@@ -133,22 +130,8 @@ const MainLayout: React.FC = () => {
         });
       }
     }
-    if (user?.role === 'admin' && !isActingOnBehalf) {
-      tabs.push({
-        value: '/admin',
-        label: t('nav.admin', 'Admin'),
-        icon: Shield,
-      });
-    }
     return tabs;
-  }, [
-    isActingOnBehalf,
-    hasPermission,
-    hasWritePermission,
-    loggingLevel,
-    user?.role,
-    t,
-  ]);
+  }, [isActingOnBehalf, hasPermission, hasWritePermission, loggingLevel, t]);
 
   const availableMobileTabs = useMemo(() => {
     debug(loggingLevel, 'MainLayout: Calculating available tabs (mobile).', {
@@ -194,20 +177,12 @@ const MainLayout: React.FC = () => {
         });
       }
     }
-    if (user?.role === 'admin' && !isActingOnBehalf) {
-      mobileTabs.push({
-        value: '/admin',
-        label: t('nav.admin', 'Admin'),
-        icon: Shield,
-      });
-    }
     return mobileTabs;
   }, [
     isActingOnBehalf,
     hasPermission,
     hasWritePermission,
     loggingLevel,
-    user?.role,
     isAddCompOpen,
     t,
   ]);

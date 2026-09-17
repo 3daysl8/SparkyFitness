@@ -3888,6 +3888,7 @@
     "loadingReports": "Loading reports...",
     "supplementShare": "{{percent}}% from supplements",
     "chartsTab": "Charts",
+    "hydrationTab": "Hydration",
     "exerciseProgressTab": "Exercise Progress",
     "sleepTab": "Sleep",
     "tableTab": "Table View",
