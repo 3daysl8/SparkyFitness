@@ -29,6 +29,7 @@ import { AccountSecurity } from './AccountSecurity';
 import { ApiSettings } from './ApiSettings';
 import { WaterTrackingSettings } from './WaterTrackingSettings';
 import { NotificationSettings } from './NotificationSettings';
+import { CycleTrackingSettings } from './CycleTrackingSettings';
 import CalendarFeedSettings from './CalendarFeedSettings';
 import { PreferenceSettings } from './PreferenceSettings';
 import { ProfileInformation } from './ProfileInformation';
@@ -47,6 +48,7 @@ const SECTION_TO_TAB_MAP: Record<string, string> = {
   'family-access': 'profile-account',
   'data-management': 'profile-account',
   'notifications-reminders': 'wellness',
+  'cycle-tracking': 'wellness',
   'water-tracking': 'wellness',
   'custom-categories': 'wellness',
   'food-and-exercise-data-providers': 'developer-integrations',
@@ -215,6 +217,24 @@ const Settings = () => {
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0">
                 <NotificationSettings />
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem
+              value="cycle-tracking"
+              className="border rounded-lg mb-4"
+            >
+              <AccordionTrigger
+                className="flex items-center gap-2 p-4 hover:no-underline"
+                description={t(
+                  'settings.cycle.description',
+                  'Configure cycle lengths, period start date, and phase-adapted training recommendations'
+                )}
+              >
+                <Heart className="h-5 w-5 text-rose-500" />
+                {t('settings.cycle.title', 'Menstrual Cycle & Phase Tracking')}
+              </AccordionTrigger>
+              <AccordionContent className="p-4 pt-0">
+                <CycleTrackingSettings />
               </AccordionContent>
             </AccordionItem>
             <AccordionItem

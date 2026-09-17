@@ -69,6 +69,35 @@ jest.mock('@/hooks/CheckIn/useSleep', () => ({
   useSleepEntriesQuery: () => ({ data: [] }),
 }));
 
+jest.mock('@/hooks/useCycle', () => ({
+  useCycleActive: () => ({ isCycleActive: false, isFemale: false }),
+  useCyclePhase: () => ({
+    phase: 'follicular',
+    phaseName: 'Follicular Phase',
+    cycleDay: 1,
+    totalCycleDays: 28,
+    daysUntilNextPeriod: 27,
+    phaseProgressPercent: 0,
+    nextPeriodDate: '2026-05-25',
+    ovulationDate: '2026-05-10',
+    fertileWindowStart: '2026-05-05',
+    fertileWindowEnd: '2026-05-10',
+    trainingGuidance: {
+      title: 'Training',
+      focus: 'Focus',
+      intensity: 'high',
+      description: 'Desc',
+    },
+    nutritionGuidance: {
+      title: 'Nutrition',
+      tip: 'Tip',
+    },
+  }),
+  useCycleDailyEntry: () => ({ entry: null }),
+  useSaveCycleDailyEntry: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useCycleSettings: () => ({ settings: {}, updateSettings: jest.fn() }),
+}));
+
 jest.mock('@/hooks/useMedications', () => ({
   useMedications: () => ({ data: [], isLoading: false }),
   useMedicationEntries: () => ({ data: [], isLoading: false }),

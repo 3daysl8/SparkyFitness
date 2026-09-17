@@ -2710,6 +2710,23 @@
       "restChimeDesc": "Synthesized harmonic chime when a rest interval completes during workouts.",
       "vibration": "Haptic Vibration Feedback",
       "vibrationDesc": "Vibrate mobile / supported devices on timer completion."
+    },
+    "cycle": {
+      "title": "Menstrual Cycle & Phase Tracking",
+      "description": "Configure cycle lengths, period start date, and phase-adapted training recommendations.",
+      "enableFeature": "Enable Menstrual Cycle Tracking",
+      "autoEnabledForFemale": "Recommended for female profiles. Displays phase insights and period predictions on your dashboard.",
+      "manualEnable": "Enables cycle phase cards and daily period tracking.",
+      "avgCycleLength": "Average Cycle Length (Days)",
+      "avgCycleHelp": "Typically 28 days (normal range: 21–35 days).",
+      "avgPeriodLength": "Average Period Duration (Days)",
+      "avgPeriodHelp": "Typically 4–6 days of bleeding/flow.",
+      "lastPeriodDate": "Most Recent Period Start Date",
+      "lastPeriodHelp": "First day of your last period. Used to determine current cycle day and predict future phases.",
+      "reminders": "Upcoming Period & Ovulation Alerts",
+      "remindersHelp": "Receive a gentle notification 2 days before your predicted period.",
+      "savedTitle": "Cycle Settings Saved",
+      "savedDesc": "Your cycle parameters and prediction rules have been updated."
     }
   },
   "admin": {
@@ -5839,5 +5856,66 @@
     "familyProfiles": "Family Profiles",
     "myProfile": "My Profile",
     "reminders": "Reminders & Alerts"
+  },
+  "cycle": {
+    "title": "Cycle & Phase",
+    "trackerTitle": "Menstrual Cycle & Phase Guide",
+    "trackerSubtitle": "Daily metrics, hormone trends, and phase-adapted training",
+    "dayOfCycle": "Day {{day}} of {{total}}",
+    "flowLogged": "Flow Logged",
+    "logToday": "Log Today",
+    "progress": "Cycle Progress",
+    "periodExpectedToday": "Period expected today",
+    "nextPeriodIn": "Next period in ~{{days}}d",
+    "currentPhase": "Current Phase",
+    "trainingTitle": "Training & Workout Focus",
+    "nutritionTitle": "Nutrition & Recovery Strategy",
+    "predictedPeriod": "Next Expected Period",
+    "periodToday": "Expected today",
+    "inDays": "In ~{{days}} days",
+    "ovulationWindow": "Estimated Ovulation Window",
+    "profileSettings": "Cycle Configuration",
+    "configNote": "Predictions are calculated based on your cycle baseline and adapt automatically as you record daily period entries.",
+    "logSaved": "Daily Log Saved",
+    "logSavedDesc": "Your cycle metrics and daily symptoms have been recorded.",
+    "failedToSave": "Failed to save daily cycle log.",
+    "saveLog": "Save Daily Log",
+    "phases": {
+      "menstrual": "Menstrual Phase",
+      "follicular": "Follicular Phase",
+      "ovulatory": "Ovulatory Phase",
+      "luteal": "Luteal Phase"
+    },
+    "tabs": {
+      "insights": "Phase & Training",
+      "log": "Daily Log",
+      "calendar": "Predictions"
+    },
+    "log": {
+      "flowIntensity": "Period & Flow Intensity",
+      "symptoms": "Physical & Emotional Symptoms",
+      "energy": "Energy & Vitality Level",
+      "notes": "Personal Cycle Notes",
+      "notesPlaceholder": "Any observations on training performance, sleep, mood, or cramps..."
+    },
+    "flow": {
+      "none": "None",
+      "spotting": "Spotting",
+      "light": "Light",
+      "medium": "Medium",
+      "heavy": "Heavy"
+    },
+    "symptoms": {
+      "cramps": "Cramps",
+      "bloating": "Bloating",
+      "headache": "Headache",
+      "fatigue": "Fatigue",
+      "breast_tenderness": "Breast Tenderness",
+      "acne": "Acne / Breakouts",
+      "mood_swings": "Mood Swings",
+      "cravings": "Food Cravings",
+      "backache": "Lower Backache",
+      "insomnia": "Sleep Trouble"
+    }
   }
 }

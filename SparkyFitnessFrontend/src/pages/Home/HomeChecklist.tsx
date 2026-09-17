@@ -51,6 +51,7 @@ import HabitCard from '@/pages/Home/HabitCard';
 import FocusBanner from '@/pages/Home/FocusBanner';
 import DailyCheckpointCard from '@/pages/Home/DailyCheckpointCard';
 import SupplementsSnapshotCard from '@/pages/Home/SupplementsSnapshotCard';
+import CycleSnapshotCard from '@/pages/Home/CycleSnapshotCard';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -448,10 +449,13 @@ export default function HomeChecklist() {
       {/* 4. Daily Accountability Checkpoint */}
       <DailyCheckpointCard selectedDate={selectedDate} />
 
-      {/* 5. Schedule & Calendar Events */}
+      {/* 5. Female Menstrual Cycle & Phase Snapshot */}
+      <CycleSnapshotCard date={selectedDate} />
+
+      {/* 6. Schedule & Calendar Events */}
       <AgendaCard selectedDate={selectedDate} />
 
-      {/* 6. Today's Supplements & Protocols */}
+      {/* 7. Today's Supplements & Protocols */}
       <SupplementsSnapshotCard selectedDate={selectedDate} />
 
       {/* 7. Actionable Tasks (To-Do List) */}
