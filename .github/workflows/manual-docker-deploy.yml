@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
+        if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -54,8 +55,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            codewithcj/sparkyfitness
             ghcr.io/${{ github.repository }}-frontend
+            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/sparkyfitness', secrets.DOCKER_USERNAME) || '' }}
           tags: |
             type=raw,value=${{ inputs.tag }}
 
@@ -88,8 +89,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            codewithcj/sparkyfitness_server
             ghcr.io/${{ github.repository }}-server
+            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/sparkyfitness_server', secrets.DOCKER_USERNAME) || '' }}
           tags: |
             type=raw,value=${{ inputs.tag }}
 
@@ -122,8 +123,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            codewithcj/sparkyfitness_garmin
             ghcr.io/${{ github.repository }}-garmin
+            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/sparkyfitness_garmin', secrets.DOCKER_USERNAME) || '' }}
           tags: |
             type=raw,value=${{ inputs.tag }}
 
