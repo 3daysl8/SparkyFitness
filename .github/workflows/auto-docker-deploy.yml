@@ -38,7 +38,10 @@ jobs:
           result-encoding: string
 
       - name: Log in to Docker Hub
-        if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
+        if: env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != ''
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -60,11 +63,13 @@ jobs:
 
       - name: Metadata frontend
         id: meta-frontend
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         uses: docker/metadata-action@v5
         with:
           images: |
             ghcr.io/${{ steps.repo.outputs.name }}-frontend
-            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/sparkyfitness', secrets.DOCKER_USERNAME) || '' }}
+            ${{ env.DOCKER_USERNAME != '' && format('{0}/sparkyfitness', env.DOCKER_USERNAME) || '' }}
           tags: |
             type=raw,value=${{ steps.get_latest_release.outputs.tag }}
             type=raw,value=latest
@@ -91,11 +96,13 @@ jobs:
 
       - name: Metadata server
         id: meta-server
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         uses: docker/metadata-action@v5
         with:
           images: |
             ghcr.io/${{ steps.repo.outputs.name }}-server
-            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/sparkyfitness_server', secrets.DOCKER_USERNAME) || '' }}
+            ${{ env.DOCKER_USERNAME != '' && format('{0}/sparkyfitness_server', env.DOCKER_USERNAME) || '' }}
           tags: |
             type=raw,value=${{ steps.get_latest_release.outputs.tag }}
             type=raw,value=latest
@@ -122,11 +129,13 @@ jobs:
 
       - name: Metadata Garmin Microservice
         id: meta-garmin
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         uses: docker/metadata-action@v5
         with:
           images: |
             ghcr.io/${{ steps.repo.outputs.name }}-garmin
-            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/sparkyfitness_garmin', secrets.DOCKER_USERNAME) || '' }}
+            ${{ env.DOCKER_USERNAME != '' && format('{0}/sparkyfitness_garmin', env.DOCKER_USERNAME) || '' }}
           tags: |
             type=raw,value=${{ steps.get_latest_release.outputs.tag }}
             type=raw,value=latest
