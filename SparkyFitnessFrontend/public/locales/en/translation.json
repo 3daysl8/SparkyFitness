@@ -737,7 +737,30 @@
     "weeklyAdjustment": "Key Focus & Alignment Shift",
     "weeklyAdjustmentPlaceholder": "What is the single most important action to prioritize?",
     "weeklyWin": "Top Win or Breakthrough",
-    "weeklyWinPlaceholder": "What worked well or gave you momentum?"
+    "weeklyWinPlaceholder": "What worked well or gave you momentum?",
+    "checkboxTarget": "Checkbox (Done / Not done)",
+    "completionProgress": "Daily Completion",
+    "createHabitError": "Failed to create habit.",
+    "focusAndGoals": "Weekly Focus & Goals",
+    "lifePillar": "Life Pillar (Optional)",
+    "manageVision": "Vision & Pillars",
+    "noHabitsInFilter": "No habits under this pillar today",
+    "noPillar": "None / General",
+    "noWeeklyFocusSet": "No weekly focus set for this week",
+    "noteSaved": "Reflection Saved",
+    "noteSavedDesc": "Habit reflection note updated.",
+    "numericTarget": "Numeric Progress (e.g. 8 glasses, 30 mins)",
+    "pillars": "Pillars",
+    "progressValue": "Progress value",
+    "reflectionFor": "Reflection note",
+    "reflectionPlaceholder": "Add any notes or context about today’s habit execution...",
+    "saveNoteError": "Failed to save reflection note.",
+    "saveProgressError": "Failed to save progress.",
+    "selectAtLeastOneDay": "Select at least 1 day",
+    "selectPillar": "Select Pillar",
+    "setWeeklyFocus": "Set Focus",
+    "thisWeeksAnchor": "This week’s anchor",
+    "updateHabitError": "Failed to update habit."
   },
   "calculationSettings": {
     "showNetCarbs": "Show net carbs (carbs minus fiber)",
@@ -1024,13 +1047,12 @@
     "plateCalculator": {
       "title": "Plate Calculator",
       "targetWeight": "Target Weight",
-      "barbell": "Barbell",
-      "quickAdjust": "Adjust",
-      "eachSide": "Plates on Each Side",
-      "emptyBar": "Empty Bar",
-      "remainderWarning": "Cannot exact-match: {{remainder}} {{unit}} difference.",
-      "applyWeight": "Apply {{weight}} {{unit}}",
-      "open": "Plate Calculator"
+      "barWeight": "Bar Weight",
+      "eachSide": "Per Side",
+      "emptyBar": "Bar only (no plates needed)",
+      "remainderWarning": "Cannot load exact target weight with available plates",
+      "applyWeight": "Apply Weight",
+      "open": "Open plate calculator"
     },
     "exerciseDetailModal": {
       "primaryMuscles": "Primary: ",
@@ -1275,16 +1297,6 @@
     "suggestions": {
       "recentLoadError": "Failed to load recent exercises.",
       "topLoadError": "Failed to load top exercises."
-    },
-    "plateCalculator": {
-      "title": "Plate Calculator",
-      "targetWeight": "Target Weight",
-      "barWeight": "Bar Weight",
-      "eachSide": "Per Side",
-      "emptyBar": "Bar only (no plates needed)",
-      "remainderWarning": "Cannot load exact target weight with available plates",
-      "applyWeight": "Apply Weight",
-      "open": "Open plate calculator"
     },
     "workoutPlaybackDialog": {
       "closeKeepDraft": "Close",
@@ -2888,7 +2900,10 @@
     "unknown": "Unknown",
     "notes": "Notes",
     "saved": "Saved",
-    "undo": "Undo"
+    "undo": "Undo",
+    "all": "All",
+    "completed": "Logged",
+    "notLogged": "Not logged"
   },
   "diary": {
     "nutritionSummary": "Nutrition Summary",
@@ -3104,7 +3119,8 @@
     "entryImageRemoveFailedTitle": "Remove failed",
     "entryImageRemoveFailed": "Could not remove the photo for this entry.",
     "inheritedPhotoAlt": "Inherited image {{number}}",
-    "savingPhotos": "Saving photos…"
+    "savingPhotos": "Saving photos…",
+    "water": "Hydration"
   },
   "nutrientGoalDirection": {
     "min": "Min",
@@ -3283,7 +3299,11 @@
       "sleep": "Sleep",
       "protocols": "Daily Protocols & Supplements"
     },
-    "noRecentActivity": "No recent activity found."
+    "noRecentActivity": "No recent activity found.",
+    "allDone": "Completed",
+    "dailyCheckpointTitle": "Daily Checkpoint & Accountability",
+    "tapToRecord": "Tap to record",
+    "title": "Body & Mood Check-In"
   },
   "sleepTimelineEditor": {
     "sleepTimeline": "Sleep Timeline",

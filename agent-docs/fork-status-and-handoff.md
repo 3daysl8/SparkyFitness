@@ -4,45 +4,21 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**New direction as of 2026-09-17: the 6-phase workout-mapping plan is fully done (see the entry
-below) — nothing from it is open. Isaac wants the next session(s) to focus on UI**, three scoped
-pieces of work, none started yet:
+**Status as of 2026-09-17:**
+- **Home Habit Tracking, Focus & Goals Reminder, and Daily Accountability Checkpoint Redesign:** FULLY COMPLETED.
+  - Extracted modular `HabitCard.tsx` (completion progress bar, Life Pillar color tags/filters, streak counters with flame badges, quick reflection note logging modal, numeric progress controls, fixed weekday logic).
+  - Built `FocusBanner.tsx` anchoring active Weekly Focus and Life Pillars directly on Home with 1-tap jump to `/focus`.
+  - Built `DailyCheckpointCard.tsx` aggregating daily tracking across habits, workouts, hydration, sleep, supplements, and biometric/mood check-in with celebratory completion states.
+  - Extracted `SupplementsSnapshotCard.tsx` into a clean standalone component.
+  - Refactored `HomeChecklist.tsx` from 1,079 lines into a clean layout orchestrator.
+  - Fixed `recurrence_days_of_week` empty-array bug on both `HabitCard.tsx` and `FocusPage.tsx` (`size > 0 && size < 7`), with UI validation preventing saving with 0 selected days.
+  - Full test suite passing (128 test suites, 1,143 unit tests) and `pnpm run validate` clean.
 
-**1. Fix the `recurrence_days_of_week` empty-array bug — TWO call sites, not one.** Unchecking all
-7 weekday buttons on a recurring habit/action currently sends `[]` instead of `undefined`/omitting
-the field; Postgres's `ANY('{}')` is always false, so the habit silently never appears again (still
-editable/deletable from its management list, just invisible from the daily checklist). Both sites
-use the same wrong guard, `size < 7` (true even at `size === 0`):
-- `SparkyFitnessFrontend/src/pages/Home/HomeChecklist.tsx:916-917` (`handleCreateHabit`)
-- `SparkyFitnessFrontend/src/pages/Focus/FocusPage.tsx:284-287` (`handleAddFocus`'s recurring
-  "Daily Actions" option)
-Fix both to `size > 0 && size < 7`, and add a UI guard (disable Save / show a hint) at 0 selected
-so the bad state can't be reached in the first place. `WeekdayToggle.tsx` (`pages/Focus/`, lines
-8-12) already has a doc comment flagging this exact contract — read it first. Server-side
-enforcement lives at `SparkyFitnessServer/models/focusRepository.ts:390`.
-
-**2. Fix the passkey RP ID bug.** Production login console-errors on passkey verification:
-`[Better Auth] Error verifying passkey SecurityError: The RP ID "100.103.152.66" is invalid for
-this domain`. Root cause confirmed: `SparkyFitnessServer/auth.ts:166-182` derives `passkeyRpID`
-**once at server startup** from `process.env.BETTER_AUTH_URL` (preferred) or
-`SPARKY_FITNESS_FRONTEND_URL`, via `new URL(...).hostname`, then passes it to
-`passkey({ rpID: passkeyRpID, rpName: 'SparkyFitness', ... })` at line 701-703 — a single fixed
-value for the whole process, so only one origin can ever validate. Pi5's production env has this
-pointed at the raw Tailscale IP while the app is actually browsed at
-`sparkyfitness.tail854f4e.ts.net`. Real fix: derive `rpID` per-request from the incoming `Host`
-header (better-auth/simplewebauthn support this) rather than one env-derived constant at startup;
-a same-day patch of just correcting the prod env var to the Tailscale hostname would also resolve
-it but leaves the single-origin fragility in place for the next domain change.
-
-**3. Redesign target: the habit-tracking + to-do checklist UI — this lives on the HOME page, not
-`/focus`.** Easy to conflate since both share the same backend `focuses` domain/`useFocus.ts`
-hooks, but they are different UI surfaces: `pages/Focus/FocusPage.tsx` (828 lines) is a separate
-"Focus & Motivation" feature (long-term/weekly/daily goal statements grouped by "Life Pillar" +
-a Weekly Motivation Checkpoint card, no day/week toggle). The actual daily habit checklist + to-do
-list Isaac means is `pages/Home/HomeChecklist.tsx` (**1,078 lines — the real redesign target**,
-and its size is itself a complexity risk worth addressing as part of the pass), alongside
-`ToDoCard.tsx` (352 lines, Day/Week toggle via the shared `DayWeekToggle.tsx`), `WorkoutCard.tsx`,
-`AgendaCard.tsx`, and the small extracted `CheckTarget.tsx`/`EmptyState.tsx` subcomponents. To-Do
+**Next Priority:**
+**Fix the passkey RP ID bug.** Production login console-errors on passkey verification:
+`[Better Auth] Error verifying passkey SecurityError: The RP ID "100.103.152.66" is invalid for this domain`.
+Root cause confirmed: `SparkyFitnessServer/auth.ts:166-182` derives `passkeyRpID` **once at server startup** from `process.env.BETTER_AUTH_URL` (preferred) or `SPARKY_FITNESS_FRONTEND_URL`, via `new URL(...).hostname`, then passes it to `passkey({ rpID: passkeyRpID, rpName: 'SparkyFitness', ... })` at line 701-703 — a single fixed value for the whole process, so only one origin can ever validate.
+Real fix: derive `rpID` per-request from the incoming `Host` header (better-auth/simplewebauthn support this) rather than one env-derived constant at startup.
 List already got a dedicated redesign (see "To-Do List card redesign" below) and Workouts got its
 own (see "Workouts tab redesign" below); the **habit-tracking half of Home never has** — only
 incremental fixes (e.g. the `CheckTarget` checkbox-sizing pass). That gap is the actual ask.

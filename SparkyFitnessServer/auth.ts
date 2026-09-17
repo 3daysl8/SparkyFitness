@@ -19,7 +19,7 @@ import { emailOTP, magicLink, admin, twoFactor } from 'better-auth/plugins';
 import { sso } from '@better-auth/sso';
 import { expo } from '@better-auth/expo';
 import { expoSsoCookieRelay } from './utils/expoSsoCookieRelay.js';
-import { passkey } from '@better-auth/passkey';
+import { dynamicPasskey } from './plugins/dynamicPasskey.js';
 
 const hashAsync = promisify(bcrypt.hash);
 const compareAsync = promisify(bcrypt.compare);
@@ -163,23 +163,6 @@ const apiKeyPlugin = apiKey({
     },
   },
 });
-let passkeyRpID: string | undefined;
-try {
-  const frontendUrl = process.env.SPARKY_FITNESS_FRONTEND_URL;
-  const urlString =
-    process.env.BETTER_AUTH_URL ||
-    (frontendUrl
-      ? frontendUrl.startsWith('http')
-        ? frontendUrl
-        : `https://${frontendUrl}`
-      : undefined);
-  if (urlString) {
-    const url = new URL(urlString);
-    passkeyRpID = url.hostname;
-  }
-} catch {
-  // Fall back to default
-}
 
 const auth = betterAuth({
   database: authPool,
@@ -698,8 +681,7 @@ const auth = betterAuth({
         updatedAt: 'updated_at',
       },
     }),
-    passkey({
-      rpID: passkeyRpID,
+    dynamicPasskey({
       rpName: 'SparkyFitness',
       schema: {
         passkey: {

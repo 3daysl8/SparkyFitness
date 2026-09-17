@@ -282,7 +282,7 @@ export default function FocusPage() {
               ? weekStartIso
               : undefined,
         recurrence_days_of_week:
-          isDailyRecurring && recurrenceDays.size < 7
+          isDailyRecurring && recurrenceDays.size > 0 && recurrenceDays.size < 7
             ? Array.from(recurrenceDays).sort()
             : undefined,
         recurrence_end_date:
@@ -624,9 +624,19 @@ export default function FocusPage() {
                         {isRecurring ? (
                           <>
                             <div className="space-y-2">
-                              <Label>
-                                {t('focus.repeatsOn', 'Repeats on')}
-                              </Label>
+                              <div className="flex items-center justify-between">
+                                <Label>
+                                  {t('focus.repeatsOn', 'Repeats on')}
+                                </Label>
+                                {recurrenceDays.size === 0 && (
+                                  <span className="text-[11px] font-medium text-destructive">
+                                    {t(
+                                      'focus.selectAtLeastOneDay',
+                                      'Select at least 1 day'
+                                    )}
+                                  </span>
+                                )}
+                              </div>
                               <WeekdayToggle
                                 selected={recurrenceDays}
                                 onChange={setRecurrenceDays}
@@ -732,7 +742,13 @@ export default function FocusPage() {
                   <DialogFooter>
                     <Button
                       onClick={handleAddFocus}
-                      disabled={createFocus.isPending}
+                      disabled={
+                        createFocus.isPending ||
+                        !statement.trim() ||
+                        (addFocusTimeframe === 'daily' &&
+                          isRecurring &&
+                          recurrenceDays.size === 0)
+                      }
                     >
                       {t('common.save', 'Save')}
                     </Button>
