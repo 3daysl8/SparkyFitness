@@ -4,7 +4,84 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16** (`5fcbf4519` on `main`):
+**One item still open, otherwise not mid-flight — pushed and deployed to Pi5, 2026-09-16/17**
+(`c9789c41a` on `main`): **Phase 6 of the workout-mapping plan** (full plan:
+`C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total, the last one) —
+the approval-gated repair script for the 5 known-bad production phantom rows plus the other
+integrity categories from the original investigation. Built, tested, deployed, dry-run against
+real production data, and Isaac has approved and the session has applied two of the three
+mutating categories. **Still open: the stale-calorie recompute (Slow Squat, 96229413…, 2181.5 →
+32.2 kcal) — Isaac said "delete" to the phantoms/empty-session question but didn't clearly weigh
+in on the recompute, so it was deliberately left untouched pending a direct answer.** Ask him
+directly before running `--recompute-calories` — don't infer approval from an adjacent "delete."
+
+**What shipped**: `SparkyFitnessServer/scripts/workoutIntegrity/repairWorkoutIntegrity.ts` (pure,
+unit-tested decision logic — 20 tests), `run.ts` (CLI: `--user` required, dry-run default inside a
+`READ ONLY` transaction with a before/after table-checksum self-check, `--apply` writes a sha256'd
+JSON backup of every affected row's pre-image to `backup/repair/` — which is bind-mounted from
+`/home/pi1/sparkyfitness/backup/repair/` on Pi5, the same host dir the DB dumps already live in —
+before committing), `restoreFromBackup.ts` (companion undo, checksum-verified). Implements the
+plan's strict phantom rule (created by the user, updated <5s after creation, no notes/source_id,
+no real set/activity/lap/GPS/HR-zone signal, no existing `planned_workouts` overlap) exactly as
+specified — no loosening for convenience.
+
+**A real discrepancy the dry-run surfaced, not assumed away**: all 5 "Bodyweight Squat HD" phantoms
+carry a populated `source_id` ('1312'), which fails the strict rule's "no source_id" check. Traced
+it: `source_id` is copied from the exercise's own wger catalog reference at row-creation time
+(`exercises.source='wger'`, `source_id='1312'` for that exercise) — not evidence of real external
+sync provenance the way the rule's author likely intended it as a guard against. The script
+correctly routed all 5 to report-only rather than auto-applying on a technicality; per its own
+design, a human (Isaac) reviewed the reasoning and approved the delete directly rather than the
+script silently deciding either way. **Second discrepancy**: 4 of the 5 phantoms (20/27 Sep, 4/11
+Oct) each already had a real `planned_workouts` row covering the same exercise/date — Phase 2's
+template sync is correctly scheduling them now — so converting the phantoms into *new*
+`planned_workouts` rows (the script's default apply behavior) would have created duplicates. Isaac
+chose a plain delete instead (no conversion) for all 5, which the general `--apply` path doesn't
+support (it always converts) — applied as a reviewed one-off transaction instead, using the same
+backup format/location so `restoreFromBackup.ts` still works on it if ever needed. Confirmed after:
+the 4 real `planned_workouts` template rows are completely untouched, zero orphaned children left
+behind by any of the 6 deleted rows (all were already childless).
+
+**Applied so far** (production, 2026-09-17): the 5 phantom `exercise_entries` rows deleted outright,
+the 1 empty `exercise_preset_entries` session (`ea3d3a7a…`, 14 Sep, "Phase 1. Lower Body (A)")
+deleted. Backup at `backup/repair/53a9e76a-ea18-47c6-bf88-6d7724d406f4-2026-09-17T00-51-09.000Z.json`
+(+ `.sha256`) on Pi5 and copied to `C:\dev\SparkyFitness-backups\repair\` on Kingdom.
+
+**Still report-only, no action taken (by design)**: 5 implausible-duration entries from 15 Sep
+(0.1–1.0 min upper-body sets) and 11 untyped-but-recently-used exercises (including Treadmill,
+Bodyweight Squat HD, Slow Squat) — these have no apply path in the script at all, they're pure
+awareness reports for Isaac to act on manually (e.g. tagging exercises with `workout_type` in
+Settings, now that Phase 5's weekly-goal classification depends on those tags).
+
+**Deploy for this phase**: backend-only (no migration, no frontend change) — `pg_dump` backup taken
+and verified restorable (1009 TOC entries) before rebuilding regardless of no schema change (same
+"cheap insurance" policy every phase has followed), image tagged `pre-d20dd0152`, `--no-cache`
+rebuild confirmed to contain `scripts/workoutIntegrity/` before deploying, `docker compose up -d
+--force-recreate sparkyfitness-server` only (frontend untouched), confirmed healthy. Dry-run and
+the approved deletions were both run via `docker exec sparkyfitness-sparkyfitness-server-1
+node_modules/.bin/tsx scripts/workoutIntegrity/run.ts --user=<id>` against the live container —
+this fork ships TypeScript straight into the image, so `tsx` runs it directly, no separate compile
+step needed, same as every other maintenance script in this repo.
+
+**New gotcha, worth remembering**: `SparkyFitnessServer/backup/` inside a *running* container is
+bind-mounted to `/home/pi1/sparkyfitness/backup/` on the host (same dir the DB dumps live in) — a
+script's own `--apply` backup write lands there automatically and is already host-persistent, no
+extra copy-off-container step needed (unlike a one-off manual backup built with raw SQL outside the
+script, which has to be placed there by hand — mistakenly wrote one to the *build clone's*
+`SparkyFitnessServer/backup/repair/` first, which is NOT bind-mounted or visible to the running
+container, before catching it and moving it to the real bind-mounted path).
+
+**Before this session considered running anything against production**: the full apply→backup→
+restore cycle was exercised end-to-end against real Postgres using synthetic fixtures seeded
+directly on the **dev** DB (covering every category: a clean eligible future phantom, a
+source_id-blocked one, a qualifying-but-past one, an empty session, a stale-calorie row, an
+implausible duration, and an untyped-exercise usage) — dry-run, `--apply`, then
+`restoreFromBackup.ts --confirm`, confirming every row came back exactly as it was. Cleaned up
+after. Only then was the dry-run pointed at production.
+
+---
+
+**Previous entry, also shipped 2026-09-16** (`5fcbf4519` on `main`):
 **Phase 5 of the workout-mapping plan** (full plan:
 `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete,
 merged, and live: weekly workout goals (total/strength/cardio session targets, a cardio-minutes
