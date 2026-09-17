@@ -12,16 +12,13 @@ import {
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
-<<<<<<< HEAD
 import { generateClientId } from '@/utils/generateClientId';
-=======
 import {
   getSupersetRuns,
   supersetExercisesWithNext,
   ungroupExercise,
   normalizeSupersetGroups,
 } from '@/utils/workoutSupersets';
->>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
 
 export const DEFAULT_REST_SECONDS = 90;
 export const WORKOUT_PLAYBACK_SET_GRID_CLASSES =

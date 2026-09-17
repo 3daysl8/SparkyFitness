@@ -100,10 +100,18 @@ const AddWorkoutPlanDialog = ({
     buildAssignmentsForSave,
   } = useWorkoutPlanAssignments(initialData);
   const { t } = useTranslation();
-  const { weightUnit, firstDayOfWeek } = usePreferences();
+  const { weightUnit, firstDayOfWeek = 0 } = usePreferences();
   const [planName, setPlanName] = useState(() => initialData?.plan_name || '');
   const [description, setDescription] = useState(
     () => initialData?.description || ''
+  );
+
+  const orderedDays = useMemo(
+    () =>
+      orderedDaysOfWeek(firstDayOfWeek)
+        .map((id) => DAYS_OF_WEEK.find((day) => day.id === id))
+        .filter((day): day is (typeof DAYS_OF_WEEK)[number] => day != null),
+    [firstDayOfWeek]
   );
 
   const [startDate, setStartDate] = useState(() => {
@@ -159,17 +167,6 @@ const AddWorkoutPlanDialog = ({
     else if (preset === '12w') setEndDate(addDays(startDate, 84));
     else if (preset === 'ongoing') setEndDate('');
   };
-
-  // Display order only — the underlying day_of_week values (and DAYS_OF_WEEK
-  // itself) stay Sunday-indexed; this just reorders which card renders first
-  // to match the user's preferred week start.
-  const orderedDays = useMemo(
-    () =>
-      orderedDaysOfWeek(firstDayOfWeek)
-        .map((id) => DAYS_OF_WEEK.find((day) => day.id === id))
-        .filter((day): day is (typeof DAYS_OF_WEEK)[number] => day != null),
-    [firstDayOfWeek]
-  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -385,18 +382,8 @@ const AddWorkoutPlanDialog = ({
                 collisionDetection={closestCenter}
                 onDragEnd={handleDragEnd}
               >
-<<<<<<< HEAD
-                {orderedDays.map((day) => {
-                  const dayAssignments = assignments.filter(
-                    (assignment) => assignment.day_of_week === day.id
-                  );
-                  return (
-                    <Card key={day.name} className="p-4 bg-muted/30">
-                      <SortableContext
-                        items={dayAssignments.map((a) => a.id as string)}
-=======
                 <div className="space-y-3">
-                  {DAYS_OF_WEEK.map((day) => {
+                  {orderedDays.map((day) => {
                     const dayAssignments = assignments.filter(
                       (assignment) => assignment.day_of_week === day.id
                     );
@@ -411,7 +398,6 @@ const AddWorkoutPlanDialog = ({
                             ? 'bg-muted/10 border-dashed'
                             : 'bg-muted/30 border-solid'
                         )}
->>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
                       >
                         <SortableContext
                           items={dayAssignments.map((a) => a.id as string)}

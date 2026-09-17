@@ -1276,6 +1276,16 @@
       "recentLoadError": "Failed to load recent exercises.",
       "topLoadError": "Failed to load top exercises."
     },
+    "plateCalculator": {
+      "title": "Plate Calculator",
+      "targetWeight": "Target Weight",
+      "barWeight": "Bar Weight",
+      "eachSide": "Per Side",
+      "emptyBar": "Bar only (no plates needed)",
+      "remainderWarning": "Cannot load exact target weight with available plates",
+      "applyWeight": "Apply Weight",
+      "open": "Open plate calculator"
+    },
     "workoutPlaybackDialog": {
       "closeKeepDraft": "Close",
       "completeAtLeastOneSet": "Complete at least one set before finishing.",
@@ -1293,7 +1303,6 @@
       "prBadge": "PR",
       "previousSet": "Previous",
       "repsAbbrev": "reps",
-<<<<<<< HEAD
       "implausibleTitle": "Double-check this workout",
       "implausibleDescription": "Some values look unusual. Save anyway, or go back and review?",
       "implausibleSaveAnyway": "Save anyway",
@@ -1301,8 +1310,7 @@
       "implausibleEntryDuration": "{{exercise}}: {{value}} min is longer than expected",
       "implausibleEntryCalories": "{{exercise}}: {{value}} kcal is higher than expected",
       "implausibleCalorieRate": "{{exercise}}: {{value}} kcal/min is higher than expected",
-      "implausibleSessionDuration": "Workout total of {{value}} min is longer than expected"
-=======
+      "implausibleSessionDuration": "Workout total of {{value}} min is longer than expected",
       "swapExercise": "Swap Exercise",
       "removeExercise": "Remove Exercise",
       "exerciseActions": "Exercise Actions",
@@ -1312,7 +1320,6 @@
       "viewProgression": "PRs & Progression",
       "supersetWithNext": "Superset with Next",
       "removeFromSuperset": "Remove from Superset"
->>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
     },
     "workoutPlaybackPage": {
       "addSet": "Add Set",
@@ -1330,8 +1337,16 @@
       "restEditorDescription": "Pick a rest duration for this set.",
       "restEditorTitle": "Edit Rest",
       "restTimer": "Rest",
-<<<<<<< HEAD
-      "volume": "Volume"
+      "volume": "Volume",
+      "emptyExercisesTitle": "No exercises in this session yet",
+      "emptyExercisesDesc": "Freestyle Workout — Add exercises as you train to log your sets, reps, and weights on the go.",
+      "addFirstExercise": "Add Exercise",
+      "addAnotherExercise": "Add Exercise",
+      "paused": "Paused",
+      "resumeWorkout": "Resume Workout",
+      "workoutPaused": "Workout Paused",
+      "muteAudio": "Mute rest timer",
+      "unmuteAudio": "Unmute rest timer"
     },
     "plannedWorkoutsList": {
       "title": "Planned Workouts",
@@ -1387,18 +1402,6 @@
       "weeklyGoalTotal": "{{completed}}/{{target}}",
       "weeklyGoalStrength": "S {{completed}}/{{target}}",
       "weeklyGoalCardio": "C {{completed}}/{{target}}"
-=======
-      "volume": "Volume",
-      "emptyExercisesTitle": "No exercises in this session yet",
-      "emptyExercisesDesc": "Freestyle Workout — Add exercises as you train to log your sets, reps, and weights on the go.",
-      "addFirstExercise": "Add Exercise",
-      "addAnotherExercise": "Add Exercise",
-      "paused": "Paused",
-      "resumeWorkout": "Resume Workout",
-      "workoutPaused": "Workout Paused",
-      "muteAudio": "Mute rest timer",
-      "unmuteAudio": "Unmute rest timer"
->>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
     }
   },
   "workoutPresetsManager": {

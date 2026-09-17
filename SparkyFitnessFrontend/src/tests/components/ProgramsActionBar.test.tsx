@@ -23,8 +23,10 @@ describe('ProgramsActionBar', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Training Schedule/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Create Program/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /Create Program \/ Split/i })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /New Routine/i }));
     fireEvent.click(screen.getByRole('button', { name: /Plan a Workout/i }));
 
     expect(onAddSchedule).toHaveBeenCalledTimes(1);

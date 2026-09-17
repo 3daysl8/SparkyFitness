@@ -45,15 +45,12 @@ import {
   type WorkoutSetPointer,
   updateWorkoutSetAtPointer,
 } from '@/utils/workoutPlayback';
-<<<<<<< HEAD
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
-=======
 import {
   playRestTimerChime,
   playRestTimerCountdownBeep,
   triggerRestTimerVibration,
 } from '@/utils/audioFeedback';
->>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
 import { formatSecondsClock } from '@/utils/timeFormatters';
 import { localDateTimeToUtc } from '@workspace/shared';
 import type { Exercise } from '@/types/exercises';
@@ -753,19 +750,10 @@ const WorkoutPlaybackPage = () => {
       );
     }
 
-    const prCount = draftToSave.exercises
-      .flatMap((exercise) => exercise.sets)
-      .filter((set) => set.is_pr).length;
-
     setSaveError(null);
-    setFinishSummary({
-      name: draftToSave.name,
-      prCount,
-      totalVolume,
-      elapsedSeconds,
-      setsCompleted: stats?.completedSets ?? 0,
-      totalSets: stats?.totalSets ?? 0,
-    });
+    setFinishSummary(
+      buildWorkoutFinishSummary(draftToSave, elapsedSeconds, totalVolume, stats)
+    );
   }, [
     createPresetSession,
     draft,
@@ -793,50 +781,10 @@ const WorkoutPlaybackPage = () => {
       return;
     }
 
-<<<<<<< HEAD
     const warnings = getWorkoutPlaybackPlausibilityWarnings(draft, payload);
     if (warnings.length > 0) {
       setPlausibilityWarnings(warnings);
       return;
-=======
-    try {
-      await createPresetSession(payload);
-
-      // Best-effort: auto-check any "Workout"/"Gym" daily habit for this
-      // day. A failure here must not block the already-saved workout from
-      // navigating away — only boolean/none-target habits have a "done"
-      // state that toggling actually means something for.
-      const matchingHabits = (todaySnapshot?.daily_recurring ?? []).filter(
-        (habit) =>
-          habit.target_type !== 'numeric' &&
-          !habit.done &&
-          WORKOUT_HABIT_PATTERN.test(habit.statement)
-      );
-      if (matchingHabits.length > 0) {
-        await Promise.allSettled(
-          matchingHabits.map((habit) =>
-            upsertHabitCheckin.mutateAsync({
-              focusId: habit.id,
-              date: draft.entry_date,
-              body: { completed: true },
-            })
-          )
-        );
-      }
-
-      setSaveError(null);
-      finishedEntryDateRef.current = draft.entry_date;
-      setFinishSummary(
-        buildWorkoutFinishSummary(draft, elapsedSeconds, totalVolume, stats)
-      );
-    } catch {
-      setSaveError(
-        t(
-          'exercise.workoutPlaybackDialog.finishError',
-          'Failed to save workout. Your local progress is still preserved, and you can retry.'
-        )
-      );
->>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
     }
 
     void saveWorkout();

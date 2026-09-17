@@ -2,6 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import WorkoutsRoutinesTab from '@/pages/Exercises/WorkoutsRoutinesTab';
 
+jest.mock('react-router-dom', () => ({
+  useNavigate: () => jest.fn(),
+  useLocation: () => ({ pathname: '/workouts', search: '' }),
+}));
+
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
