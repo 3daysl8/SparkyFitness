@@ -38,10 +38,13 @@ interface WorkoutPlaybackSummaryProps {
   totalVolume: number;
   stats: WorkoutPlaybackStats | null;
   restRemaining: string;
+  restRemainingSeconds?: number;
   isRestActive: boolean;
   saveError: string | null;
   isSaving: boolean;
   timezone: string;
+  isWorkoutPaused?: boolean;
+  onTogglePauseWorkout: () => void;
   onCloseKeepDraft: () => void;
   onDiscard: () => void;
   onFinishWorkout: () => void;
@@ -57,10 +60,13 @@ const WorkoutPlaybackSummary = ({
   totalVolume,
   stats,
   restRemaining,
+  restRemainingSeconds = 90,
   isRestActive,
   saveError,
   isSaving,
   timezone,
+  isWorkoutPaused = false,
+  onTogglePauseWorkout,
   onCloseKeepDraft,
   onDiscard,
   onFinishWorkout,
@@ -70,6 +76,11 @@ const WorkoutPlaybackSummary = ({
   onStartTimeChange,
 }: WorkoutPlaybackSummaryProps) => {
   const { t } = useTranslation();
+
+  const isRestUrgent =
+    draft.rest_timer.state === 'running' &&
+    restRemainingSeconds <= 5 &&
+    restRemainingSeconds > 0;
 
   const startTime = (() => {
     if (!draft.started_at) return '';
@@ -120,15 +131,62 @@ const WorkoutPlaybackSummary = ({
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-1 px-0 pt-0">
+        <CardContent className="space-y-2 px-0 pt-0">
           <div className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-sm border border-border/60 bg-border text-center sm:grid-cols-4">
-            <div className="flex min-w-0 flex-col items-center justify-center bg-background px-1 py-2">
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                {t('exercise.workoutPlaybackPage.elapsedTime', 'Duration')}
-              </span>
-              <span className="mt-0.5 text-sm font-medium tabular-nums text-foreground">
+            <div
+              className={`flex min-w-0 flex-col items-center justify-center bg-background px-1 py-2 transition-colors ${
+                isWorkoutPaused ? 'bg-amber-500/5' : ''
+              }`}
+            >
+              <div className="flex items-center gap-1">
+                {isWorkoutPaused && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                )}
+                <span
+                  className={`text-[10px] uppercase tracking-wide ${
+                    isWorkoutPaused
+                      ? 'font-semibold text-amber-600 dark:text-amber-400'
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  {isWorkoutPaused
+                    ? t('exercise.workoutPlaybackPage.paused', 'Paused')
+                    : t('exercise.workoutPlaybackPage.elapsedTime', 'Duration')}
+                </span>
+              </div>
+              <span
+                className={`mt-0.5 text-sm font-medium tabular-nums ${
+                  isWorkoutPaused
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-foreground'
+                }`}
+              >
                 {formatSecondsClock(elapsedSeconds)}
               </span>
+              <div className="mt-1 flex items-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={`h-5 w-5 ${
+                    isWorkoutPaused
+                      ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 dark:text-amber-400'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  aria-label={
+                    isWorkoutPaused
+                      ? t('common.resume', 'Resume')
+                      : t('common.pause', 'Pause')
+                  }
+                  onClick={onTogglePauseWorkout}
+                >
+                  {isWorkoutPaused ? (
+                    <Play className="h-3 w-3 fill-current" />
+                  ) : (
+                    <Pause className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
             </div>
             <div className="flex min-w-0 flex-col items-center justify-center bg-background px-1 py-2">
               <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -146,7 +204,13 @@ const WorkoutPlaybackSummary = ({
                 {stats?.completedSets ?? 0}/{stats?.totalSets ?? 0}
               </span>
             </div>
-            <div className="flex min-w-0 flex-col items-center justify-center bg-background px-1 py-2">
+            <div
+              className={`flex min-w-0 flex-col items-center justify-center bg-background px-1 py-2 transition-colors ${
+                isRestUrgent
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse'
+                  : ''
+              }`}
+            >
               <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                 {t('exercise.workoutPlaybackPage.restTimer', 'Rest')}
               </span>
@@ -189,6 +253,38 @@ const WorkoutPlaybackSummary = ({
               )}
             </div>
           </div>
+
+          {isWorkoutPaused && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                  {t(
+                    'exercise.workoutPlaybackPage.workoutPaused',
+                    'Workout Paused'
+                  )}
+                </span>
+                <span className="text-xs opacity-75 hidden sm:inline tabular-nums">
+                  ({formatSecondsClock(elapsedSeconds)})
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 gap-1.5 bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 shadow-sm"
+                onClick={onTogglePauseWorkout}
+              >
+                <Play className="h-3 w-3 fill-current" />
+                {t(
+                  'exercise.workoutPlaybackPage.resumeWorkout',
+                  'Resume Workout'
+                )}
+              </Button>
+            </div>
+          )}
 
           {/* Start Time */}
           <div className="space-y-1.5 max-w-[280px]">

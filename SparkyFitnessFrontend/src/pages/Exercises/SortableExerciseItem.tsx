@@ -13,7 +13,10 @@ import {
   Book,
   Dumbbell,
   HeartPulse,
+  Link2,
+  Link2Off,
 } from 'lucide-react';
+import type { SupersetDisplayInfo } from '@/utils/workoutSupersets';
 import {
   DndContext,
   closestCenter,
@@ -74,6 +77,10 @@ interface SortableExerciseItemProps {
   weightUnit: string;
   workoutPresets?: PresetMetadata[];
   simplified?: boolean;
+  supersetInfo?: SupersetDisplayInfo | null;
+  canSupersetWithNext?: boolean;
+  onSupersetWithNext?: (exerciseIndex: number) => void;
+  onUngroupExercise?: (exerciseIndex: number) => void;
 }
 
 export const SortableExerciseItem = ({
@@ -91,6 +98,10 @@ export const SortableExerciseItem = ({
   weightUnit,
   workoutPresets,
   simplified = false,
+  supersetInfo,
+  canSupersetWithNext = false,
+  onSupersetWithNext,
+  onUngroupExercise,
 }: SortableExerciseItemProps) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -198,7 +209,9 @@ export const SortableExerciseItem = ({
     <div
       ref={setNodeRef}
       style={style}
-      className="border p-3 rounded-md space-y-3 bg-card"
+      className={`border p-3 rounded-md space-y-3 bg-card transition-colors ${
+        supersetInfo ? `border-l-4 ${supersetInfo.colorClass}` : ''
+      }`}
       {...attributes}
     >
       <div className="flex justify-between items-center gap-2 min-w-0">
@@ -207,7 +220,7 @@ export const SortableExerciseItem = ({
             <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab shrink-0" />
           </div>
           <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
               {isWorkoutPreset ? (
                 <Book className="h-4 w-4 text-primary shrink-0" />
               ) : isCardio ? (
@@ -218,6 +231,13 @@ export const SortableExerciseItem = ({
               <h4 className="font-bold text-sm leading-tight truncate">
                 {displayName}
               </h4>
+              {supersetInfo && (
+                <span
+                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wider border ${supersetInfo.badgeClass}`}
+                >
+                  {supersetInfo.label}
+                </span>
+              )}
             </div>
             {linkedPreset && (
               <div className="flex items-center text-[10px] text-muted-foreground uppercase mt-0.5 font-medium truncate">
@@ -239,6 +259,44 @@ export const SortableExerciseItem = ({
               ) : (
                 <ChevronDown className="h-4 w-4" />
               )}
+            </Button>
+          )}
+          {supersetInfo && onUngroupExercise && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title={t(
+                'workoutPresetForm.removeFromSuperset',
+                'Remove from superset'
+              )}
+              aria-label={t(
+                'workoutPresetForm.removeFromSuperset',
+                'Remove from superset'
+              )}
+              onClick={() => onUngroupExercise(exerciseIndex)}
+            >
+              <Link2Off className="h-4 w-4" />
+            </Button>
+          )}
+          {canSupersetWithNext && onSupersetWithNext && !isWorkoutPreset && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              title={t(
+                'workoutPresetForm.supersetWithNext',
+                'Superset with next exercise'
+              )}
+              aria-label={t(
+                'workoutPresetForm.supersetWithNext',
+                'Superset with next exercise'
+              )}
+              onClick={() => onSupersetWithNext(exerciseIndex)}
+            >
+              <Link2 className="h-4 w-4" />
             </Button>
           )}
           {onReplaceExercise && (

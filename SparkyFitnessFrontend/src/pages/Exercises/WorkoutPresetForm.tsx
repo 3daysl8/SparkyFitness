@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -20,6 +20,7 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
 import { SortableExerciseItem } from './SortableExerciseItem';
 import { useWorkoutPresetForm } from '@/hooks/Exercises/useWorkoutPresetForm';
+import { getSupersetDisplayMap } from '@/utils/workoutSupersets';
 
 interface WorkoutPresetFormProps {
   isOpen: boolean;
@@ -55,6 +56,8 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
     handleOpenReplaceExercise,
     handleRemoveExercise,
     handleDuplicateExercise,
+    handleSupersetWithNext,
+    handleUngroupExercise,
     handleSetChange,
     handleAddSet,
     handleDuplicateSet,
@@ -63,6 +66,11 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
     handleDragEnd,
     handleSubmit,
   } = useWorkoutPresetForm({ onSave, initialPreset });
+
+  const supersetDisplayMap = useMemo(
+    () => getSupersetDisplayMap(exercises, t),
+    [exercises, t]
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -73,8 +81,8 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
         <DialogHeader>
           <DialogTitle>
             {initialPreset
-              ? t('workoutPresetForm.editTitle', 'Edit Workout Preset')
-              : t('workoutPresetForm.createTitle', 'Create Workout Preset')}
+              ? t('workoutPresetForm.editTitle', 'Edit Workout Routine')
+              : t('workoutPresetForm.createTitle', 'Create Workout Routine')}
           </DialogTitle>
         </DialogHeader>
 
@@ -83,7 +91,7 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex-1 space-y-1">
                 <Label htmlFor="name" className="text-xs font-semibold">
-                  {t('workoutPresetForm.nameLabel', 'Preset Name')}
+                  {t('workoutPresetForm.nameLabel', 'Routine Name')}
                 </Label>
                 <Input
                   id="name"
@@ -99,7 +107,10 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
                   onCheckedChange={setIsPublic}
                 />
                 <Label htmlFor="isPublic" className="text-sm font-medium">
-                  {t('workoutPresetForm.shareWithPublicLabel', 'Public Preset')}
+                  {t(
+                    'workoutPresetForm.shareWithPublicLabel',
+                    'Public Routine'
+                  )}
                 </Label>
               </div>
             </div>
@@ -164,6 +175,14 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
                         ex={ex}
                         exerciseIndex={exerciseIndex}
                         weightUnit={weightUnit}
+                        supersetInfo={
+                          supersetDisplayMap.get(exerciseIndex) ?? null
+                        }
+                        canSupersetWithNext={
+                          exerciseIndex < exercises.length - 1
+                        }
+                        onSupersetWithNext={handleSupersetWithNext}
+                        onUngroupExercise={handleUngroupExercise}
                         onRemoveExercise={handleRemoveExercise}
                         onReplaceExercise={handleOpenReplaceExercise}
                         onDuplicateExercise={handleDuplicateExercise}
@@ -189,7 +208,7 @@ const WorkoutPresetForm: React.FC<WorkoutPresetFormProps> = ({
           <Button onClick={handleSubmit}>
             {initialPreset
               ? t('common.saveChanges', 'Save Changes')
-              : t('workoutPresetForm.createPresetButton', 'Create Preset')}
+              : t('workoutPresetForm.createPresetButton', 'Create Routine')}
           </Button>
         </DialogFooter>
       </DialogContent>

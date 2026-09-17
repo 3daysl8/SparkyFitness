@@ -317,4 +317,54 @@ describe('useWorkoutPresetForm duplicate exercise', () => {
     expect(result.current.exercises[0]?.superset_group).toBe(3);
     expect(result.current.exercises[1]?.superset_group).toBeNull();
   });
+
+  describe('useWorkoutPresetForm superset grouping', () => {
+    it('groups adjacent exercises with handleSupersetWithNext and ungroups with handleUngroupExercise', () => {
+      const onSave = jest.fn();
+      const presetWithMultipleExercises = {
+        ...presetWithTimedSet,
+        exercises: [
+          {
+            ...presetWithTimedSet.exercises[0],
+            id: 'ex-1',
+            superset_group: null,
+          },
+          {
+            ...presetWithTimedSet.exercises[0],
+            id: 'ex-2',
+            superset_group: null,
+          },
+          {
+            ...presetWithTimedSet.exercises[0],
+            id: 'ex-3',
+            superset_group: null,
+          },
+        ],
+      } as unknown as WorkoutPreset;
+
+      const { result } = renderHook(() =>
+        useWorkoutPresetForm({
+          initialPreset: presetWithMultipleExercises,
+          onSave,
+        })
+      );
+
+      // Group Ex 0 with Ex 1
+      act(() => {
+        result.current.handleSupersetWithNext(0);
+      });
+
+      expect(result.current.exercises[0]?.superset_group).toBe(1);
+      expect(result.current.exercises[1]?.superset_group).toBe(1);
+      expect(result.current.exercises[2]?.superset_group).toBeNull();
+
+      // Ungroup Ex 0 -> dissolves superset
+      act(() => {
+        result.current.handleUngroupExercise(0);
+      });
+
+      expect(result.current.exercises[0]?.superset_group).toBeNull();
+      expect(result.current.exercises[1]?.superset_group).toBeNull();
+    });
+  });
 });

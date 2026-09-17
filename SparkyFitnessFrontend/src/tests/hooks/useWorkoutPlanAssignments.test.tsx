@@ -253,4 +253,45 @@ describe('useWorkoutPlanAssignments preset naming', () => {
       })
     );
   });
+
+  it('supports copying an entire day and pasting to another day', () => {
+    const { result } = renderHook(() =>
+      useWorkoutPlanAssignments(planWithLaterPreset)
+    );
+
+    act(() => {
+      result.current.handleCopyDay(1);
+    });
+
+    expect(result.current.copiedDay?.dayOfWeek).toBe(1);
+    expect(result.current.copiedDay?.assignments.length).toBe(1);
+
+    act(() => {
+      result.current.handlePasteDay(4);
+    });
+
+    const day4Assignments = result.current.assignments.filter(
+      (a) => a.day_of_week === 4
+    );
+    expect(day4Assignments.length).toBe(1);
+    expect(day4Assignments[0]?.workout_preset_name).toBe('Push Day A');
+  });
+
+  it('supports clearing all workouts on a day to make it a rest day', () => {
+    const { result } = renderHook(() =>
+      useWorkoutPlanAssignments(planWithLaterPreset)
+    );
+
+    expect(
+      result.current.assignments.filter((a) => a.day_of_week === 1).length
+    ).toBe(1);
+
+    act(() => {
+      result.current.handleClearDay(1);
+    });
+
+    expect(
+      result.current.assignments.filter((a) => a.day_of_week === 1).length
+    ).toBe(0);
+  });
 });

@@ -1,14 +1,16 @@
 import { useTranslation } from 'react-i18next';
-import { Flag, Plus } from 'lucide-react';
+import { Flag, Play, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkoutPlaybackStickyBarProps {
   onAddExercise: () => void;
   onFinishWorkout: () => void;
   isSaving: boolean;
+  isWorkoutPaused?: boolean;
+  onTogglePause?: () => void;
 }
 
-/** Mobile-only sticky action bar so "+ Add Exercise" and "Finish Workout"
+/** Mobile-only sticky action bar so "+ Add Exercise" and "Finish Workout" (or "Resume Workout" when paused)
  * stay reachable with one thumb while scrolling a long exercise list,
  * instead of only living in the header at the top of the page. Same
  * fixed-bottom-with-safe-area structural pattern as MainLayout's mobile nav
@@ -19,6 +21,8 @@ const WorkoutPlaybackStickyBar = ({
   onAddExercise,
   onFinishWorkout,
   isSaving,
+  isWorkoutPaused = false,
+  onTogglePause,
 }: WorkoutPlaybackStickyBarProps) => {
   const { t } = useTranslation();
 
@@ -33,17 +37,28 @@ const WorkoutPlaybackStickyBar = ({
         <Plus className="h-4 w-4" />
         {t('exercise.workoutPlaybackDialog.addExercise', 'Add Exercise')}
       </Button>
-      <Button
-        type="button"
-        className="flex-1 gap-2"
-        onClick={onFinishWorkout}
-        disabled={isSaving}
-      >
-        <Flag className="h-4 w-4" />
-        {isSaving
-          ? t('exercise.workoutPlaybackDialog.finishing', 'Saving...')
-          : t('exercise.workoutPlaybackDialog.finish', 'Finish Workout')}
-      </Button>
+      {isWorkoutPaused ? (
+        <Button
+          type="button"
+          className="flex-1 gap-2 bg-amber-600 text-white hover:bg-amber-700"
+          onClick={onTogglePause}
+        >
+          <Play className="h-4 w-4 fill-current" />
+          {t('exercise.workoutPlaybackPage.resumeWorkout', 'Resume Workout')}
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          className="flex-1 gap-2"
+          onClick={onFinishWorkout}
+          disabled={isSaving}
+        >
+          <Flag className="h-4 w-4" />
+          {isSaving
+            ? t('exercise.workoutPlaybackDialog.finishing', 'Saving...')
+            : t('exercise.workoutPlaybackDialog.finish', 'Finish Workout')}
+        </Button>
+      )}
     </div>
   );
 };

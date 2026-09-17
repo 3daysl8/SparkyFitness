@@ -2,6 +2,76 @@
   "layout": {
     "welcome": "Welcome {{activeUserName}}"
   },
+  "routineTemplates": {
+    "exploreTemplates": "Explore Templates",
+    "exploreStarterRoutines": "Explore Starter Routines",
+    "modalTitle": "Routine Template Library",
+    "modalSubtitle": "Explore proven training splits and strength routines. Add to your routines or start immediately.",
+    "searchPlaceholder": "Search routines by name, exercise, or muscle group...",
+    "noResultsFound": "No routines found",
+    "noResultsFoundDesc": "Try searching for another exercise name or select a different category filter.",
+    "startWorkout": "Start Now",
+    "addToRoutines": "Add Routine",
+    "added": "Added",
+    "addSuccess": "\"{{name}}\" added to your routines!",
+    "exercises": "exercises",
+    "sets": "sets",
+    "viewExercises": "Preview exercises & sets",
+    "hideExercises": "Hide exercise list",
+    "customize": "Customize in Builder",
+    "categories": {
+      "all": "All Programs",
+      "ppl": "Push / Pull / Legs",
+      "upperLower": "Upper / Lower",
+      "fullBody": "Full Body",
+      "strength": "Strength / 5-3-1",
+      "homeDumbbell": "Home & Dumbbell",
+      "conditioning": "HIIT & Conditioning"
+    },
+    "difficulty": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "templates": {
+      "pplPush": {
+        "title": "PPL - Push (Chest, Shoulders & Triceps)",
+        "desc": "Classic pushing hypertrophy session focusing on pectoral, anterior/lateral deltoid, and triceps development with compound and isolation movements."
+      },
+      "pplPull": {
+        "title": "PPL - Pull (Back, Rear Delts & Biceps)",
+        "desc": "Back thickness, lat width, rear delts, and biceps builder using horizontal and vertical pulling patterns."
+      },
+      "pplLegs": {
+        "title": "PPL - Legs (Quads, Hamstrings & Calves)",
+        "desc": "Heavy quad and posterior chain stimulation incorporating squats, hinges, leg accessories, and calf work."
+      },
+      "upperPower": {
+        "title": "Upper Body Power & Hypertrophy",
+        "desc": "Comprehensive upper body session blending heavy pressing and pulling compound lifts with targeted arm shaping."
+      },
+      "lowerHypertrophy": {
+        "title": "Lower Body Strength & Hypertrophy",
+        "desc": "4-day split lower body day emphasizing heavy squat strength and unilateral leg development with Romanian deadlifts."
+      },
+      "fullBodyFoundation": {
+        "title": "Full Body Foundation (3-Day Split A)",
+        "desc": "Time-efficient full body routine training every major muscle group 3 times a week with high-value compound lifts."
+      },
+      "strength531": {
+        "title": "5/3/1 Heavy Compound Strength",
+        "desc": "Pure strength progression focused on progressive overload across the Big 4 compound lifts with warm-ups and top working sets."
+      },
+      "homeDumbbell": {
+        "title": "Dumbbell-Only Full Body Home Workout",
+        "desc": "Complete muscle-building session requiring only a pair of dumbbells. Perfect for home workouts and minimal equipment setups."
+      },
+      "hiitConditioning": {
+        "title": "20-Min Athletic Conditioning & Core Blast",
+        "desc": "Fast-paced athletic conditioning circuit to ramp up heart rate, burn calories, and reinforce abdominal stability."
+      }
+    }
+  },
   "chat": {
     "toolCategories": {
       "tooltip": "Choose chatbot tools",
@@ -895,19 +965,29 @@
     },
     "workoutsPage": {
       "tabs": {
-        "routines": "Programs & Schedule",
+        "routines": "Programs & Routines",
         "history": "History",
         "library": "Exercise Library"
       },
-      "addTrainingSchedule": "Training Schedule",
-      "createProgram": "Create Program"
+      "quickStart": "Quick Start",
+      "addTrainingSchedule": "Create Program / Split",
+      "createProgram": "New Routine",
+      "createRoutine": "New Routine"
     },
     "activeProgramWidget": {
       "rest": "Rest",
       "startTodaysWorkout": "Start Today's Workout",
-      "noActivePlan": "No active training schedule.",
+      "startThisWorkoutToday": "Start This Workout Today",
+      "startBlankWorkout": "Start Freestyle Workout",
+      "noActivePlan": "No active training program.",
+      "noActivePlanDesc": "Set up a structured weekly split or jump straight into an empty workout session.",
+      "chooseOrActivateProgram": "Browse & Activate Program",
       "manage": "Manage",
-      "manageSchedules": "Manage Schedules"
+      "manageSchedules": "Manage Programs",
+      "restDayTitle": "Rest & Active Recovery",
+      "restDayDesc": "Give your muscles time to repair and adapt. Hydrate, stretch, and focus on nutrition.",
+      "activeProgram": "Active Program",
+      "activePhase": "Active Phase"
     },
     "plannedWorkouts": {
       "createSuccess": "Workout planned.",
@@ -925,17 +1005,53 @@
     },
     "workoutFinishSummary": {
       "title": "Workout Complete!",
-      "prCount": "{{count}} Personal Records!",
+      "prTitle": "Personal Records Smashed!",
+      "prCount": "{{count}} Personal Record!",
+      "prCount_one": "1 Personal Record!",
+      "prCount_other": "{{count}} Personal Records!",
+      "newBest": "New Best",
       "duration": "Duration",
+      "volume": "Volume",
       "sets": "Sets",
-      "volume": "Volume"
+      "supersets": "Supersets",
+      "exerciseBreakdown": "Exercise Breakdown",
+      "setsLabel": "sets",
+      "top": "Top",
+      "copySummary": "Copy Summary",
+      "copied": "Copied!",
+      "copiedToast": "Workout summary copied to clipboard!"
+    },
+    "plateCalculator": {
+      "title": "Plate Calculator",
+      "targetWeight": "Target Weight",
+      "barbell": "Barbell",
+      "quickAdjust": "Adjust",
+      "eachSide": "Plates on Each Side",
+      "emptyBar": "Empty Bar",
+      "remainderWarning": "Cannot exact-match: {{remainder}} {{unit}} difference.",
+      "applyWeight": "Apply {{weight}} {{unit}}",
+      "open": "Plate Calculator"
     },
     "exerciseDetailModal": {
       "primaryMuscles": "Primary: ",
       "secondaryMuscles": "Secondary: ",
       "estimated1RM": "Est. 1RM",
       "bestSet": "Best Set",
-      "volumeHistory": "Volume History (last 90 days)"
+      "volumeHistory": "Volume History (last 90 days)",
+      "tabProgression": "1RM Curve",
+      "tabRecords": "PR Ladder",
+      "tabHistory": "History",
+      "estimated1RMProgression": "Est. 1RM Progression",
+      "current1RM": "Current 1RM",
+      "peak1RM": "All-Time Peak",
+      "progressGain": "Progress",
+      "repMaxLadder": "Rep Max (RM) Records",
+      "heaviestWeight": "Heaviest Lift",
+      "maxSetVolume": "Max Set Volume",
+      "noProgressionData": "No progression history recorded yet.",
+      "noRmRecords": "No personal records logged yet.",
+      "recentWorkouts": "Recent Sessions",
+      "noRecentSessions": "No past workout sessions logged."
     },
     "workoutsHistory": {
       "untitledWorkout": "Workout",
@@ -1177,6 +1293,7 @@
       "prBadge": "PR",
       "previousSet": "Previous",
       "repsAbbrev": "reps",
+<<<<<<< HEAD
       "implausibleTitle": "Double-check this workout",
       "implausibleDescription": "Some values look unusual. Save anyway, or go back and review?",
       "implausibleSaveAnyway": "Save anyway",
@@ -1185,6 +1302,17 @@
       "implausibleEntryCalories": "{{exercise}}: {{value}} kcal is higher than expected",
       "implausibleCalorieRate": "{{exercise}}: {{value}} kcal/min is higher than expected",
       "implausibleSessionDuration": "Workout total of {{value}} min is longer than expected"
+=======
+      "swapExercise": "Swap Exercise",
+      "removeExercise": "Remove Exercise",
+      "exerciseActions": "Exercise Actions",
+      "fillPrevious": "Fill previous values",
+      "substituteTitle": "Substitute Exercise",
+      "substituteDescription": "Choose an alternative exercise to swap in place of {{exerciseName}} while keeping your set structure.",
+      "viewProgression": "PRs & Progression",
+      "supersetWithNext": "Superset with Next",
+      "removeFromSuperset": "Remove from Superset"
+>>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
     },
     "workoutPlaybackPage": {
       "addSet": "Add Set",
@@ -1202,6 +1330,7 @@
       "restEditorDescription": "Pick a rest duration for this set.",
       "restEditorTitle": "Edit Rest",
       "restTimer": "Rest",
+<<<<<<< HEAD
       "volume": "Volume"
     },
     "plannedWorkoutsList": {
@@ -1258,6 +1387,18 @@
       "weeklyGoalTotal": "{{completed}}/{{target}}",
       "weeklyGoalStrength": "S {{completed}}/{{target}}",
       "weeklyGoalCardio": "C {{completed}}/{{target}}"
+=======
+      "volume": "Volume",
+      "emptyExercisesTitle": "No exercises in this session yet",
+      "emptyExercisesDesc": "Freestyle Workout — Add exercises as you train to log your sets, reps, and weights on the go.",
+      "addFirstExercise": "Add Exercise",
+      "addAnotherExercise": "Add Exercise",
+      "paused": "Paused",
+      "resumeWorkout": "Resume Workout",
+      "workoutPaused": "Workout Paused",
+      "muteAudio": "Mute rest timer",
+      "unmuteAudio": "Unmute rest timer"
+>>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
     }
   },
   "workoutPresetsManager": {
@@ -3547,41 +3688,52 @@
     "backOff": "Back-off",
     "restPause": "Rest-Pause",
     "cluster": "Cluster",
-    "technique": "Technique"
+    "technique": "Technique",
+    "supersetWithNext": "Superset with Next",
+    "removeFromSuperset": "Remove from Superset",
+    "supersetLabel": "Superset {{label}}",
+    "giantSetLabel": "Giant Set {{label}}"
   },
   "addWorkoutPlanDialog": {
-    "editTitle": "Edit Workout Plan",
-    "addTitle": "Add New Workout Plan",
-    "editDescription": "Edit the details for your workout plan and its assignments.",
-    "addDescription": "Enter the details for your new workout plan and assign workouts to days.",
-    "planNameLabel": "Plan Name",
+    "editTitle": "Edit Training Program",
+    "addTitle": "Create Training Program / Split",
+    "editDescription": "Edit the details for your multi-day training program and daily routine assignments.",
+    "addDescription": "Define your training program / split and assign workout routines to specific days of the week.",
+    "planNameLabel": "Program Name",
     "descriptionLabel": "Description",
     "startDateLabel": "Start Date",
     "endDateLabel": "End Date (Optional)",
-    "setActiveLabel": "Set as active plan",
+    "setActiveLabel": "Set as active program",
     "duration1Week": "1 Week",
     "duration4Weeks": "4 Weeks",
+    "duration6Weeks": "6 Weeks",
+    "duration8Weeks": "8 Weeks",
+    "duration12Weeks": "12 Weeks",
     "durationOngoing": "Ongoing",
     "durationCustom": "Custom",
-    "assignmentsTitle": "Assignments",
+    "phaseDuration": "Phase Duration",
+    "assignmentsTitle": "Daily Split & Routine Assignments",
     "presetLabel": "Preset:",
     "setsLabel": "sets",
     "addSetButton": "Add Set",
-    "addExercisePresetButton": "Add Exercise/Preset",
-    "pasteExerciseButton": "Paste Exercise",
+    "addExercisePresetButton": "Add Routine/Exercise",
+    "pasteExerciseButton": "Paste Routine/Exercise",
     "cancelButton": "Cancel",
-    "saveButton": "Save Plan",
-    "addExerciseOrPresetTitle": "Add Exercise or Preset",
-    "addExerciseOrPresetDescription": "Select an exercise or a preset to add to the selected day.",
+    "saveButton": "Save Program",
+    "addExerciseOrPresetTitle": "Add Exercise or Routine",
+    "addExerciseOrPresetDescription": "Select an exercise or routine to add to this day.",
     "validationErrorTitle": "Validation Error",
-    "validationErrorDescription": "Plan Name and Start Date are required.",
+    "validationErrorDescription": "Program Name and Start Date are required.",
     "copiedToastTitle": "Copied!",
     "copiedToastDescription": "{{itemName}} copied to clipboard.",
+    "copiedDayToastDescription": "Copied all routines for this day.",
     "pastedToastTitle": "Pasted!",
     "pastedToastDescription": "Pasted {{itemName}} to the new day.",
+    "pastedDayToastDescription": "Pasted routines to this day.",
+    "dayClearedDescription": "Day set to Rest.",
     "errorToastTitle": "Error",
     "errorToastDescription": "Failed to load workout presets or exercises.",
-    "addExerciseButtonInDay": "Add Exercise",
+    "addExerciseButtonInDay": "Add Routine / Exercise",
     "pasteButton": "Paste"
   },
   "reports": {

@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import type { WorkoutPreset } from '@/types/workout';
@@ -27,8 +27,10 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   createWorkoutPlaybackRouteState,
   createBlankWorkoutPlaybackDraft,
+  createWorkoutPlaybackDraftFromPreset,
 } from '@/utils/workoutPlayback';
 import WorkoutPresetSelector from './WorkoutPresetSelector';
+import { RoutineTemplateExplorerModal } from '@/components/RoutineTemplateExplorerModal';
 
 import { DataTablePagination } from '@/components/ui/DataTablePagination';
 import {
@@ -51,11 +53,15 @@ const MAX_PRESET_NAME_LENGTH = 255;
 interface MyProgramsGridProps {
   isAddOpen: boolean;
   onAddOpenChange: (open: boolean) => void;
+  isExploreTemplatesOpen?: boolean;
+  onExploreTemplatesOpenChange?: (open: boolean) => void;
 }
 
 const MyProgramsGrid = ({
   isAddOpen,
   onAddOpenChange,
+  isExploreTemplatesOpen = false,
+  onExploreTemplatesOpenChange,
 }: MyProgramsGridProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -220,6 +226,54 @@ const MyProgramsGrid = ({
     [location.pathname, location.search, navigate]
   );
 
+  const [customizingPreset, setCustomizingPreset] =
+    useState<WorkoutPreset | null>(null);
+
+  const handleAddTemplateToRoutines = async (
+    presetData: Omit<WorkoutPreset, 'id' | 'created_at' | 'updated_at'>
+  ) => {
+    if (!user?.id) return;
+    await createPreset({ ...presetData, user_id: user.id });
+    toast({
+      title: t('common.success', 'Success'),
+      description: t('routineTemplates.addSuccess', {
+        name: presetData.name,
+        defaultValue: `"${presetData.name}" added to your routines!`,
+      }),
+    });
+  };
+
+  const handleStartTemplateWorkout = (
+    presetData: Omit<WorkoutPreset, 'id' | 'created_at' | 'updated_at'>
+  ) => {
+    const today = formatDateToYYYYMMDD(new Date());
+    const fullPreset: WorkoutPreset = {
+      ...presetData,
+      id: `template-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const draft = createWorkoutPlaybackDraftFromPreset(fullPreset, today);
+    navigate(`/workout-playback?date=${today}`, {
+      state: {
+        returnTo: `${location.pathname}${location.search}`,
+        draft,
+      },
+    });
+  };
+
+  const handleCustomizeTemplate = (
+    presetData: Omit<WorkoutPreset, 'id' | 'created_at' | 'updated_at'>
+  ) => {
+    const fullPreset: WorkoutPreset = {
+      ...presetData,
+      id: `custom-template-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setCustomizingPreset(fullPreset);
+  };
+
   const handleStartBlankWorkout = React.useCallback(() => {
     const today = formatDateToYYYYMMDD(new Date());
     navigate(`/workout-playback?date=${today}`, {
@@ -260,18 +314,33 @@ const MyProgramsGrid = ({
           <CardTitle className="text-base font-semibold tracking-tight">
             {t(
               'exercise.databaseManager.workoutPresetsCardTitle',
-              'My Programs'
+              'Workout Routines & Templates'
             )}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {presets.length === 0 && !isLoading ? (
-            <p className="text-center text-gray-400 py-10 italic">
-              {t(
-                'workoutPresetsManager.noPresetsFound',
-                'No workout presets found.'
+            <div className="text-center py-10 space-y-4">
+              <p className="text-muted-foreground italic">
+                {t(
+                  'workoutPresetsManager.noPresetsFound',
+                  'No workout routines found. Create a routine to get started.'
+                )}
+              </p>
+              {onExploreTemplatesOpenChange && (
+                <Button
+                  variant="outline"
+                  onClick={() => onExploreTemplatesOpenChange(true)}
+                  className="gap-2 border-primary/40 text-primary hover:bg-primary/5 mx-auto"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {t(
+                    'routineTemplates.exploreStarterRoutines',
+                    'Explore Starter Routines'
+                  )}
+                </Button>
               )}
-            </p>
+            </div>
           ) : (
             <div className="space-y-4">
               <div
@@ -340,6 +409,19 @@ const MyProgramsGrid = ({
         onSave={handleCreatePreset}
       />
 
+      {customizingPreset && (
+        <WorkoutPresetForm
+          isOpen={!!customizingPreset}
+          onClose={() => setCustomizingPreset(null)}
+          onSave={async (newPresetData) => {
+            if (!user?.id) return;
+            await createPreset({ ...newPresetData, user_id: user.id });
+            setCustomizingPreset(null);
+          }}
+          initialPreset={customizingPreset}
+        />
+      )}
+
       {selectedPreset && (
         <WorkoutPresetForm
           isOpen={isEditDialogOpen}
@@ -353,6 +435,15 @@ const MyProgramsGrid = ({
           initialPreset={selectedPreset}
         />
       )}
+
+      <RoutineTemplateExplorerModal
+        isOpen={isExploreTemplatesOpen}
+        onClose={() => onExploreTemplatesOpenChange?.(false)}
+        onAddToMyRoutines={handleAddTemplateToRoutines}
+        onStartWorkout={handleStartTemplateWorkout}
+        onCustomize={handleCustomizeTemplate}
+        userId={user?.id}
+      />
     </div>
   );
 };

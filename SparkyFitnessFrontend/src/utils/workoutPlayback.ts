@@ -12,7 +12,16 @@ import {
 } from '@workspace/shared';
 import type { WorkoutPreset, WorkoutPresetSet } from '@/types/workout';
 import type { Exercise } from '@/types/exercises';
+<<<<<<< HEAD
 import { generateClientId } from '@/utils/generateClientId';
+=======
+import {
+  getSupersetRuns,
+  supersetExercisesWithNext,
+  ungroupExercise,
+  normalizeSupersetGroups,
+} from '@/utils/workoutSupersets';
+>>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
 
 export const DEFAULT_REST_SECONDS = 90;
 export const WORKOUT_PLAYBACK_SET_GRID_CLASSES =
@@ -41,12 +50,14 @@ export interface WorkoutPlaybackSetDraft extends WorkoutPresetSet {
 export interface WorkoutPlaybackExerciseDraft {
   exercise_id: string;
   exercise_name: string;
+  category?: string;
   modality?: ExerciseModality;
   image_url?: string;
   notes: string | null;
   started_at?: string | null;
   ended_at?: string | null;
   sets: WorkoutPlaybackSetDraft[];
+  superset_group?: number | null;
 }
 
 export interface WorkoutPlaybackDraft {
@@ -71,6 +82,9 @@ export interface WorkoutPlaybackDraft {
   exercises: WorkoutPlaybackExerciseDraft[];
   started_at: string;
   updated_at: string;
+  is_paused?: boolean;
+  paused_at?: string | null;
+  total_paused_seconds?: number;
 }
 
 export interface WorkoutSetPointer {
@@ -267,11 +281,45 @@ export function listWorkoutSetPointers(
   draft: WorkoutPlaybackDraft
 ): WorkoutSetPointer[] {
   const pointers: WorkoutSetPointer[] = [];
-  draft.exercises.forEach((exercise, exerciseIndex) => {
-    exercise.sets.forEach((_, setIndex) => {
-      pointers.push({ exerciseIndex, setIndex });
-    });
-  });
+  const runs = getSupersetRuns(draft.exercises);
+  const runByFirstIndex = new Map(runs.map((r) => [r.indices[0], r]));
+  const consumed = new Set<number>();
+
+  for (
+    let exerciseIndex = 0;
+    exerciseIndex < draft.exercises.length;
+    exerciseIndex++
+  ) {
+    if (consumed.has(exerciseIndex)) continue;
+
+    const run = runByFirstIndex.get(exerciseIndex);
+    if (!run) {
+      const exercise = draft.exercises[exerciseIndex];
+      if (exercise) {
+        exercise.sets.forEach((_, setIndex) => {
+          pointers.push({ exerciseIndex, setIndex });
+        });
+      }
+      continue;
+    }
+
+    run.indices.forEach((idx) => consumed.add(idx));
+    const memberExercises = run.indices.map((idx) => draft.exercises[idx]);
+    const maxSets = Math.max(
+      0,
+      ...memberExercises.map((e) => e?.sets.length ?? 0)
+    );
+
+    for (let round = 0; round < maxSets; round++) {
+      for (const memberIdx of run.indices) {
+        const memberEx = draft.exercises[memberIdx];
+        if (memberEx && round < memberEx.sets.length) {
+          pointers.push({ exerciseIndex: memberIdx, setIndex: round });
+        }
+      }
+    }
+  }
+
   return pointers;
 }
 
@@ -332,6 +380,7 @@ export function createWorkoutPlaybackDraftFromPreset(
         exercise.modality ?? exercise.exercise?.modality,
         exercise.category ?? exercise.exercise?.category
       ),
+      superset_group: exercise.superset_group ?? null,
       notes: null,
       started_at: null,
       ended_at: null,
@@ -425,6 +474,7 @@ export function createWorkoutPlaybackDraftFromSession(
         exercise.exercise_snapshot?.modality,
         exercise.exercise_snapshot?.category ?? exercise.category ?? undefined
       ),
+      superset_group: exercise.superset_group ?? null,
       notes: null,
       started_at: null,
       ended_at: null,
@@ -547,6 +597,7 @@ export function addExerciseToWorkoutDraft(
     exercise_name: exercise.name,
     image_url: exercise.images?.[0],
     modality: resolveExerciseModality(exercise.modality, exercise.category),
+    superset_group: null,
     notes: null,
     started_at: wasEmpty ? timestamp : null,
     ended_at: null,
@@ -578,6 +629,94 @@ export function addExerciseToWorkoutDraft(
   }
 
   return touchDraft(nextDraft);
+}
+
+/** Replaces an exercise in an active draft while preserving existing set count,
+ * target reps/weights, and completion state. */
+export function substituteExerciseInWorkoutDraft(
+  draft: WorkoutPlaybackDraft,
+  exerciseIndex: number,
+  newExercise: Exercise
+): WorkoutPlaybackDraft {
+  const current = draft.exercises[exerciseIndex];
+  if (!current) return draft;
+
+  const newModality = resolveExerciseModality(
+    newExercise.modality,
+    newExercise.category
+  );
+
+  const updatedExercise: WorkoutPlaybackExerciseDraft = {
+    ...current,
+    exercise_id: newExercise.id,
+    exercise_name: newExercise.name,
+    image_url: newExercise.images?.[0],
+    modality: newModality,
+  };
+
+  const exercises = [...draft.exercises];
+  exercises[exerciseIndex] = updatedExercise;
+
+  return touchDraft({
+    ...draft,
+    exercises,
+  });
+}
+
+/** Removes an entire exercise from an active workout draft and realigns active pointers. */
+export function removeExerciseFromWorkoutDraft(
+  draft: WorkoutPlaybackDraft,
+  exerciseIndex: number
+): WorkoutPlaybackDraft {
+  if (exerciseIndex < 0 || exerciseIndex >= draft.exercises.length) {
+    return draft;
+  }
+
+  const rawExercises = draft.exercises.filter(
+    (_, idx) => idx !== exerciseIndex
+  );
+  const exercises = normalizeSupersetGroups(rawExercises);
+  let nextActiveExerciseIndex = draft.active_exercise_index;
+  let nextActiveSetIndex = draft.active_set_index;
+
+  if (exercises.length === 0) {
+    nextActiveExerciseIndex = 0;
+    nextActiveSetIndex = 0;
+  } else if (nextActiveExerciseIndex >= exercises.length) {
+    nextActiveExerciseIndex = Math.max(0, exercises.length - 1);
+    nextActiveSetIndex = 0;
+  }
+
+  return touchDraft({
+    ...draft,
+    exercises,
+    active_exercise_index: nextActiveExerciseIndex,
+    active_set_index: nextActiveSetIndex,
+  });
+}
+
+/** Groups the exercise at `exerciseIndex` with the next adjacent exercise in the live workout draft. */
+export function groupPlaybackExerciseWithNext(
+  draft: WorkoutPlaybackDraft,
+  exerciseIndex: number
+): WorkoutPlaybackDraft {
+  const exercises = supersetExercisesWithNext(draft.exercises, exerciseIndex);
+  return touchDraft({
+    ...draft,
+    exercises,
+  });
+}
+
+/** Dissolves superset membership for the exercise at `exerciseIndex` in the live workout draft. */
+export function ungroupPlaybackExercise(
+  draft: WorkoutPlaybackDraft,
+  exerciseIndex: number
+): WorkoutPlaybackDraft {
+  const exercises = ungroupExercise(draft.exercises, exerciseIndex);
+  return touchDraft({
+    ...draft,
+    exercises,
+  });
 }
 
 export function getWorkoutPlaybackRestRemainingSeconds(
@@ -894,6 +1033,104 @@ export function extendWorkoutPlaybackRestTimer(
   });
 }
 
+/** Pauses the entire workout playback session, freezing the duration clock.
+ * Also pauses the rest timer if one is actively running. */
+export function pauseWorkoutPlayback(
+  draft: WorkoutPlaybackDraft
+): WorkoutPlaybackDraft {
+  if (draft.is_paused) {
+    return draft;
+  }
+
+  const now = nowIso();
+  let restTimer = draft.rest_timer;
+  if (restTimer.state === 'running') {
+    const remainingSeconds = getWorkoutPlaybackRestRemainingSeconds(restTimer);
+    restTimer = {
+      ...restTimer,
+      state: 'paused',
+      remaining_seconds: remainingSeconds,
+      target_end_timestamp_ms: null,
+    };
+  }
+
+  return touchDraft({
+    ...draft,
+    is_paused: true,
+    paused_at: now,
+    total_paused_seconds: draft.total_paused_seconds ?? 0,
+    rest_timer: restTimer,
+  });
+}
+
+/** Resumes a paused workout playback session, accumulating paused duration
+ * so elapsed active workout time does not count the paused period. */
+export function resumeWorkoutPlayback(
+  draft: WorkoutPlaybackDraft
+): WorkoutPlaybackDraft {
+  if (!draft.is_paused) {
+    return draft;
+  }
+
+  const nowMs = Date.now();
+  const pauseMs = draft.paused_at ? Date.parse(draft.paused_at) : nowMs;
+  const pausedDuration = Number.isNaN(pauseMs)
+    ? 0
+    : Math.max(0, Math.floor((nowMs - pauseMs) / 1000));
+  const newTotalPausedSeconds =
+    (draft.total_paused_seconds ?? 0) + pausedDuration;
+
+  let restTimer = draft.rest_timer;
+  if (restTimer.state === 'paused' && restTimer.remaining_seconds > 0) {
+    restTimer = {
+      ...restTimer,
+      state: 'running',
+      target_end_timestamp_ms: nowMs + restTimer.remaining_seconds * 1000,
+    };
+  }
+
+  return touchDraft({
+    ...draft,
+    is_paused: false,
+    paused_at: null,
+    total_paused_seconds: newTotalPausedSeconds,
+    rest_timer: restTimer,
+  });
+}
+
+/** Toggles workout playback pause/resume state. */
+export function toggleWorkoutPlaybackPause(
+  draft: WorkoutPlaybackDraft
+): WorkoutPlaybackDraft {
+  return draft.is_paused
+    ? resumeWorkoutPlayback(draft)
+    : pauseWorkoutPlayback(draft);
+}
+
+/** Calculates the total active elapsed seconds for the workout, excluding any
+ * paused intervals. */
+export function getWorkoutPlaybackElapsedSeconds(
+  draft: WorkoutPlaybackDraft,
+  nowMs: number = Date.now()
+): number {
+  const startMs = draft.started_at ? Date.parse(draft.started_at) : NaN;
+  if (Number.isNaN(startMs)) {
+    return 0;
+  }
+
+  let effectiveEndMs = nowMs;
+  if (draft.is_paused && draft.paused_at) {
+    const pauseMs = Date.parse(draft.paused_at);
+    if (!Number.isNaN(pauseMs)) {
+      effectiveEndMs = pauseMs;
+    }
+  }
+
+  const rawSeconds = Math.max(0, Math.floor((effectiveEndMs - startMs) / 1000));
+  const totalPausedSeconds = draft.total_paused_seconds ?? 0;
+  return Math.max(0, rawSeconds - totalPausedSeconds);
+}
+
 // --- Personal record (PR) detection -----------------------------------
 //
 // Ported from SparkyFitnessMobile/src/utils/workoutSession.ts (isWarmupSetType
@@ -993,6 +1230,167 @@ export function isPrSet(
   );
 }
 
+/**
+ * Estimate 1-Rep Max using the Epley formula: Weight * (1 + Reps / 30).
+ * If reps <= 1 or invalid, returns weight.
+ */
+export function estimateOneRepMax(
+  weight: number,
+  reps: number | null | undefined
+): number {
+  if (weight <= 0) return 0;
+  if (!reps || reps <= 1) return Math.round(weight * 10) / 10;
+  const epley = weight * (1 + reps / 30);
+  return Math.round(epley * 10) / 10;
+}
+
+export interface PrAchievement {
+  exerciseName: string;
+  weight: number;
+  reps: number | null;
+  setNumber: number;
+  estimated1Rm?: number | null;
+}
+
+export interface WorkoutFinishSummaryExercise {
+  name: string;
+  completedSets: number;
+  totalSets: number;
+  topWeight: number | null;
+  topReps: number | null;
+  totalVolume: number;
+}
+
+export interface WorkoutFinishSummary {
+  name: string;
+  prCount: number;
+  prAchievements?: PrAchievement[];
+  totalVolume: number;
+  elapsedSeconds: number;
+  setsCompleted: number;
+  totalSets: number;
+  exercises?: WorkoutFinishSummaryExercise[];
+  supersetsCompleted?: number;
+}
+
+/** Extracts all personal record achievements accomplished in the workout draft. */
+export function getWorkoutPrAchievements(
+  draft: WorkoutPlaybackDraft
+): PrAchievement[] {
+  const achievements: PrAchievement[] = [];
+  draft.exercises.forEach((exercise) => {
+    exercise.sets.forEach((set) => {
+      if (set.completed && set.is_pr && set.weight != null) {
+        achievements.push({
+          exerciseName: exercise.exercise_name,
+          weight: set.weight,
+          reps: set.reps ?? null,
+          setNumber: set.set_number,
+          estimated1Rm:
+            set.reps && set.reps > 1
+              ? estimateOneRepMax(set.weight, set.reps)
+              : set.weight,
+        });
+      }
+    });
+  });
+  return achievements;
+}
+
+/**
+ * Build the full workout completion summary payload for celebration and metrics breakdown.
+ */
+export function buildWorkoutFinishSummary(
+  draft: WorkoutPlaybackDraft,
+  elapsedSeconds: number,
+  totalVolume: number,
+  stats?: { completedSets: number; totalSets: number } | null
+): WorkoutFinishSummary {
+  const prAchievements = getWorkoutPrAchievements(draft);
+  const supersetRuns = getSupersetRuns(draft.exercises);
+
+  const exercises: WorkoutFinishSummaryExercise[] = draft.exercises.map(
+    (ex) => {
+      const completedSets = ex.sets.filter((s) => s.completed);
+      let topWeight: number | null = null;
+      let topReps: number | null = null;
+      let exerciseVolume = 0;
+
+      completedSets.forEach((s) => {
+        if (s.weight != null) {
+          if (topWeight == null || s.weight > topWeight) {
+            topWeight = s.weight;
+            topReps = s.reps ?? null;
+          } else if (s.weight === topWeight && (s.reps ?? 0) > (topReps ?? 0)) {
+            topReps = s.reps ?? null;
+          }
+          exerciseVolume += (s.weight ?? 0) * (s.reps ?? 0);
+        }
+      });
+
+      return {
+        name: ex.exercise_name,
+        completedSets: completedSets.length,
+        totalSets: ex.sets.length,
+        topWeight,
+        topReps,
+        totalVolume: exerciseVolume,
+      };
+    }
+  );
+
+  return {
+    name: draft.name,
+    prCount: prAchievements.length,
+    prAchievements,
+    totalVolume,
+    elapsedSeconds,
+    setsCompleted: stats?.completedSets ?? 0,
+    totalSets: stats?.totalSets ?? 0,
+    exercises,
+    supersetsCompleted: supersetRuns.length,
+  };
+}
+
+/**
+ * Format a shareable markdown / text snippet of the workout summary for clipboard copying.
+ */
+export function formatWorkoutSummaryText(
+  summary: WorkoutFinishSummary,
+  weightUnit: string = 'kg'
+): string {
+  const durationMins = Math.round(summary.elapsedSeconds / 60);
+  const formattedVol = `${Math.round(summary.totalVolume).toLocaleString()} ${weightUnit}`;
+
+  let text = `🏋️ Workout Complete: ${summary.name}\n`;
+  text += `⏱️ Duration: ${durationMins}m | 📊 Sets: ${summary.setsCompleted}/${summary.totalSets} | ⚡ Volume: ${formattedVol}\n`;
+
+  if (
+    summary.prCount > 0 &&
+    summary.prAchievements &&
+    summary.prAchievements.length > 0
+  ) {
+    text += `\n🏆 Personal Records (${summary.prCount}):\n`;
+    summary.prAchievements.forEach((pr) => {
+      text += `  • ${pr.exerciseName}: ${pr.weight} ${weightUnit}${pr.reps ? ` × ${pr.reps}` : ''}\n`;
+    });
+  }
+
+  if (summary.exercises && summary.exercises.length > 0) {
+    text += `\n📋 Exercises:\n`;
+    summary.exercises.forEach((ex) => {
+      const topInfo =
+        ex.topWeight != null
+          ? ` (Top: ${ex.topWeight} ${weightUnit}${ex.topReps ? ` × ${ex.topReps}` : ''})`
+          : '';
+      text += `  • ${ex.name}: ${ex.completedSets}/${ex.totalSets} sets${topInfo}\n`;
+    });
+  }
+
+  text += `\nLogged with SparkyFitness ⚡`;
+  return text;
+}
+
 function toNullableNumber(value: number | null | undefined): number | null {
   return value === undefined ? null : value;
 }
@@ -1040,6 +1438,7 @@ export function buildPresetSessionCreateRequestFromDraft(
         sort_order: exerciseIndex,
         duration_minutes: deriveExerciseDurationFromSets(completedSets),
         notes: exercise.notes ?? null,
+        superset_group: exercise.superset_group ?? null,
         entry_time: entryTime,
         sets: completedSets.map((set, setIndex) => ({
           set_number: setIndex + 1,

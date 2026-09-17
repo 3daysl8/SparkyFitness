@@ -41,12 +41,14 @@ jest.mock('@/hooks/useAuth', () => ({
 }));
 
 jest.mock('@/pages/Exercises/AddExerciseDialog', () => () => null);
+jest.mock('@/pages/Exercises/ExerciseDetailModal', () => () => null);
 
 jest.mock('@/hooks/Exercises/useExerciseEntries', () => ({
   useCreatePresetSessionMutation: () => ({
     mutateAsync: (...args: unknown[]) => mockCreatePresetSession(...args),
     isPending: false,
   }),
+  useExerciseProgress: () => ({ data: [] }),
   // No prior history in these fixtures — every exercise gets no "Previous: …"
   // hint and no PR baseline to compare against.
   useWorkoutExerciseStats: () => ({}),
@@ -147,7 +149,9 @@ describe('WorkoutPlaybackPage', () => {
       await waitFor(() =>
         expect(mockCreatePresetSession).toHaveBeenCalledTimes(1)
       );
-      expect(await screen.findByText('Workout Complete!')).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Personal Records Smashed!|Workout Complete!/)
+      ).toBeInTheDocument();
       expect(screen.getByText('1 Personal Record!')).toBeInTheDocument();
       // The draft/navigation are deferred until "Done" is pressed, not fired
       // immediately on save — the whole point of the recap step.
@@ -704,5 +708,30 @@ describe('WorkoutPlaybackPage', () => {
     );
 
     expect(screen.getAllByLabelText('Pause').length).toBeGreaterThan(0);
+  });
+
+  it('allows pausing and resuming the workout session', () => {
+    const draft = createWorkoutPlaybackDraftFromPreset(
+      presetFixture,
+      '2026-04-27'
+    );
+    mockLocationState = { returnTo: '/?date=2026-04-27', draft };
+
+    render(<WorkoutPlaybackPage />);
+
+    // Click the pause button in the Duration tile
+    const pauseButtons = screen.getAllByLabelText('Pause');
+    fireEvent.click(pauseButtons[0]!);
+
+    // Shows Workout Paused banner and Resume buttons
+    expect(screen.getByText('Workout Paused')).toBeInTheDocument();
+    const resumeButtons = screen.getAllByRole('button', {
+      name: /resume workout/i,
+    });
+    expect(resumeButtons.length).toBeGreaterThan(0);
+
+    // Resume the workout
+    fireEvent.click(resumeButtons[0]!);
+    expect(screen.queryByText('Workout Paused')).not.toBeInTheDocument();
   });
 });

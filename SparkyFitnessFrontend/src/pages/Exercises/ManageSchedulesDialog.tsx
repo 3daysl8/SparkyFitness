@@ -125,7 +125,7 @@ const ManageSchedulesDialog = ({
             <DialogTitle>
               {t(
                 'workoutPlansManager.managePlansTitle',
-                'Manage Training Schedules'
+                'Manage Training Programs'
               )}
             </DialogTitle>
           </DialogHeader>
@@ -133,7 +133,7 @@ const ManageSchedulesDialog = ({
             <p className="text-center text-gray-400 py-10 italic">
               {t(
                 'workoutPlansManager.noPlansFound',
-                'No workout plans found. Create one to get started!'
+                'No training programs found. Create one to get started!'
               )}
             </p>
           ) : (

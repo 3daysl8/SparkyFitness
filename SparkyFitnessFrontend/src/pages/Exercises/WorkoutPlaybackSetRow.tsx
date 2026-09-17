@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { WeightUnit } from '@/contexts/PreferencesContext';
 import {
+  Dumbbell,
   MessageSquare,
   Minus,
   Plus,
@@ -16,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { UnitInput } from '@/components/ui/UnitInput';
+import BarbellPlateCalculatorModal from '@/components/BarbellPlateCalculatorModal';
 import {
   Select,
   SelectContent,
@@ -127,6 +129,8 @@ const WorkoutPlaybackSetRow = ({
   const weightStepLabel =
     weightUnit === 'lbs' ? '5' : Number(weightStepKg.toFixed(1)).toString();
 
+  const [isPlateCalculatorOpen, setIsPlateCalculatorOpen] = useState(false);
+
   const stepReps = (delta: number) => {
     onSetFieldChange(pointer, 'reps', Math.max(0, (reps ?? 0) + delta));
   };
@@ -146,7 +150,7 @@ const WorkoutPlaybackSetRow = ({
       >
         <div className={WORKOUT_PLAYBACK_SET_GRID_CLASSES}>
           <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 sm:col-start-1 sm:col-span-1 sm:justify-start">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
               <Checkbox
                 aria-label={`Complete set ${setNumber}`}
                 checked={completed}
@@ -165,16 +169,32 @@ const WorkoutPlaybackSetRow = ({
               <Button
                 type="button"
                 variant="ghost"
-                className="h-auto p-0 text-sm font-medium hover:bg-transparent"
+                className="h-auto p-0 text-sm font-medium hover:bg-transparent flex items-center gap-1"
                 aria-label={`Select set ${setNumber} for ${exerciseName}`}
                 onClick={() => onSelectSet(pointer)}
               >
-                {t(
-                  'exercise.workoutPlaybackDialog.setRow',
-                  'Set {{setNumber}}',
-                  {
-                    setNumber,
-                  }
+                {setType === 'Warm-up' ? (
+                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                    W
+                  </span>
+                ) : setType === 'Drop Set' ? (
+                  <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-400 border border-purple-500/30">
+                    D
+                  </span>
+                ) : setType === 'Failure' ? (
+                  <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-400 border border-rose-500/30">
+                    F
+                  </span>
+                ) : (
+                  <span>
+                    {t(
+                      'exercise.workoutPlaybackDialog.setRow',
+                      'Set {{setNumber}}',
+                      {
+                        setNumber,
+                      }
+                    )}
+                  </span>
                 )}
               </Button>
               {isPr && (
@@ -248,12 +268,16 @@ const WorkoutPlaybackSetRow = ({
                     parseNullableInteger(event.target.value)
                   )
                 }
-                placeholder={t('common.reps', 'reps')}
+                placeholder={
+                  previousSet?.reps != null
+                    ? String(previousSet.reps)
+                    : t('common.reps', 'reps')
+                }
                 className="col-span-1 w-full focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:col-start-3"
               />
 
               <div
-                className="col-span-1 w-full sm:col-start-4"
+                className="col-span-1 w-full sm:col-start-4 relative flex items-center"
                 onClick={(event) => event.stopPropagation()}
               >
                 <UnitInput
@@ -261,12 +285,25 @@ const WorkoutPlaybackSetRow = ({
                   unit={weightUnit}
                   type="weight"
                   placeholder={t('common.weight', 'Weight')}
+                  placeholderValue={previousSet?.weight}
                   onChange={(value) =>
                     onSetFieldChange(pointer, 'weight', value)
                   }
-                  inputClassName="focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  inputClassName="focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 pr-6"
                   aria-label={`Weight set ${setNumber}`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setIsPlateCalculatorOpen(true)}
+                  aria-label={t(
+                    'exercise.plateCalculator.open',
+                    'Plate Calculator'
+                  )}
+                  title={t('exercise.plateCalculator.open', 'Plate Calculator')}
+                  className="absolute right-1.5 h-6 w-6 text-muted-foreground/60 hover:text-primary transition-colors flex items-center justify-center rounded"
+                >
+                  <Dumbbell className="h-3 w-3" />
+                </button>
               </div>
             </>
           )}
@@ -276,20 +313,41 @@ const WorkoutPlaybackSetRow = ({
               className="col-span-4 -mt-1 flex items-center justify-between gap-2 px-1 sm:col-start-3 sm:col-span-2 sm:mt-0"
               onClick={(event) => event.stopPropagation()}
             >
-              <span className="min-w-0 truncate text-[10px] text-muted-foreground">
-                {hasPreviousSet &&
-                  t(
-                    'exercise.workoutPlaybackDialog.previousSet',
-                    'Previous: {{weight}} × {{reps}}',
-                    {
-                      weight:
-                        previousSet?.weight != null
-                          ? formatWeight(previousSet.weight, weightUnit)
-                          : '—',
-                      reps: previousSet?.reps ?? '—',
+              {hasPreviousSet ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (previousSet?.reps != null) {
+                      onSetFieldChange(pointer, 'reps', previousSet.reps);
                     }
+                    if (previousSet?.weight != null) {
+                      onSetFieldChange(pointer, 'weight', previousSet.weight);
+                    }
+                  }}
+                  title={t(
+                    'exercise.workoutPlaybackDialog.fillPrevious',
+                    'Fill previous values'
                   )}
-              </span>
+                  className="group flex items-center gap-1 text-left min-w-0 truncate text-[10px] text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                >
+                  <span className="truncate group-hover:underline">
+                    {t(
+                      'exercise.workoutPlaybackDialog.previousSet',
+                      'Previous: {{weight}} × {{reps}}',
+                      {
+                        weight:
+                          previousSet?.weight != null
+                            ? formatWeight(previousSet.weight, weightUnit)
+                            : '—',
+                        reps: previousSet?.reps ?? '—',
+                      }
+                    )}
+                  </span>
+                </button>
+              ) : (
+                <span className="min-w-0 truncate text-[10px] text-muted-foreground" />
+              )}
               <div className="flex shrink-0 items-center gap-2.5">
                 <div className="flex items-center gap-0.5">
                   <button
@@ -399,6 +457,16 @@ const WorkoutPlaybackSetRow = ({
           )}
         </div>
       </div>
+
+      <BarbellPlateCalculatorModal
+        open={isPlateCalculatorOpen}
+        onOpenChange={setIsPlateCalculatorOpen}
+        initialWeight={weight ?? previousSet?.weight ?? 60}
+        weightUnit={weightUnit}
+        onApplyWeight={(newWeight) =>
+          onSetFieldChange(pointer, 'weight', newWeight)
+        }
+      />
     </div>
   );
 };

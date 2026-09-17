@@ -22,6 +22,11 @@ import { toast } from '../use-toast';
 import { useTranslation } from 'react-i18next';
 import { resolveExerciseModality } from '@workspace/shared';
 import { defaultSetForModality } from '@/constants/exercises';
+import {
+  supersetExercisesWithNext,
+  ungroupExercise,
+  normalizeSupersetGroups,
+} from '@/utils/workoutSupersets';
 
 interface WorkoutPresetFormProps {
   onSave: (
@@ -138,8 +143,18 @@ export function useWorkoutPresetForm({
   };
 
   const handleRemoveExercise = (index: number) => {
-    setExercises((prev) => prev.filter((_, i) => i !== index));
+    setExercises((prev) =>
+      normalizeSupersetGroups(prev.filter((_, i) => i !== index))
+    );
   };
+
+  const handleSupersetWithNext = useCallback((exerciseIndex: number) => {
+    setExercises((prev) => supersetExercisesWithNext(prev, exerciseIndex));
+  }, []);
+
+  const handleUngroupExercise = useCallback((exerciseIndex: number) => {
+    setExercises((prev) => ungroupExercise(prev, exerciseIndex));
+  }, []);
 
   const handleDuplicateExercise = useCallback((exerciseIndex: number) => {
     setExercises((prev) => {
@@ -291,12 +306,15 @@ export function useWorkoutPresetForm({
       );
 
       if (activeExerciseIdx !== -1 && overExerciseIdx !== -1) {
-        return arrayMove(newExercises, activeExerciseIdx, overExerciseIdx).map(
-          (ex, index) => ({
-            ...ex,
-            sort_order: index,
-          })
-        );
+        const reordered = arrayMove(
+          newExercises,
+          activeExerciseIdx,
+          overExerciseIdx
+        ).map((ex, index) => ({
+          ...ex,
+          sort_order: index,
+        }));
+        return normalizeSupersetGroups(reordered);
       }
 
       // If not exercises, check if it's a set reorder within the same exercise
@@ -414,6 +432,8 @@ export function useWorkoutPresetForm({
     handleOpenReplaceExercise,
     handleRemoveExercise,
     handleDuplicateExercise,
+    handleSupersetWithNext,
+    handleUngroupExercise,
     handleSetChange,
     handleAddSet,
     handleDuplicateSet,

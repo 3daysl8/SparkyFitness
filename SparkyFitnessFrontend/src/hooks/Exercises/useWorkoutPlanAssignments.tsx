@@ -336,6 +336,74 @@ export function useWorkoutPlanAssignments(
     [copiedAssignment, t, resolvePresetName]
   );
 
+  const [copiedDay, setCopiedDay] = useState<{
+    dayOfWeek: number;
+    assignments: WorkoutPlanAssignment[];
+  } | null>(null);
+
+  const handleCopyDay = useCallback(
+    (dayOfWeek: number) => {
+      const dayAssignments = assignments.filter(
+        (a) => a.day_of_week === dayOfWeek
+      );
+      if (dayAssignments.length === 0) return;
+      setCopiedDay({
+        dayOfWeek,
+        assignments: dayAssignments.map((a) => ({ ...a })),
+      });
+      toast({
+        title: t('addWorkoutPlanDialog.copiedToastTitle', 'Copied!'),
+        description: t(
+          'addWorkoutPlanDialog.copiedDayToastDescription',
+          'Copied all routines for this day.'
+        ),
+      });
+    },
+    [assignments, t]
+  );
+
+  const handlePasteDay = useCallback(
+    (targetDayOfWeek: number) => {
+      if (!copiedDay || copiedDay.assignments.length === 0) return;
+      const newAssignments: WorkoutPlanAssignment[] = copiedDay.assignments.map(
+        (a) => ({
+          ...a,
+          id: generateClientId(),
+          day_of_week: targetDayOfWeek,
+          template_id: '',
+          sets:
+            a.sets?.map((s) => ({
+              ...s,
+              id: generateClientId(),
+            })) || [],
+        })
+      );
+      setAssignments((prev) => [...prev, ...newAssignments]);
+      toast({
+        title: t('addWorkoutPlanDialog.pastedToastTitle', 'Pasted!'),
+        description: t(
+          'addWorkoutPlanDialog.pastedDayToastDescription',
+          'Pasted routines to this day.'
+        ),
+      });
+    },
+    [copiedDay, t]
+  );
+
+  const handleClearDay = useCallback(
+    (dayOfWeek: number) => {
+      setAssignments((prev) => prev.filter((a) => a.day_of_week !== dayOfWeek));
+      toast({
+        title: t('common.success', 'Success'),
+        description: t(
+          'addWorkoutPlanDialog.dayClearedDescription',
+          'Day set to Rest.'
+        ),
+      });
+    },
+    [t]
+  );
+
   const buildAssignmentsForSave = useCallback(
     () =>
       assignments
@@ -356,6 +424,7 @@ export function useWorkoutPlanAssignments(
   return {
     assignments,
     copiedAssignment,
+    copiedDay,
     workoutPresets,
     isAddExerciseDialogOpen,
     setIsAddExerciseDialogOpen,
@@ -370,6 +439,9 @@ export function useWorkoutPlanAssignments(
     handleAddExerciseOrPreset,
     handleCopyAssignment,
     handlePasteAssignment,
+    handleCopyDay,
+    handlePasteDay,
+    handleClearDay,
     buildAssignmentsForSave,
   };
 }

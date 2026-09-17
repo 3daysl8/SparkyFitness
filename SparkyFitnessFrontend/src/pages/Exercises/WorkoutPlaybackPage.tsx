@@ -15,9 +15,12 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   DEFAULT_REST_SECONDS,
   addExerciseToWorkoutDraft,
+  substituteExerciseInWorkoutDraft,
+  removeExerciseFromWorkoutDraft,
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
+  buildWorkoutFinishSummary,
   completeCurrentWorkoutSet,
   ensureWorkoutPlaybackDraftClientRequestId,
   extendWorkoutPlaybackRestTimer,
@@ -25,6 +28,8 @@ import {
   getWorkoutPlaybackPlausibilityWarnings,
   getWorkoutPlaybackRestRemainingSeconds,
   getWorkoutPlaybackStats,
+  groupPlaybackExerciseWithNext,
+  ungroupPlaybackExercise,
   isPrSet,
   isWorkoutPlaybackComplete,
   loadWorkoutPlaybackDraftFromStorage,
@@ -32,6 +37,7 @@ import {
   saveWorkoutPlaybackDraftToStorage,
   setWorkoutPlaybackPointer,
   setWorkoutPlaybackRestTimer,
+  toggleWorkoutPlaybackPause,
   toggleWorkoutSetCompletion,
   type WorkoutPlaybackPlausibilityWarning,
   type WorkoutPlaybackRouteState,
@@ -39,11 +45,21 @@ import {
   type WorkoutSetPointer,
   updateWorkoutSetAtPointer,
 } from '@/utils/workoutPlayback';
+<<<<<<< HEAD
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+=======
+import {
+  playRestTimerChime,
+  playRestTimerCountdownBeep,
+  triggerRestTimerVibration,
+} from '@/utils/audioFeedback';
+>>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
 import { formatSecondsClock } from '@/utils/timeFormatters';
 import { localDateTimeToUtc } from '@workspace/shared';
 import type { Exercise } from '@/types/exercises';
+import type { WorkoutPreset } from '@/types/workout';
 import AddExerciseDialog from '@/pages/Exercises/AddExerciseDialog';
+import ExerciseDetailModal from '@/pages/Exercises/ExerciseDetailModal';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackFloatingRestTimer from './WorkoutPlaybackFloatingRestTimer';
@@ -149,6 +165,7 @@ const WorkoutPlaybackPage = () => {
 
   const scrubbedRouteStateRef = useRef(false);
   const persistedDraftDateRef = useRef<string | null>(null);
+  const lastBeepSecondRef = useRef<number | null>(null);
   const [draft, setDraft] = useState<WorkoutPlaybackDraft | null>(() =>
     getInitialDraft(requestedDate, routeState)
   );
@@ -163,6 +180,12 @@ const WorkoutPlaybackPage = () => {
   const [restEditorCustomValue, setRestEditorCustomValue] = useState('');
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const [isAddExerciseDialogOpen, setIsAddExerciseDialogOpen] = useState(false);
+  const [substitutingExerciseIndex, setSubstitutingExerciseIndex] = useState<
+    number | null
+  >(null);
+  const [inspectingExercise, setInspectingExercise] = useState<Exercise | null>(
+    null
+  );
   const [finishSummary, setFinishSummary] =
     useState<WorkoutFinishSummary | null>(null);
   const [plausibilityWarnings, setPlausibilityWarnings] = useState<
@@ -248,6 +271,7 @@ const WorkoutPlaybackPage = () => {
 
       setDraft((currentDraft) => {
         if (!currentDraft || currentDraft.rest_timer.state !== 'running') {
+          lastBeepSecondRef.current = null;
           return currentDraft;
         }
 
@@ -255,8 +279,20 @@ const WorkoutPlaybackPage = () => {
           currentDraft.rest_timer
         );
 
+        // Countdown beeps at 3, 2, 1
+        if (nextRemaining > 0 && nextRemaining <= 3) {
+          if (lastBeepSecondRef.current !== nextRemaining) {
+            lastBeepSecondRef.current = nextRemaining;
+            playRestTimerCountdownBeep(nextRemaining);
+            triggerRestTimerVibration();
+          }
+        }
+
         // Only update draft state when timer expires to avoid triggering localStorage saves
         if (nextRemaining <= 0) {
+          lastBeepSecondRef.current = null;
+          playRestTimerChime();
+          triggerRestTimerVibration();
           return setWorkoutPlaybackRestTimer(currentDraft, {
             ...currentDraft.rest_timer,
             state: 'idle',
@@ -268,7 +304,7 @@ const WorkoutPlaybackPage = () => {
         // Don't update draft; remaining time is derived from target_end_timestamp_ms in render
         return currentDraft;
       });
-    }, 1000);
+    }, 250);
 
     return () => window.clearInterval(interval);
   }, []);
@@ -456,13 +492,86 @@ const WorkoutPlaybackPage = () => {
   const handleExerciseAdded = useCallback(
     (exercise?: Exercise) => {
       if (!exercise) return;
+      if (substitutingExerciseIndex !== null) {
+        updateDraft((currentDraft) =>
+          substituteExerciseInWorkoutDraft(
+            currentDraft,
+            substitutingExerciseIndex,
+            exercise
+          )
+        );
+        setSubstitutingExerciseIndex(null);
+      } else {
+        updateDraft((currentDraft) =>
+          addExerciseToWorkoutDraft(currentDraft, exercise)
+        );
+      }
+      setIsAddExerciseDialogOpen(false);
+    },
+    [substitutingExerciseIndex, updateDraft]
+  );
+
+  const handleOpenSwapExercise = useCallback((exerciseIndex: number) => {
+    setSubstitutingExerciseIndex(exerciseIndex);
+    setIsAddExerciseDialogOpen(true);
+  }, []);
+
+  const handleRemoveExercise = useCallback(
+    (exerciseIndex: number) => {
       updateDraft((currentDraft) =>
-        addExerciseToWorkoutDraft(currentDraft, exercise)
+        removeExerciseFromWorkoutDraft(currentDraft, exerciseIndex)
       );
+    },
+    [updateDraft]
+  );
+
+  const handleSupersetWithNext = useCallback(
+    (exerciseIndex: number) => {
+      updateDraft((currentDraft) =>
+        groupPlaybackExerciseWithNext(currentDraft, exerciseIndex)
+      );
+    },
+    [updateDraft]
+  );
+
+  const handleUngroupExercise = useCallback(
+    (exerciseIndex: number) => {
+      updateDraft((currentDraft) =>
+        ungroupPlaybackExercise(currentDraft, exerciseIndex)
+      );
+    },
+    [updateDraft]
+  );
+
+  const handlePresetSelected = useCallback(
+    (preset: WorkoutPreset) => {
+      updateDraft((currentDraft) => {
+        let nextDraft = currentDraft;
+        (preset.exercises ?? []).forEach((presetExercise) => {
+          if (presetExercise.exercise) {
+            nextDraft = addExerciseToWorkoutDraft(
+              nextDraft,
+              presetExercise.exercise
+            );
+          } else {
+            nextDraft = addExerciseToWorkoutDraft(nextDraft, {
+              id: String(presetExercise.exercise_id),
+              name: presetExercise.exercise_name,
+              category: presetExercise.category,
+              modality: presetExercise.modality ?? 'reps_weight',
+            } as Exercise);
+          }
+        });
+        return nextDraft;
+      });
       setIsAddExerciseDialogOpen(false);
     },
     [updateDraft]
   );
+
+  const handleTogglePauseWorkout = useCallback(() => {
+    updateDraft((currentDraft) => toggleWorkoutPlaybackPause(currentDraft));
+  }, [updateDraft]);
 
   const handlePauseResumeRest = useCallback(() => {
     updateDraft((currentDraft) => {
@@ -684,10 +793,50 @@ const WorkoutPlaybackPage = () => {
       return;
     }
 
+<<<<<<< HEAD
     const warnings = getWorkoutPlaybackPlausibilityWarnings(draft, payload);
     if (warnings.length > 0) {
       setPlausibilityWarnings(warnings);
       return;
+=======
+    try {
+      await createPresetSession(payload);
+
+      // Best-effort: auto-check any "Workout"/"Gym" daily habit for this
+      // day. A failure here must not block the already-saved workout from
+      // navigating away — only boolean/none-target habits have a "done"
+      // state that toggling actually means something for.
+      const matchingHabits = (todaySnapshot?.daily_recurring ?? []).filter(
+        (habit) =>
+          habit.target_type !== 'numeric' &&
+          !habit.done &&
+          WORKOUT_HABIT_PATTERN.test(habit.statement)
+      );
+      if (matchingHabits.length > 0) {
+        await Promise.allSettled(
+          matchingHabits.map((habit) =>
+            upsertHabitCheckin.mutateAsync({
+              focusId: habit.id,
+              date: draft.entry_date,
+              body: { completed: true },
+            })
+          )
+        );
+      }
+
+      setSaveError(null);
+      finishedEntryDateRef.current = draft.entry_date;
+      setFinishSummary(
+        buildWorkoutFinishSummary(draft, elapsedSeconds, totalVolume, stats)
+      );
+    } catch {
+      setSaveError(
+        t(
+          'exercise.workoutPlaybackDialog.finishError',
+          'Failed to save workout. Your local progress is still preserved, and you can retry.'
+        )
+      );
+>>>>>>> b995027e6 (feat(workouts): add set tagging, barbell plate calculator, in-workout 1RM history, and routine template library)
     }
 
     void saveWorkout();
@@ -780,9 +929,10 @@ const WorkoutPlaybackPage = () => {
   }
 
   const isRestActive = draft && draft.rest_timer.state !== 'idle';
-  const restRemaining = formatSecondsClock(
-    draft ? getWorkoutPlaybackRestRemainingSeconds(draft.rest_timer) : 0
-  );
+  const restRemainingSeconds = draft
+    ? getWorkoutPlaybackRestRemainingSeconds(draft.rest_timer)
+    : 0;
+  const restRemaining = formatSecondsClock(restRemainingSeconds);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] sm:pb-4">
@@ -792,10 +942,13 @@ const WorkoutPlaybackPage = () => {
         totalVolume={totalVolume}
         stats={stats}
         restRemaining={restRemaining}
+        restRemainingSeconds={restRemainingSeconds}
         isRestActive={!!isRestActive}
         saveError={saveError}
         isSaving={isSaving}
         timezone={timezone}
+        isWorkoutPaused={!!draft.is_paused}
+        onTogglePauseWorkout={handleTogglePauseWorkout}
         onCloseKeepDraft={handleCloseKeepDraft}
         onDiscard={handleDiscard}
         onFinishWorkout={handleFinishWorkout}
@@ -816,6 +969,15 @@ const WorkoutPlaybackPage = () => {
         onOpenRestEditor={handleOpenRestEditor}
         onRemoveSet={handleRemoveSet}
         onAddSet={handleAddSet}
+        onAddExercise={() => {
+          setSubstitutingExerciseIndex(null);
+          setIsAddExerciseDialogOpen(true);
+        }}
+        onSwapExercise={handleOpenSwapExercise}
+        onRemoveExercise={handleRemoveExercise}
+        onInspectExercise={setInspectingExercise}
+        onSupersetWithNext={handleSupersetWithNext}
+        onUngroupExercise={handleUngroupExercise}
         weightUnit={weightUnit}
         statsByExerciseId={statsByExerciseId}
       />
@@ -868,22 +1030,44 @@ const WorkoutPlaybackPage = () => {
       <WorkoutPlaybackFloatingRestTimer
         restState={draft.rest_timer.state}
         restRemaining={restRemaining}
+        restRemainingSeconds={restRemainingSeconds}
         onPauseResume={handlePauseResumeRest}
         onSkip={handleSkipRest}
         onExtend={handleExtendRest}
       />
 
       <WorkoutPlaybackStickyBar
-        onAddExercise={() => setIsAddExerciseDialogOpen(true)}
+        onAddExercise={() => {
+          setSubstitutingExerciseIndex(null);
+          setIsAddExerciseDialogOpen(true);
+        }}
         onFinishWorkout={handleFinishWorkout}
         isSaving={isSaving}
+        isWorkoutPaused={!!draft.is_paused}
+        onTogglePause={handleTogglePauseWorkout}
       />
 
       <AddExerciseDialog
         open={isAddExerciseDialogOpen}
-        onOpenChange={setIsAddExerciseDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddExerciseDialogOpen(open);
+          if (!open) {
+            setSubstitutingExerciseIndex(null);
+          }
+        }}
         onExerciseAdded={handleExerciseAdded}
-        mode="preset"
+        onWorkoutPresetSelected={handlePresetSelected}
+        mode={substitutingExerciseIndex !== null ? 'preset' : 'diary'}
+      />
+
+      <ExerciseDetailModal
+        exercise={inspectingExercise}
+        open={!!inspectingExercise}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInspectingExercise(null);
+          }
+        }}
       />
 
       <WorkoutFinishSummaryModal

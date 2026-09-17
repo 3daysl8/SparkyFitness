@@ -1,9 +1,28 @@
-import { useState, memo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown } from 'lucide-react';
+import {
+  ChevronDown,
+  MoreVertical,
+  ArrowLeftRight,
+  Trash2,
+  Plus,
+  Dumbbell,
+  TrendingUp,
+  Link2,
+  Link2Off,
+} from 'lucide-react';
 import type { WeightUnit } from '@/contexts/PreferencesContext';
+import type { Exercise } from '@/types/exercises';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { ExerciseStatsResponse } from '@workspace/shared';
+import { getSupersetDisplayMap } from '@/utils/workoutSupersets';
 import {
   WORKOUT_PLAYBACK_SET_GRID_CLASSES,
   type WorkoutPlaybackExerciseDraft,
@@ -26,6 +45,12 @@ interface WorkoutPlaybackExercisesListProps {
   onOpenRestEditor: (pointer: WorkoutSetPointer) => void;
   onRemoveSet: (pointer: WorkoutSetPointer) => void;
   onAddSet: (exerciseIndex: number) => void;
+  onAddExercise?: () => void;
+  onSwapExercise?: (exerciseIndex: number) => void;
+  onRemoveExercise?: (exerciseIndex: number) => void;
+  onInspectExercise?: (exercise: Exercise) => void;
+  onSupersetWithNext?: (exerciseIndex: number) => void;
+  onUngroupExercise?: (exerciseIndex: number) => void;
   weightUnit: WeightUnit;
   /** Per-exercise best/last/recent-session stats (see exerciseStatsQueryOptions),
    * keyed by exercise_id — drives each row's "Previous: …" hint. */
@@ -55,6 +80,12 @@ const WorkoutPlaybackExercisesList = ({
   onOpenRestEditor,
   onRemoveSet,
   onAddSet,
+  onAddExercise,
+  onSwapExercise,
+  onRemoveExercise,
+  onInspectExercise,
+  onSupersetWithNext,
+  onUngroupExercise,
   weightUnit,
   statsByExerciseId,
 }: WorkoutPlaybackExercisesListProps) => {
@@ -62,6 +93,50 @@ const WorkoutPlaybackExercisesList = ({
   const [expandedCompletedExercises, setExpandedCompletedExercises] = useState<
     Record<string, boolean>
   >({});
+
+  const supersetDisplayMap = useMemo(
+    () => getSupersetDisplayMap(exercises, t),
+    [exercises, t]
+  );
+
+  if (exercises.length === 0) {
+    return (
+      <Card className="border-dashed border-border/80 bg-gradient-to-br from-card/80 to-muted/20">
+        <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Dumbbell className="h-7 w-7" />
+          </div>
+          <div className="space-y-1.5 max-w-md">
+            <h3 className="text-base font-semibold text-foreground">
+              {t(
+                'exercise.workoutPlaybackPage.emptyExercisesTitle',
+                'No exercises in this session yet'
+              )}
+            </h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {t(
+                'exercise.workoutPlaybackPage.emptyExercisesDesc',
+                'Freestyle Workout — Add exercises as you train to log your sets, reps, and weights on the go.'
+              )}
+            </p>
+          </div>
+          {onAddExercise && (
+            <Button
+              onClick={onAddExercise}
+              size="default"
+              className="gap-2 font-semibold shadow-sm mt-2"
+            >
+              <Plus className="h-4 w-4" />
+              {t(
+                'exercise.workoutPlaybackPage.addFirstExercise',
+                'Add Exercise'
+              )}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -85,48 +160,185 @@ const WorkoutPlaybackExercisesList = ({
           ? t('common.collapse', 'Collapse')
           : t('common.expand', 'Expand');
 
+        const handleInspect = () => {
+          if (!onInspectExercise) return;
+          onInspectExercise({
+            id: String(exercise.exercise_id),
+            name: exercise.exercise_name,
+            category: exercise.category,
+            modality: exercise.modality,
+          } as Exercise);
+        };
+
+        const supersetInfo = supersetDisplayMap.get(exerciseIndex) ?? null;
+        const canSupersetWithNext = exerciseIndex < exercises.length - 1;
+
         return (
           <Card
             key={`${exercise.exercise_id}-${exerciseIndex}`}
-            className="border-border/70 shadow-none"
+            className={`border-border/70 shadow-none transition-colors ${
+              supersetInfo ? `border-l-4 ${supersetInfo.colorClass}` : ''
+            }`}
           >
             <CardHeader className="px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-medium">
-                    {exercise.exercise_name}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="truncate text-sm font-medium">
+                      {exercise.exercise_name}
+                    </h3>
+                    {supersetInfo && (
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wider border ${supersetInfo.badgeClass}`}
+                      >
+                        {supersetInfo.label}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
                     {completedSets}/{totalSets}{' '}
                     {t('exercise.workoutPlaybackDialog.sets', 'sets')}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  className="flex cursor-pointer items-center gap-1.5 text-left"
-                  aria-label={`${toggleLabel} ${exercise.exercise_name}`}
-                  onClick={() => {
-                    if (!isComplete) return;
-                    setExpandedCompletedExercises((current) => ({
-                      ...current,
-                      [exerciseKey]: !current[exerciseKey],
-                    }));
-                  }}
-                >
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${
-                      isExpanded ? 'rotate-180' : ''
-                    } ${isComplete ? 'text-emerald-500' : ''}`}
-                  />
-                  <span className="text-[11px] text-muted-foreground">
-                    {isComplete
-                      ? t('exercise.workoutPlaybackPage.completed', 'Completed')
-                      : t(
-                          'exercise.workoutPlaybackPage.inProgress',
-                          'In Progress'
+                <div className="flex items-center gap-1">
+                  {onInspectExercise && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-primary transition-colors"
+                      aria-label={`${t(
+                        'exercise.workoutPlaybackDialog.viewProgression',
+                        'PRs & Progression'
+                      )} ${exercise.exercise_name}`}
+                      title={t(
+                        'exercise.workoutPlaybackDialog.viewProgression',
+                        'PRs & Progression'
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInspect();
+                      }}
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {(onSwapExercise ||
+                    onRemoveExercise ||
+                    onInspectExercise ||
+                    onSupersetWithNext ||
+                    onUngroupExercise) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          aria-label={`${t(
+                            'exercise.workoutPlaybackDialog.exerciseActions',
+                            'Exercise Actions'
+                          )} ${exercise.exercise_name}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        {onInspectExercise && (
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={handleInspect}
+                          >
+                            <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                            {t(
+                              'exercise.workoutPlaybackDialog.viewProgression',
+                              'PRs & Progression'
+                            )}
+                          </DropdownMenuItem>
                         )}
-                  </span>
-                </button>
+                        {canSupersetWithNext && onSupersetWithNext && (
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={() => onSupersetWithNext(exerciseIndex)}
+                          >
+                            <Link2 className="h-3.5 w-3.5 text-primary" />
+                            {t(
+                              'exercise.workoutPlaybackDialog.supersetWithNext',
+                              'Superset with Next'
+                            )}
+                          </DropdownMenuItem>
+                        )}
+                        {supersetInfo && onUngroupExercise && (
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer text-muted-foreground focus:text-foreground"
+                            onClick={() => onUngroupExercise(exerciseIndex)}
+                          >
+                            <Link2Off className="h-3.5 w-3.5" />
+                            {t(
+                              'exercise.workoutPlaybackDialog.removeFromSuperset',
+                              'Remove from Superset'
+                            )}
+                          </DropdownMenuItem>
+                        )}
+                        {onSwapExercise && (
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={() => onSwapExercise(exerciseIndex)}
+                          >
+                            <ArrowLeftRight className="h-3.5 w-3.5 text-primary" />
+                            {t(
+                              'exercise.workoutPlaybackDialog.swapExercise',
+                              'Swap Exercise'
+                            )}
+                          </DropdownMenuItem>
+                        )}
+                        {onRemoveExercise && (
+                          <DropdownMenuItem
+                            className="gap-2 text-destructive focus:text-destructive cursor-pointer"
+                            onClick={() => onRemoveExercise(exerciseIndex)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {t(
+                              'exercise.workoutPlaybackDialog.removeExercise',
+                              'Remove Exercise'
+                            )}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+
+                  <button
+                    type="button"
+                    className="flex cursor-pointer items-center gap-1.5 text-left"
+                    aria-label={`${toggleLabel} ${exercise.exercise_name}`}
+                    onClick={() => {
+                      if (!isComplete) return;
+                      setExpandedCompletedExercises((current) => ({
+                        ...current,
+                        [exerciseKey]: !current[exerciseKey],
+                      }));
+                    }}
+                  >
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${
+                        isExpanded ? 'rotate-180' : ''
+                      } ${isComplete ? 'text-emerald-500' : ''}`}
+                    />
+                    <span className="text-[11px] text-muted-foreground">
+                      {isComplete
+                        ? t(
+                            'exercise.workoutPlaybackPage.completed',
+                            'Completed'
+                          )
+                        : t(
+                            'exercise.workoutPlaybackPage.inProgress',
+                            'In Progress'
+                          )}
+                    </span>
+                  </button>
+                </div>
               </div>
             </CardHeader>
             {isExpanded && (
@@ -226,6 +438,23 @@ const WorkoutPlaybackExercisesList = ({
           </Card>
         );
       })}
+
+      {onAddExercise && (
+        <div className="pt-2 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto gap-2 border-dashed border-primary/40 text-primary hover:bg-primary/10 font-medium"
+            onClick={onAddExercise}
+          >
+            <Plus className="h-4 w-4" />
+            {t(
+              'exercise.workoutPlaybackPage.addAnotherExercise',
+              'Add Exercise'
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

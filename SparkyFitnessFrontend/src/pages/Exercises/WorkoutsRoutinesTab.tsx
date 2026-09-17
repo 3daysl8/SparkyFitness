@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { error } from '@/utils/logging';
+import { formatDateToYYYYMMDD } from '@/lib/utils';
+import { createBlankWorkoutPlaybackDraft } from '@/utils/workoutPlayback';
 import type { WorkoutPlanTemplate } from '@/types/workout';
 import { useCreateWorkoutPlanTemplateMutation } from '@/hooks/Exercises/useWorkoutPlans';
 import ActiveProgramWidget from './ActiveProgramWidget';
@@ -14,9 +17,12 @@ import AddPlannedWorkoutDialog from './AddPlannedWorkoutDialog';
 const WorkoutsRoutinesTab = () => {
   const { user } = useAuth();
   const { loggingLevel } = usePreferences();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
   const [isPlanWorkoutOpen, setIsPlanWorkoutOpen] = useState(false);
+  const [isExploreTemplatesOpen, setIsExploreTemplatesOpen] = useState(false);
 
   const { mutateAsync: createWorkoutPlanTemplate } =
     useCreateWorkoutPlanTemplateMutation();
@@ -36,18 +42,30 @@ const WorkoutsRoutinesTab = () => {
     }
   };
 
+  const handleStartBlankWorkout = () => {
+    const today = formatDateToYYYYMMDD(new Date());
+    const returnTo = `${location.pathname}${location.search}`;
+    navigate(`/workout-playback?date=${today}`, {
+      state: { returnTo, draft: createBlankWorkoutPlaybackDraft(today) },
+    });
+  };
+
   return (
     <div className="space-y-6">
       <ActiveProgramWidget />
       <PlannedWorkoutsList />
       <ProgramsActionBar
+        onStartBlankWorkout={handleStartBlankWorkout}
         onAddSchedule={() => setIsAddScheduleOpen(true)}
         onCreateProgram={() => setIsAddProgramOpen(true)}
         onPlanWorkout={() => setIsPlanWorkoutOpen(true)}
+        onExploreTemplates={() => setIsExploreTemplatesOpen(true)}
       />
       <MyProgramsGrid
         isAddOpen={isAddProgramOpen}
         onAddOpenChange={setIsAddProgramOpen}
+        isExploreTemplatesOpen={isExploreTemplatesOpen}
+        onExploreTemplatesOpenChange={setIsExploreTemplatesOpen}
       />
 
       <AddWorkoutPlanDialog

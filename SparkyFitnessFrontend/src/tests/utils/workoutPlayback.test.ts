@@ -17,11 +17,20 @@ import {
   getWorkoutPlaybackRestRemainingSeconds,
   getWorkoutPlaybackDraftStorageKey,
   loadWorkoutPlaybackDraftFromStorage,
+  pauseWorkoutPlayback,
   removeWorkoutSetFromExercise,
+  resumeWorkoutPlayback,
+  substituteExerciseInWorkoutDraft,
+  removeExerciseFromWorkoutDraft,
   saveWorkoutPlaybackDraftToStorage,
   setWorkoutPlaybackPointer,
+  toggleWorkoutPlaybackPause,
+  getWorkoutPlaybackElapsedSeconds,
   toggleWorkoutSetCompletion,
   updateWorkoutSetAtPointer,
+  listWorkoutSetPointers,
+  groupPlaybackExerciseWithNext,
+  ungroupPlaybackExercise,
 } from '@/utils/workoutPlayback';
 
 const createPresetFixture = (): WorkoutPreset =>
@@ -706,5 +715,259 @@ describe('workoutPlayback utils', () => {
       setIndex: 2,
     });
     expect(nextDraft.exercises[0]?.sets).toHaveLength(2);
+  });
+
+  it('substitutes an exercise while preserving configured sets structure', () => {
+    const initialDraft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+
+    const replacementExercise = {
+      id: 'exercise-alt-1',
+      name: 'Incline Dumbbell Press',
+      category: 'Chest',
+      modality: 'reps_weight',
+      images: ['incline-db.png'],
+    };
+
+    const substituted = substituteExerciseInWorkoutDraft(
+      initialDraft,
+      0,
+      replacementExercise as any
+    );
+
+    expect(substituted.exercises[0]?.exercise_id).toBe('exercise-alt-1');
+    expect(substituted.exercises[0]?.exercise_name).toBe(
+      'Incline Dumbbell Press'
+    );
+    expect(substituted.exercises[0]?.image_url).toBe('incline-db.png');
+    // Sets structure should be preserved:
+    expect(substituted.exercises[0]?.sets).toHaveLength(2);
+    expect(substituted.exercises[0]?.sets[0]?.reps).toBe(8);
+    expect(substituted.exercises[0]?.sets[0]?.weight).toBe(80);
+  });
+
+  it('removes an exercise from the active draft and recalibrates active pointers', () => {
+    const initialDraft = createWorkoutPlaybackDraftFromPreset(
+      createPresetFixture(),
+      '2026-04-27'
+    );
+
+    expect(initialDraft.exercises).toHaveLength(2);
+    const removed = removeExerciseFromWorkoutDraft(initialDraft, 0);
+    expect(removed.exercises).toHaveLength(1);
+    expect(removed.exercises[0]?.exercise_id).toBe('exercise-2');
+    expect(removed.active_exercise_index).toBe(0);
+  });
+
+  describe('workout pause and resume functionality', () => {
+    it('pauses a workout, freezing elapsed time and pausing running rest timer', () => {
+      const initialDraft = createWorkoutPlaybackDraftFromPreset(
+        createPresetFixture(),
+        '2026-04-27'
+      );
+      initialDraft.started_at = new Date(Date.now() - 600000).toISOString(); // 10 minutes ago
+      initialDraft.rest_timer = {
+        state: 'running',
+        duration_seconds: 90,
+        remaining_seconds: 60,
+        target_end_timestamp_ms: Date.now() + 60000,
+      };
+
+      const pausedDraft = pauseWorkoutPlayback(initialDraft);
+      expect(pausedDraft.is_paused).toBe(true);
+      expect(pausedDraft.paused_at).toBeDefined();
+      expect(pausedDraft.rest_timer.state).toBe('paused');
+      expect(pausedDraft.rest_timer.remaining_seconds).toBe(60);
+
+      // Elapsed seconds calculation reflects frozen pause time
+      const elapsed = getWorkoutPlaybackElapsedSeconds(
+        pausedDraft,
+        Date.now() + 100000
+      );
+      expect(elapsed).toBe(600); // 10 min, does not advance while paused
+    });
+
+    it('resumes a workout, accumulating total paused seconds and resuming rest timer', () => {
+      const initialDraft = createWorkoutPlaybackDraftFromPreset(
+        createPresetFixture(),
+        '2026-04-27'
+      );
+      const startTime = Date.now() - 600000;
+      initialDraft.started_at = new Date(startTime).toISOString();
+
+      const pauseTime = startTime + 300000; // paused after 5 min
+      const pausedDraft = {
+        ...initialDraft,
+        is_paused: true,
+        paused_at: new Date(pauseTime).toISOString(),
+        total_paused_seconds: 0,
+        rest_timer: {
+          state: 'paused' as const,
+          duration_seconds: 90,
+          remaining_seconds: 45,
+          target_end_timestamp_ms: null,
+        },
+      };
+
+      // Resumed 5 minutes later (10 min total from start, but 5 min were paused)
+      jest.spyOn(Date, 'now').mockReturnValue(pauseTime + 300000);
+
+      const resumedDraft = resumeWorkoutPlayback(pausedDraft);
+      expect(resumedDraft.is_paused).toBe(false);
+      expect(resumedDraft.paused_at).toBeNull();
+      expect(resumedDraft.total_paused_seconds).toBe(300);
+      expect(resumedDraft.rest_timer.state).toBe('running');
+
+      const elapsed = getWorkoutPlaybackElapsedSeconds(
+        resumedDraft,
+        pauseTime + 300000
+      );
+      expect(elapsed).toBe(300); // 5 min active elapsed
+
+      (Date.now as any).mockRestore?.();
+    });
+
+    it('toggles pause and resume states correctly', () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        createPresetFixture(),
+        '2026-04-27'
+      );
+
+      const paused = toggleWorkoutPlaybackPause(draft);
+      expect(paused.is_paused).toBe(true);
+
+      const resumed = toggleWorkoutPlaybackPause(paused);
+      expect(resumed.is_paused).toBe(false);
+    });
+  });
+
+  describe('superset and giant set playback flow', () => {
+    it('alternates set pointers round-by-round across grouped exercises', () => {
+      const preset = {
+        id: 'preset-ss',
+        user_id: 'user-1',
+        name: 'Superset Workout',
+        description: null,
+        exercises: [
+          {
+            exercise_id: 'ex-1',
+            exercise_name: 'Bicep Curl',
+            superset_group: 1,
+            sets: [
+              { set_number: 1, reps: 10, weight: 15 },
+              { set_number: 2, reps: 10, weight: 15 },
+            ],
+          },
+          {
+            exercise_id: 'ex-2',
+            exercise_name: 'Tricep Extension',
+            superset_group: 1,
+            sets: [
+              { set_number: 1, reps: 12, weight: 20 },
+              { set_number: 2, reps: 12, weight: 20 },
+            ],
+          },
+          {
+            exercise_id: 'ex-3',
+            exercise_name: 'Plank',
+            superset_group: null,
+            sets: [{ set_number: 1, duration: 60 }],
+          },
+        ],
+      } as unknown as WorkoutPreset;
+
+      const draft = createWorkoutPlaybackDraftFromPreset(preset, '2026-04-27');
+      const pointers = listWorkoutSetPointers(draft);
+
+      expect(pointers).toEqual([
+        { exerciseIndex: 0, setIndex: 0 },
+        { exerciseIndex: 1, setIndex: 0 },
+        { exerciseIndex: 0, setIndex: 1 },
+        { exerciseIndex: 1, setIndex: 1 },
+        { exerciseIndex: 2, setIndex: 0 },
+      ]);
+    });
+
+    it('advances pointer alternatingly when completing sets in a superset', () => {
+      const preset = {
+        id: 'preset-ss',
+        user_id: 'user-1',
+        name: 'Superset Workout',
+        description: null,
+        exercises: [
+          {
+            exercise_id: 'ex-1',
+            exercise_name: 'Bicep Curl',
+            superset_group: 1,
+            sets: [
+              { set_number: 1, reps: 10, weight: 15 },
+              { set_number: 2, reps: 10, weight: 15 },
+            ],
+          },
+          {
+            exercise_id: 'ex-2',
+            exercise_name: 'Tricep Extension',
+            superset_group: 1,
+            sets: [
+              { set_number: 1, reps: 12, weight: 20 },
+              { set_number: 2, reps: 12, weight: 20 },
+            ],
+          },
+        ],
+      } as unknown as WorkoutPreset;
+
+      let draft = createWorkoutPlaybackDraftFromPreset(preset, '2026-04-27');
+      expect(draft.active_exercise_index).toBe(0);
+      expect(draft.active_set_index).toBe(0);
+
+      // Complete Round 1 Ex 1 -> advances to Round 1 Ex 2
+      draft = completeCurrentWorkoutSet(draft);
+      expect(draft.active_exercise_index).toBe(1);
+      expect(draft.active_set_index).toBe(0);
+
+      // Complete Round 1 Ex 2 -> advances to Round 2 Ex 1
+      draft = completeCurrentWorkoutSet(draft);
+      expect(draft.active_exercise_index).toBe(0);
+      expect(draft.active_set_index).toBe(1);
+
+      // Complete Round 2 Ex 1 -> advances to Round 2 Ex 2
+      draft = completeCurrentWorkoutSet(draft);
+      expect(draft.active_exercise_index).toBe(1);
+      expect(draft.active_set_index).toBe(1);
+    });
+
+    it('supports dynamic grouping and ungrouping during playback', () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        createPresetFixture(),
+        '2026-04-27'
+      );
+      expect(draft.exercises[0]?.superset_group).toBeNull();
+      expect(draft.exercises[1]?.superset_group).toBeNull();
+
+      const grouped = groupPlaybackExerciseWithNext(draft, 0);
+      expect(grouped.exercises[0]?.superset_group).toBe(1);
+      expect(grouped.exercises[1]?.superset_group).toBe(1);
+
+      const ungrouped = ungroupPlaybackExercise(grouped, 0);
+      expect(ungrouped.exercises[0]?.superset_group).toBeNull();
+      expect(ungrouped.exercises[1]?.superset_group).toBeNull();
+    });
+
+    it('includes superset_group in buildPresetSessionCreateRequestFromDraft payload', () => {
+      const draft = createWorkoutPlaybackDraftFromPreset(
+        createPresetFixture(),
+        '2026-04-27'
+      );
+      const grouped = groupPlaybackExerciseWithNext(draft, 0);
+      // Mark sets completed
+      grouped.exercises[0]!.sets[0]!.completed = true;
+      grouped.exercises[1]!.sets[0]!.completed = true;
+
+      const payload = buildPresetSessionCreateRequestFromDraft(grouped, 'UTC');
+      expect(payload.exercises?.[0]?.superset_group).toBe(1);
+      expect(payload.exercises?.[1]?.superset_group).toBe(1);
+    });
   });
 });

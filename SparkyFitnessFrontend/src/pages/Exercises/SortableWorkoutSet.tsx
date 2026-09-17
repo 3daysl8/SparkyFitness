@@ -86,9 +86,23 @@ export const SortableSetItem = React.memo(
           </div>
 
           <div className={gridClass}>
-            {/* Set number badge */}
+            {/* Set number badge with W / D / F tag */}
             <div className="h-8 flex items-center justify-center rounded-md border border-border/50 bg-muted text-xs font-semibold text-muted-foreground">
-              {set.set_number}
+              {set.set_type === 'Warm-up' ? (
+                <span className="text-amber-600 dark:text-amber-400 font-bold">
+                  W
+                </span>
+              ) : set.set_type === 'Drop Set' ? (
+                <span className="text-purple-600 dark:text-purple-400 font-bold">
+                  D
+                </span>
+              ) : set.set_type === 'Failure' ? (
+                <span className="text-rose-600 dark:text-rose-400 font-bold">
+                  F
+                </span>
+              ) : (
+                set.set_number
+              )}
             </div>
 
             {/* Type select with colored badge */}

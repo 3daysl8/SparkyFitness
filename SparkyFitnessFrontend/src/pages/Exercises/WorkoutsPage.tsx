@@ -31,7 +31,7 @@ const WorkoutsPage = () => {
   const tabs: { id: WorkoutsTabId; label: string; icon: typeof Dumbbell }[] = [
     {
       id: 'routines',
-      label: t('exercise.workoutsPage.tabs.routines', 'Programs & Schedule'),
+      label: t('exercise.workoutsPage.tabs.routines', 'Programs & Routines'),
       icon: Dumbbell,
     },
     {
