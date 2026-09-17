@@ -4,16 +4,16 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**One item still open, otherwise not mid-flight — pushed and deployed to Pi5, 2026-09-16/17**
-(`c9789c41a` on `main`): **Phase 6 of the workout-mapping plan** (full plan:
-`C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total, the last one) —
-the approval-gated repair script for the 5 known-bad production phantom rows plus the other
-integrity categories from the original investigation. Built, tested, deployed, dry-run against
-real production data, and Isaac has approved and the session has applied two of the three
-mutating categories. **Still open: the stale-calorie recompute (Slow Squat, 96229413…, 2181.5 →
-32.2 kcal) — Isaac said "delete" to the phantoms/empty-session question but didn't clearly weigh
-in on the recompute, so it was deliberately left untouched pending a direct answer.** Ask him
-directly before running `--recompute-calories` — don't infer approval from an adjacent "delete."
+**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16/17** (`c9789c41a` on `main`):
+**Phase 6 of the workout-mapping plan** (full plan:
+`C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete. This
+was the last phase of the whole workout-mapping plan — **all 6 phases are now shipped.** The
+approval-gated repair script for the 5 known-bad production phantom rows plus the other integrity
+categories from the original investigation: built, tested, deployed, dry-run against real
+production data, and every mutating category Isaac approved has been applied (phantoms + empty
+session deleted 2026-09-17 ~01:00 UTC on his "delete"; the stale-calorie recompute applied
+separately ~01:04 UTC once he explicitly confirmed it — his first "delete" didn't clearly cover
+that one since it's an update, not a delete, so it was correctly held back until asked directly).
 
 **What shipped**: `SparkyFitnessServer/scripts/workoutIntegrity/repairWorkoutIntegrity.ts` (pure,
 unit-tested decision logic — 20 tests), `run.ts` (CLI: `--user` required, dry-run default inside a
@@ -42,10 +42,15 @@ backup format/location so `restoreFromBackup.ts` still works on it if ever neede
 the 4 real `planned_workouts` template rows are completely untouched, zero orphaned children left
 behind by any of the 6 deleted rows (all were already childless).
 
-**Applied so far** (production, 2026-09-17): the 5 phantom `exercise_entries` rows deleted outright,
-the 1 empty `exercise_preset_entries` session (`ea3d3a7a…`, 14 Sep, "Phase 1. Lower Body (A)")
-deleted. Backup at `backup/repair/53a9e76a-ea18-47c6-bf88-6d7724d406f4-2026-09-17T00-51-09.000Z.json`
-(+ `.sha256`) on Pi5 and copied to `C:\dev\SparkyFitness-backups\repair\` on Kingdom.
+**Applied to production, 2026-09-17**: the 5 phantom `exercise_entries` rows deleted outright, the
+1 empty `exercise_preset_entries` session (`ea3d3a7a…`, 14 Sep, "Phase 1. Lower Body (A)") deleted
+(~01:00 UTC, manual one-off transaction — see below for why), and the stale-calorie recompute on
+the Slow Squat entry (`96229413…`, 2181.53 → 32.2 kcal, `calories_source` now `derived`) applied
+~01:04 UTC through the real `--apply --recompute-calories` CLI path (safe to run automatically at
+that point since the phantoms/empty-session were already gone — nothing ambiguous was left for it
+to touch). Two backups on Pi5's `backup/repair/` and copied to `C:\dev\SparkyFitness-backups\repair\`
+on Kingdom: `...-2026-09-17T00-51-09.000Z.json` (the manual phantom/session delete) and
+`...-2026-09-17T01-04-01-257Z.json` (the calorie recompute, written automatically by `run.ts`).
 
 **Still report-only, no action taken (by design)**: 5 implausible-duration entries from 15 Sep
 (0.1–1.0 min upper-body sets) and 11 untyped-but-recently-used exercises (including Treadmill,
@@ -1063,7 +1068,7 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 
 ## Not yet done (from the original broader plan — still open)
 
-0. **Workout-mapping fix, Phases 4–6** (plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`) — Phases 1 (session integrity), 2 (planned-workout domain + phantom-generation fix), and 3 (planning UI + dashboard/playback integration) are done, see "PICK UP HERE" above. Phase 4 is next: the MCP `sparky_manage_planned_workouts` tool (list_planned/get_day/create/update/move/delete/start/complete/skip/get_weekly_progress per the plan's Phase 4 table) — note Phase 3's own started/discard investigation found no backend revert-from-`started` path, worth checking whether Phase 4's tool design needs to account for that same gap. Phase 5 is weekly-goal tracking (3 strength + 2 cardio ≥20 min, any intentional strength session counts, Isaac's `first_day_of_week = 0`). Phase 6 is the approval-gated repair script for the known-bad production rows listed above (still present, untouched by Phases 2-3 — stopping future phantom generation doesn't retroactively fix existing rows) — dry-run report first, apply only with Isaac's explicit sign-off, never silently; this is real, safety-critical work (JSON backup + restore script) that deserves its own focused session rather than being appended to another phase's.
+0. ~~Workout-mapping fix, Phases 1–6~~ — **DONE (2026-09-17), all 6 phases shipped** (plan: `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`). Session integrity, the planned-workout domain, planning UI, the MCP tool, weekly goals, and finally the approval-gated repair script for the known-bad production rows — all merged and deployed, see "PICK UP HERE" above for Phase 6's close-out. Nothing left open from this plan.
 1. **Wire the in-app AI chatbot to Kingdom's Ollama** (`http://100.68.231.84:11434/v1`, admin-only AI setting, no `ALLOW_PRIVATE_NETWORK_AI` change needed). `OLLAMA_CONTEXT_LENGTH` may need raising on Kingdom for reliable tool-calling.
 2. **Hermes integration — connection now DONE (2026-09-13); the morning-briefing automation itself is not.**
    - **Correction to this doc's own earlier assumption**: Hermes is **not** an n8n workflow. It's its own container on Pi5 (`docker ps` shows `hermes`, image `nousresearch/hermes-agent:v2026.8.27`), configured via `/home/pi1/.hermes/config.yaml` (bind-mounted into the container at `/opt/data`) and driven by its own CLI (`hermes mcp add/list/test/...`). `n8n` also runs on this Pi5 (container `n8n`) but is a separate, unrelated thing — don't conflate them, and don't plan a "wire it up via an n8n workflow" step again without checking first.
