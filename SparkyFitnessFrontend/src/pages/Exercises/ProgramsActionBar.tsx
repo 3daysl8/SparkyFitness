@@ -54,7 +54,10 @@ const ProgramsActionBar = ({
       {onPlanWorkout && (
         <Button variant="outline" onClick={onPlanWorkout} className="gap-2">
           <Plus className="h-4 w-4" />
-          {t('exercise.addPlannedWorkoutDialog.triggerButton', 'Plan a Workout')}
+          {t(
+            'exercise.addPlannedWorkoutDialog.triggerButton',
+            'Plan a Workout'
+          )}
         </Button>
       )}
     </div>
