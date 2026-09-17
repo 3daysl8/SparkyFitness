@@ -4,7 +4,72 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Nothing is mid-flight — pushed and deployed to Pi5, 2026-09-16/17** (`c9789c41a` on `main`):
+**New direction as of 2026-09-17: the 6-phase workout-mapping plan is fully done (see the entry
+below) — nothing from it is open. Isaac wants the next session(s) to focus on UI**, three scoped
+pieces of work, none started yet:
+
+**1. Fix the `recurrence_days_of_week` empty-array bug — TWO call sites, not one.** Unchecking all
+7 weekday buttons on a recurring habit/action currently sends `[]` instead of `undefined`/omitting
+the field; Postgres's `ANY('{}')` is always false, so the habit silently never appears again (still
+editable/deletable from its management list, just invisible from the daily checklist). Both sites
+use the same wrong guard, `size < 7` (true even at `size === 0`):
+- `SparkyFitnessFrontend/src/pages/Home/HomeChecklist.tsx:916-917` (`handleCreateHabit`)
+- `SparkyFitnessFrontend/src/pages/Focus/FocusPage.tsx:284-287` (`handleAddFocus`'s recurring
+  "Daily Actions" option)
+Fix both to `size > 0 && size < 7`, and add a UI guard (disable Save / show a hint) at 0 selected
+so the bad state can't be reached in the first place. `WeekdayToggle.tsx` (`pages/Focus/`, lines
+8-12) already has a doc comment flagging this exact contract — read it first. Server-side
+enforcement lives at `SparkyFitnessServer/models/focusRepository.ts:390`.
+
+**2. Fix the passkey RP ID bug.** Production login console-errors on passkey verification:
+`[Better Auth] Error verifying passkey SecurityError: The RP ID "100.103.152.66" is invalid for
+this domain`. Root cause confirmed: `SparkyFitnessServer/auth.ts:166-182` derives `passkeyRpID`
+**once at server startup** from `process.env.BETTER_AUTH_URL` (preferred) or
+`SPARKY_FITNESS_FRONTEND_URL`, via `new URL(...).hostname`, then passes it to
+`passkey({ rpID: passkeyRpID, rpName: 'SparkyFitness', ... })` at line 701-703 — a single fixed
+value for the whole process, so only one origin can ever validate. Pi5's production env has this
+pointed at the raw Tailscale IP while the app is actually browsed at
+`sparkyfitness.tail854f4e.ts.net`. Real fix: derive `rpID` per-request from the incoming `Host`
+header (better-auth/simplewebauthn support this) rather than one env-derived constant at startup;
+a same-day patch of just correcting the prod env var to the Tailscale hostname would also resolve
+it but leaves the single-origin fragility in place for the next domain change.
+
+**3. Redesign target: the habit-tracking + to-do checklist UI — this lives on the HOME page, not
+`/focus`.** Easy to conflate since both share the same backend `focuses` domain/`useFocus.ts`
+hooks, but they are different UI surfaces: `pages/Focus/FocusPage.tsx` (828 lines) is a separate
+"Focus & Motivation" feature (long-term/weekly/daily goal statements grouped by "Life Pillar" +
+a Weekly Motivation Checkpoint card, no day/week toggle). The actual daily habit checklist + to-do
+list Isaac means is `pages/Home/HomeChecklist.tsx` (**1,078 lines — the real redesign target**,
+and its size is itself a complexity risk worth addressing as part of the pass), alongside
+`ToDoCard.tsx` (352 lines, Day/Week toggle via the shared `DayWeekToggle.tsx`), `WorkoutCard.tsx`,
+`AgendaCard.tsx`, and the small extracted `CheckTarget.tsx`/`EmptyState.tsx` subcomponents. To-Do
+List already got a dedicated redesign (see "To-Do List card redesign" below) and Workouts got its
+own (see "Workouts tab redesign" below); the **habit-tracking half of Home never has** — only
+incremental fixes (e.g. the `CheckTarget` checkbox-sizing pass). That gap is the actual ask.
+
+**Design precedent to match, from the two past redesigns below** — pure Tailwind + shadcn/ui, no
+new libraries, ever: extract a shared control rather than duplicating per-card (`DayWeekToggle.tsx`
+was pulled out specifically so Agenda/To-Do cards can't visually drift apart); split a monolithic
+page file into focused subcomponents as part of the redesign, not after (`ToDoCard`/`CheckTarget`/
+`EmptyState` were extracted from `HomeChecklist.tsx` during its own redesign — the same file is
+still 1,078 lines because the habit-checklist half of it was never done); no repeated section-header
+icons on dashboard cards (plain title + count/summary, icons reserved for metric tiles + top nav);
+verify live at both 390px mobile and desktop, light and dark, in the real dev Docker stack before
+calling it done — a build succeeding is not verification (this doc's own Known Gotchas list a real
+off-screen-button bug from Phase 3 of the Workouts redesign that only live-verification caught).
+
+**General polish, fold in opportunistically rather than as a separate pass**: `vendor-others` JS
+chunk is ~2.2MB uncompressed (slow first PWA update per device per deploy, self-healing, not
+broken — only worth it if touching build config anyway); `translationKeysCoverage.test.ts` and
+`WorkoutPlaybackPage.test.tsx` have known intermittent flakes (pre-existing, not this session's to
+fix unless it regresses further); no TODO/FIXME comments exist anywhere in
+`SparkyFitnessFrontend/src/pages/` or `src/components/` — this codebase tracks known issues in this
+doc's "Not yet done" section (below), not inline comments, so check there for anything else
+worth folding in rather than grepping for markers that won't exist.
+
+---
+
+**Previous entry, workout-mapping plan close-out, 2026-09-16/17** (`c9789c41a` on `main`):
 **Phase 6 of the workout-mapping plan** (full plan:
 `C:\Users\ICPET\.claude\plans\help-me-plan-splendid-sphinx.md`, 6 phases total) is complete. This
 was the last phase of the whole workout-mapping plan — **all 6 phases are now shipped.** The
