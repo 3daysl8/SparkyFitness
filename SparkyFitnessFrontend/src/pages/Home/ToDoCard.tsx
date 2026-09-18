@@ -10,17 +10,12 @@ import {
 } from '@/hooks/useFocus';
 import { formatTimeOfDayString } from '@/utils/timeFormatters';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/biometric/SectionCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -28,7 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { CheckCircle2, ChevronDown, Clock, Plus } from 'lucide-react';
+import { CheckCircle2, Clock, ListChecks, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import type { Focus } from '@/types/focus';
 import CheckTarget from './CheckTarget';
@@ -48,13 +43,13 @@ function ToDoRow({
   return (
     <button
       onClick={() => onToggle(focus)}
-      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border-strong bg-card/50 px-3.5 py-2.5 text-left transition-colors hover:bg-card/80"
+      className="flex w-full items-center justify-between gap-3 py-2.5 text-left"
     >
       <span className="flex min-w-0 items-center gap-3">
         <CheckTarget done={done} />
         <span
           className={cn(
-            'truncate',
+            'truncate text-sm',
             done && 'text-muted-foreground line-through'
           )}
         >
@@ -63,7 +58,7 @@ function ToDoRow({
       </span>
       {focus.due_time && (
         <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" />
+          <Clock className="h-3.5 w-3.5" strokeWidth={1.5} />
           {formatTimeOfDayString(focus.due_time, timeFormat)}
         </span>
       )}
@@ -106,8 +101,12 @@ function ToDoWeekView({
 
   if (days.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-6 text-center">
-        <CheckCircle2 className="h-6 w-6 text-emerald-500" aria-hidden="true" />
+      <div className="flex flex-col items-center gap-2 py-6 text-center">
+        <CheckCircle2
+          className="h-6 w-6 text-metric-recovery"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
         <p className="text-sm font-medium">
           {t('focus.noTasksThisWeek', 'Nothing scheduled this week.')}
         </p>
@@ -130,13 +129,13 @@ function ToDoWeekView({
           <div key={day}>
             <p
               className={cn(
-                'mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground',
+                'text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground',
                 idx === 0 ? 'mt-0' : 'mt-3'
               )}
             >
               {label}
             </p>
-            <div className="space-y-2">
+            <div className="divide-y divide-border">
               {dayTasks.map((task) => (
                 <ToDoRow
                   key={task.id}
@@ -157,7 +156,6 @@ export default function ToDoCard({ selectedDate }: { selectedDate: string }) {
   const { t } = useTranslation();
   const { timeFormat } = usePreferences();
   const [view, setView] = useState<DayWeekView>('day');
-  const [isOpen, setIsOpen] = useState(true);
 
   // Rolling 7-day window starting at selectedDate, not a Monday-anchored
   // calendar week — mirrors AgendaCard's choice so "the rest of the week"
@@ -231,67 +229,59 @@ export default function ToDoCard({ selectedDate }: { selectedDate: string }) {
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="flex cursor-pointer flex-row items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
-              {t('focus.todoList', 'To-Do List')}
-              <Badge variant="secondary">{count}</Badge>
-            </CardTitle>
-            <div className="flex items-center gap-1">
-              <DayWeekToggle view={view} onChange={setView} />
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openAdd();
-                }}
-              >
-                <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-              </Button>
-              <ChevronDown className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent className="space-y-2">
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">
-                {t('common.loading', 'Loading...')}
-              </p>
-            ) : view === 'day' ? (
-              <>
-                {dayTasks.length === 0 && (
-                  <EmptyState
-                    icon={<CheckCircle2 className="h-6 w-6 text-emerald-500" />}
-                    title={t('focus.allCaughtUp', 'All caught up for today!')}
-                    actionLabel={t('focus.addTask', 'Add Task')}
-                    onAction={openAdd}
-                  />
-                )}
-                {dayTasks.map((focus) => (
-                  <ToDoRow
-                    key={focus.id}
-                    focus={focus}
-                    timeFormat={timeFormat}
-                    onToggle={handleToggle}
-                  />
-                ))}
-              </>
-            ) : (
-              <ToDoWeekView
-                weekStart={weekStart}
-                tasks={weekTasks}
-                timeFormat={timeFormat}
-                onToggle={handleToggle}
+    <>
+      <SectionCard
+        title={t('focus.todoList', 'To-Do List')}
+        icon={ListChecks}
+        badge={<Badge variant="secondary">{count}</Badge>}
+        action={
+          <>
+            <DayWeekToggle view={view} onChange={setView} />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                openAdd();
+              }}
+            >
+              <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+            </Button>
+          </>
+        }
+        loading={isLoading}
+      >
+        {view === 'day' ? (
+          <>
+            {dayTasks.length === 0 && (
+              <EmptyState
+                icon={<CheckCircle2 className="h-6 w-6 text-metric-recovery" />}
+                title={t('focus.allCaughtUp', 'All caught up for today!')}
+                actionLabel={t('focus.addTask', 'Add Task')}
+                onAction={openAdd}
               />
             )}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
+            <div className="divide-y divide-border">
+              {dayTasks.map((focus) => (
+                <ToDoRow
+                  key={focus.id}
+                  focus={focus}
+                  timeFormat={timeFormat}
+                  onToggle={handleToggle}
+                />
+              ))}
+            </div>
+          </>
+        ) : (
+          <ToDoWeekView
+            weekStart={weekStart}
+            tasks={weekTasks}
+            timeFormat={timeFormat}
+            onToggle={handleToggle}
+          />
+        )}
+      </SectionCard>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent>
@@ -345,6 +335,6 @@ export default function ToDoCard({ selectedDate }: { selectedDate: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Collapsible>
+    </>
   );
 }

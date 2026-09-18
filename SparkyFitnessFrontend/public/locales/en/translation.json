@@ -794,7 +794,19 @@
     "allDay": "All day",
     "emptyToday": "No events scheduled today — Enjoy your free time!",
     "noEventsDay": "No events",
-    "launchWorkout": "Launch Workout"
+    "launchWorkout": "Launch Workout",
+    "manageFeeds": "Manage Feeds"
+  },
+  "home": {
+    "greeting": {
+      "night": "Still up",
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "readiness": "readiness",
+    "todaysFocus": "Today's focus",
+    "intentionsComplete": "intentions complete"
   },
   "focus": {
     "title": "Focus & Goals",

@@ -4,8 +4,92 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-18 (later same day) — dark biometric redesign, Phase 1 of 6, uncommitted**:
-full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`. The app is being
+**Status as of 2026-09-18 (later still) — dark biometric redesign, Phase 2 of 6, uncommitted**:
+full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
+`agent-docs/design-system.md`. Phase 1 (tokens, dark-only cutover, `Card` primitive) landed as
+commit `2399c91a3` on `main` — see the demoted entry below for its own detail. **Phase 2 (Today/Home
+dashboard rebuild) is implemented and fully validated locally — `pnpm run validate`, full test suite
+137/137 suites (1180/1180 tests), and a `vite build` all green — but NOT yet committed.**
+
+**What Phase 2 built**: the first three shared primitives, each landing with its first real caller
+per knip's zero-unused-exports rule, all in `SparkyFitnessFrontend/src/components/biometric/`:
+- **`SectionCard`** — replaces the `Collapsible > Card > CardHeader(trigger) > CollapsibleContent >
+  CardContent` skeleton that was hand-copied across 6 Home cards. Manages its own open/closed state
+  (controlled or uncontrolled), takes `title`/`icon`/`badge`/`summary`/`action`/`loading`.
+- **`DataRow`** — the flat "icon + label + value + trailing" row, replacing hand-rolled versions in
+  `DailyCheckpointCard` and `SupplementsSnapshotCard`. Renders no card/border of its own; parents
+  supply separation via `divide-y divide-border`. **Not forced onto every row** — `AgendaCard`'s
+  `EventRow` (three-part time/title/location content, one has a real clickable link) and
+  `ToDoCard`/`HabitCard`'s rows (custom animated `CheckTarget` checkbox, domain-colour left border)
+  kept their own markup but were flattened to match DataRow's visual grammar (no border/bg, `divide-y`
+  parent) rather than being force-fit into an API that didn't suit their content shape.
+- **`MetricCard`** — two layouts: `wide` (label+value left, ring right — used by the vitals HUD) and
+  `tile` (ring on top, centered — used by the Home Workout/Water/Sleep row, replacing three
+  bespoke-but-consistent hand-rolled tiles). Added `metric="warning"` (maps to `--status-moderate`)
+  for the missed-workout state, and `emptyBorder` (mutes ring/icon/value to `text-muted-foreground`,
+  dashed border) for CTA-only tiles like "+ Start Workout".
+
+**New `DailyStatusHero.tsx`** (`src/pages/Home/`) absorbs the old inline `WeekStrip`/`DayPill` as its
+date control, per the plan. Its headline ring uses **today's focus/habit completion %** (from
+`useTodayFocusSnapshot`, a cache hit — HabitCard/ToDoCard/DailyCheckpointCard already call the same
+query key for the same date, so this adds zero network requests), not a wearable-only score — it's
+always meaningful regardless of Garmin connection. A small secondary badge shows
+`training_readiness_score` when wearable data exists for the day, without gating the hero on it.
+**This was the plan's own flagged open question ("worth deciding with real data on screen") — now
+built with the interim choice described above; worth a look once live to confirm it's what Isaac
+pictured**, per that question's own caution.
+
+**Full page reorder** (`HomeChecklist.tsx`): hero → metric tiles/missed-workout nudge → vitals HUD →
+cycle snapshot (moved up next to the HUD — both are "body state today" signals) → supplements →
+agenda → daily checkpoint → focus banner (now a lightweight strip, not a heavy gradient card) →
+to-do list → habits. `FocusBanner` visually "folds in" ahead of the daily-actions section as the
+plan specified, though the `/focus` nav tab itself hasn't been retired yet — that's Phase 3.
+
+**`DailyHealthMetricsCard.tsx` rebuilt** — this was the worst nesting example in the app
+(`Collapsible > Card > CollapsibleContent > CardContent > grid > 7 more bordered tile-divs`, each
+with its own rainbow icon colour). Now a single flat grid, no per-tile border/background, icons
+monochrome except body battery's progress bar (which keeps a real 3-state status colour via the new
+`--status-optimal/moderate/low` tokens — a genuine status indicator, not decoration).
+`CycleSnapshotCard` — the plan's named "worst offender" with 20 saturated Tailwind colour classes —
+is now a single phase-colour dot plus neutral card, per spec.
+
+**A real bug fixed along the way, not hypothetical**: converting `AgendaCard`'s empty state to the
+shared `EmptyState` component required giving it an action (that component's `actionLabel`/`onAction`
+props are required, not optional) — wired to `/settings?tab=developer-integrations&section=calendar-feeds`,
+a real destination (confirmed against `SettingsPage.tsx`'s `SECTION_TO_TAB_MAP`, which doesn't
+actually contain a `calendar-feeds` entry — passing both `tab` and `section` explicitly sidesteps
+that gap rather than depending on it).
+
+**Two real regressions caught by the existing test suite, not by inspection** — worth the reminder
+that "looks right" isn't verification here: (1) `WorkoutCard`'s "+ Start Workout" CTA text was
+shortened to "+ Start" for the narrower tile, silently breaking `getByRole('button', { name: /\+
+Start Workout/ })` in its own test — reverted to the full string. (2) The new `DailyStatusHero` calls
+`useDailyHealthMetrics` unconditionally, which `HomeChecklist.test.tsx` didn't mock — every one of
+its 6 tests crashed with "No QueryClient set" until a mock was added there (now documented inline in
+that test file). Both were caught by `pnpm test`, not by reading the diff — this project's `pnpm run
+validate` alone (typecheck/lint/format/knip) would not have caught either one.
+
+**4 new i18n keys added** to `public/locales/en/translation.json` (`agenda.manageFeeds`,
+`home.readiness`, `home.todaysFocus`, `home.intentionsComplete`) to satisfy
+`translationKeysCoverage.test.ts` — that checker only catches string-literal `t('key', ...)` calls,
+so `DailyStatusHero`'s dynamic `t(greeting.key, greeting.fallback)` calls (4 more: `home.greeting.
+{night,morning,afternoon,evening}`) went undetected by the checker but were added anyway since
+they're real new user-facing text; only the other 34 non-English locale files are still missing all
+8 (harmless — `t()`'s second argument is the fallback for exactly this case, so English strings
+render correctly regardless).
+
+**Not yet done**: uncommitted, unpushed, undeployed — same standing caveat as Phase 1, and the real
+acceptance test (live at 390px on Pi5) still hasn't run for either phase. Phase 3 (Check-in nav tab,
+global shell restyle, Sleep/Fasting promotion, `FastingTimerRing`/`FastingZoneBar`/water-bottle
+rewrites) hasn't started.
+
+---
+
+**Previous entry, 2026-09-18 (earlier that day) — Phase 1 of the redesign** (commit `2399c91a3` on
+`main`):
+
+**Status when written (superseded by the Phase 2 entry above)**: full plan at
+`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`. The app is being
 rebuilt from stock shadcn light-mode into a Whoop/Oura-style dark biometric interface — deep matte
 canvas, elevated charcoal cards, hairline borders, zero shadows, accent colour reserved for data.
 Rollout is phased (1 Foundation → 2 Today → 3 Check-in → 4 Workouts → 5 Progress → 6 Focus+Settings),

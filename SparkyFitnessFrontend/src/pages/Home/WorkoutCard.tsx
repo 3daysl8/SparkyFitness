@@ -8,7 +8,7 @@ import {
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { cn } from '@/lib/utils';
-import { CircularProgress } from '@/components/ui/circular-progress';
+import { MetricCard } from '@/components/biometric/MetricCard';
 import { Dumbbell, AlertTriangle } from 'lucide-react';
 import { useExerciseEntries } from '@/hooks/Exercises/useExerciseEntries';
 import { useWorkoutPreset } from '@/hooks/Exercises/useWorkoutPresets';
@@ -160,9 +160,6 @@ export default function WorkoutCard({
     return () => window.clearInterval(interval);
   }, [activeDraft]);
 
-  const cardClassName =
-    'relative flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition-colors';
-
   if (activeDraft) {
     const startedMs = Date.parse(activeDraft.started_at);
     const elapsedMinutes = Number.isNaN(startedMs)
@@ -171,30 +168,18 @@ export default function WorkoutCard({
     const stats = getWorkoutPlaybackStats(activeDraft);
 
     return (
-      <button
-        onClick={() => navigate(`/workout-playback?date=${selectedDate}`)}
-        className={cn(
-          cardClassName,
-          'border-metric-workout/40 bg-metric-workout/10'
-        )}
+      <MetricCard
+        layout="tile"
+        label="Workout"
+        value={`Active · ${elapsedMinutes}m`}
+        progress={stats.completionRate * 100}
+        metric="workout"
+        icon={Dumbbell}
+        cornerIndicator
+        onSelect={() => navigate(`/workout-playback?date=${selectedDate}`)}
       >
-        <span className="absolute right-2.5 top-2.5 h-2 w-2 animate-pulse rounded-full bg-metric-workout" />
-        <CircularProgress
-          value={stats.completionRate * 100}
-          size={52}
-          strokeWidth={4}
-          className="text-metric-workout"
-        >
-          <Dumbbell className="h-5 w-5 text-metric-workout" />
-        </CircularProgress>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Workout</p>
-          <p className="text-sm font-semibold text-metric-workout">
-            ⚡ Active ({elapsedMinutes} min{elapsedMinutes === 1 ? '' : 's'})
-          </p>
-          <WeeklyGoalChip progress={weeklyGoal} />
-        </div>
-      </button>
+        <WeeklyGoalChip progress={weeklyGoal} />
+      </MetricCard>
     );
   }
 
@@ -202,81 +187,32 @@ export default function WorkoutCard({
 
   if (summary.count > 0) {
     return (
-      <button
-        onClick={() => navigate('/workouts')}
-        className={cn(
-          cardClassName,
-          'border-metric-workout/30 bg-metric-workout/10'
-        )}
+      <MetricCard
+        layout="tile"
+        label="Workout"
+        value={summary.name}
+        progress={100}
+        metric="workout"
+        icon={Dumbbell}
+        onSelect={() => navigate('/workouts')}
       >
-        <CircularProgress
-          value={100}
-          size={52}
-          strokeWidth={4}
-          className="text-metric-workout"
-        >
-          <Dumbbell className="h-5 w-5 text-metric-workout" />
-        </CircularProgress>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Workout</p>
-          <p className="max-w-[110px] truncate text-sm font-semibold text-metric-workout">
-            {summary.name}
-          </p>
-          <p className="text-[10px] text-muted-foreground">
-            {summary.durationMinutes} min
-            {summary.durationMinutes === 1 ? '' : 's'} •{' '}
-            {formatWeight(summary.volumeKg, weightUnit)}
-          </p>
-          <WeeklyGoalChip progress={weeklyGoal} />
-        </div>
-      </button>
+        <p className="text-[10px] text-muted-foreground">
+          {summary.durationMinutes} min
+          {summary.durationMinutes === 1 ? '' : 's'} •{' '}
+          {formatWeight(summary.volumeKg, weightUnit)}
+        </p>
+        <WeeklyGoalChip progress={weeklyGoal} />
+      </MetricCard>
     );
   }
 
   if (primaryPlanned) {
     const exerciseCount = scheduledPreset?.exercises?.length;
-    const cardBody = (
-      <>
-        <CircularProgress
-          value={0}
-          size={52}
-          strokeWidth={4}
-          className="text-metric-workout"
-        >
-          <Dumbbell className="h-5 w-5 text-metric-workout" />
-        </CircularProgress>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Workout</p>
-          <p className="max-w-[110px] truncate text-sm font-semibold text-metric-workout">
-            {primaryPlanned.title}
-          </p>
-          {exerciseCount !== undefined && (
-            <p className="text-[10px] text-muted-foreground">
-              {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
-            </p>
-          )}
-          <WeeklyGoalChip progress={weeklyGoal} />
-        </div>
-      </>
-    );
 
     // Starting playback only makes sense for today's own plan — browsing a
     // past/future date's plan is informational only (no navigation target
     // that would make sense: a past plan is either done or missed, a future
     // one isn't here yet).
-    if (!isToday) {
-      return (
-        <div
-          className={cn(
-            cardClassName,
-            'border-metric-workout/30 bg-metric-workout/10'
-          )}
-        >
-          {cardBody}
-        </div>
-      );
-    }
-
     const handleStartScheduled = () => {
       if (primaryPlanned.workout_preset_id && scheduledPreset) {
         const routeState = createWorkoutPlaybackRouteState(
@@ -302,15 +238,22 @@ export default function WorkoutCard({
     };
 
     return (
-      <button
-        onClick={handleStartScheduled}
-        className={cn(
-          cardClassName,
-          'border-metric-workout/30 bg-metric-workout/10'
-        )}
+      <MetricCard
+        layout="tile"
+        label="Workout"
+        value={primaryPlanned.title}
+        progress={0}
+        metric="workout"
+        icon={Dumbbell}
+        onSelect={isToday ? handleStartScheduled : undefined}
       >
-        {cardBody}
-      </button>
+        {exerciseCount !== undefined && (
+          <p className="text-[10px] text-muted-foreground">
+            {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
+          </p>
+        )}
+        <WeeklyGoalChip progress={weeklyGoal} />
+      </MetricCard>
     );
   }
 
@@ -320,46 +263,33 @@ export default function WorkoutCard({
   // the separate MissedWorkoutsNudge card; this tile just signals the count.
   if (isToday && missed.length > 0) {
     return (
-      <div className={cn(cardClassName, 'border-amber-500/30 bg-amber-500/10')}>
-        <CircularProgress
-          value={0}
-          size={52}
-          strokeWidth={4}
-          className="text-amber-600"
-        >
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-        </CircularProgress>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Workout</p>
-          <p className="text-sm font-semibold text-amber-700">
-            {missed.length} Missed
-          </p>
-          <WeeklyGoalChip progress={weeklyGoal} />
-        </div>
-      </div>
+      <MetricCard
+        layout="tile"
+        label="Workout"
+        value={`${missed.length} Missed`}
+        progress={0}
+        metric="warning"
+        icon={AlertTriangle}
+      >
+        <WeeklyGoalChip progress={weeklyGoal} />
+      </MetricCard>
     );
   }
 
   return (
-    <button
-      onClick={() =>
+    <MetricCard
+      layout="tile"
+      label="Workout"
+      value="+ Start Workout"
+      progress={0}
+      metric="workout"
+      icon={Dumbbell}
+      emptyBorder
+      onSelect={() =>
         navigate('/workouts', { state: { openStartWorkout: true } })
       }
-      className={cn(cardClassName, 'border-border hover:bg-muted/50')}
     >
-      <CircularProgress
-        value={0}
-        size={52}
-        strokeWidth={4}
-        className="text-metric-workout"
-      >
-        <Dumbbell className="h-5 w-5 text-muted-foreground" />
-      </CircularProgress>
-      <div>
-        <p className="text-xs font-medium text-muted-foreground">Workout</p>
-        <p className="text-sm font-semibold">+ Start Workout</p>
-        <WeeklyGoalChip progress={weeklyGoal} />
-      </div>
-    </button>
+      <WeeklyGoalChip progress={weeklyGoal} />
+    </MetricCard>
   );
 }

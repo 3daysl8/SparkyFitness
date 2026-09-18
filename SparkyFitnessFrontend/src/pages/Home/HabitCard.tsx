@@ -9,7 +9,7 @@ import {
 } from '@/hooks/useFocus';
 import type { RecurringFocus, FocusTargetType } from '@/types/focus';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/biometric/SectionCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,11 +24,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -36,11 +31,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  ChevronDown,
   Flame,
   Plus,
   MessageSquare,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import WeekdayToggle from '@/pages/Focus/WeekdayToggle';
@@ -64,7 +59,6 @@ export default function HabitCard({ selectedDate }: { selectedDate: string }) {
   const upsertCheckin = useUpsertFocusCheckin();
   const deleteCheckin = useDeleteFocusCheckin();
 
-  const [isOpen, setIsOpen] = useState(true);
   const [selectedDomainFilter, setSelectedDomainFilter] =
     useState<string>('all');
 
@@ -258,124 +252,110 @@ export default function HabitCard({ selectedDate }: { selectedDate: string }) {
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="transition-all">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="flex cursor-pointer flex-row items-center justify-between p-4 pb-3">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base font-semibold tracking-tight text-foreground">
-                {t('focus.dailyHabits', 'Daily Habits & Streaks')}
-              </CardTitle>
-              {totalHabitsCount > 0 && (
-                <Badge
-                  variant={
-                    completedHabitsCount === totalHabitsCount &&
-                    totalHabitsCount > 0
-                      ? 'default'
-                      : 'secondary'
-                  }
-                  className="rounded-full px-2.5 py-0.5 text-xs font-medium"
-                >
-                  {completedHabitsCount}/{totalHabitsCount}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                aria-label={t('focus.addHabit', 'Add Habit')}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openAddHabit();
-                }}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 text-muted-foreground transition-transform duration-200',
-                  isOpen && 'rotate-180'
-                )}
-              />
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <CardContent className="space-y-3 p-4 pt-0">
-            {totalHabitsCount > 0 && (
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                    {t('focus.completionProgress', 'Daily Completion')}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {overallPercentage}%
-                  </span>
-                </div>
-                <Progress value={overallPercentage} className="h-1.5" />
+    <>
+      <SectionCard
+        title={t('focus.dailyHabits', 'Daily Habits & Streaks')}
+        badge={
+          totalHabitsCount > 0 && (
+            <Badge
+              variant={
+                completedHabitsCount === totalHabitsCount &&
+                totalHabitsCount > 0
+                  ? 'default'
+                  : 'secondary'
+              }
+              className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+            >
+              {completedHabitsCount}/{totalHabitsCount}
+            </Badge>
+          )
+        }
+        action={
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            aria-label={t('focus.addHabit', 'Add Habit')}
+            onClick={(e) => {
+              e.stopPropagation();
+              openAddHabit();
+            }}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          {totalHabitsCount > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{t('focus.completionProgress', 'Daily Completion')}</span>
+                <span className="font-medium text-foreground">
+                  {overallPercentage}%
+                </span>
               </div>
-            )}
+              <Progress value={overallPercentage} className="h-1.5" />
+            </div>
+          )}
 
-            {/* Pillar Filter Chips */}
-            {domains.length > 0 && totalHabitsCount > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-1">
+          {/* Pillar Filter Chips */}
+          {domains.length > 0 && totalHabitsCount > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-1">
+              <button
+                onClick={() => setSelectedDomainFilter('all')}
+                className={cn(
+                  'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                  selectedDomainFilter === 'all'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                {t('common.all', 'All')}
+              </button>
+              {domains.map((dom) => (
                 <button
-                  onClick={() => setSelectedDomainFilter('all')}
+                  key={dom.id}
+                  onClick={() => setSelectedDomainFilter(dom.id)}
                   className={cn(
-                    'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-                    selectedDomainFilter === 'all'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground'
+                    'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border',
+                    selectedDomainFilter === dom.id
+                      ? 'border-primary bg-primary/15 text-foreground font-semibold'
+                      : 'border-border-strong bg-card/60 text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {t('common.all', 'All')}
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                      backgroundColor: dom.color ?? 'var(--muted-foreground)',
+                    }}
+                  />
+                  {dom.name}
                 </button>
-                {domains.map((dom) => (
-                  <button
-                    key={dom.id}
-                    onClick={() => setSelectedDomainFilter(dom.id)}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border',
-                      selectedDomainFilter === dom.id
-                        ? 'border-primary bg-primary/15 text-foreground font-semibold'
-                        : 'border-border-strong bg-card/60 text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{
-                        backgroundColor: dom.color ?? 'var(--muted-foreground)',
-                      }}
-                    />
-                    {dom.name}
-                  </button>
-                ))}
-              </div>
-            )}
+              ))}
+            </div>
+          )}
 
-            {filteredHabits.length === 0 && (
-              <EmptyState
-                emoji="✨"
-                title={
-                  totalHabitsCount === 0
-                    ? t('focus.noHabitsToday', 'No habits due today')
-                    : t(
-                        'focus.noHabitsInFilter',
-                        'No habits under this pillar today'
-                      )
-                }
-                hint={t(
-                  'focus.addHabitHint',
-                  'Add one to start building a streak and driving accountability.'
-                )}
-                actionLabel={t('focus.addHabit', 'Add Habit')}
-                onAction={openAddHabit}
-              />
-            )}
+          {filteredHabits.length === 0 && (
+            <EmptyState
+              icon={<Sparkles className="h-6 w-6 text-metric-recovery" />}
+              title={
+                totalHabitsCount === 0
+                  ? t('focus.noHabitsToday', 'No habits due today')
+                  : t(
+                      'focus.noHabitsInFilter',
+                      'No habits under this pillar today'
+                    )
+              }
+              hint={t(
+                'focus.addHabitHint',
+                'Add one to start building a streak and driving accountability.'
+              )}
+              actionLabel={t('focus.addHabit', 'Add Habit')}
+              onAction={openAddHabit}
+            />
+          )}
 
+          <div className="divide-y divide-border">
             {filteredHabits.map((habit) => {
               const domain = habit.domain_id
                 ? domainMap.get(habit.domain_id)
@@ -390,13 +370,10 @@ export default function HabitCard({ selectedDate }: { selectedDate: string }) {
               return (
                 <div
                   key={habit.id}
-                  className={cn(
-                    'group relative rounded-xl border border-border-strong bg-card/60 p-3 transition-all hover:bg-card/90',
-                    habit.done && 'border-emerald-500/30 bg-emerald-500/5'
-                  )}
+                  className="group relative py-3 pl-3"
                   style={
                     domain?.color
-                      ? { borderLeft: `4px solid ${domain.color}` }
+                      ? { borderLeft: `3px solid ${domain.color}` }
                       : undefined
                   }
                 >
@@ -530,9 +507,9 @@ export default function HabitCard({ selectedDate }: { selectedDate: string }) {
                 </div>
               );
             })}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
+          </div>
+        </div>
+      </SectionCard>
 
       {/* Numeric Progress Dialog */}
       <Dialog
@@ -751,6 +728,6 @@ export default function HabitCard({ selectedDate }: { selectedDate: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Collapsible>
+    </>
   );
 }

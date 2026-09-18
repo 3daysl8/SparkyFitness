@@ -1,24 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { getDueDosesForDate, formatDose } from '@workspace/shared';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { cn } from '@/lib/utils';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { SectionCard } from '@/components/biometric/SectionCard';
+import { DataRow } from '@/components/biometric/DataRow';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { Check, ChevronDown, RotateCcw, ExternalLink } from 'lucide-react';
+import { Check, ExternalLink, Pill, RotateCcw } from 'lucide-react';
 import {
   useMedications,
   useMedicationEntries,
@@ -36,7 +25,6 @@ export default function SupplementsSnapshotCard({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { timezone } = usePreferences();
-  const [isOpen, setIsOpen] = useState(true);
   const { data: meds = [], isLoading: loadingMeds } = useMedications({
     activeOnly: true,
   });
@@ -109,167 +97,112 @@ export default function SupplementsSnapshotCard({
   }
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-emerald-500/20 bg-gradient-to-br from-emerald-50/20 via-card to-card">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="flex cursor-pointer flex-row items-center justify-between p-4 pb-3">
-            <div>
-              <CardTitle className="text-base font-semibold tracking-tight">
-                {t('medications.today.supplementsTitle', "Today's Supplements")}
-              </CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                {dueDoses.length > 0
-                  ? `${completedCount} of ${dueDoses.length} completed`
-                  : `${supplementMeds.length} active supplements in cabinet`}
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate('/checkin?tab=protocols');
-                }}
-              >
-                <span>Cabinet</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 text-muted-foreground transition-transform duration-200',
-                  isOpen && 'rotate-180'
-                )}
-              />
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent className="space-y-2 text-sm p-4 pt-0">
-            {loadingMeds || loadingEntries ? (
-              <p className="text-xs text-muted-foreground">
-                {t('common.loading', 'Loading...')}
-              </p>
-            ) : (
-              <>
-                {dueDoses.map((due, idx) => {
-                  const entry = entries.find((e) => entryMatchesDue(e, due));
-                  const isTaken = entry?.status === 'taken';
+    <SectionCard
+      title={t('medications.today.supplementsTitle', "Today's Supplements")}
+      icon={Pill}
+      summary={
+        dueDoses.length > 0
+          ? `${completedCount} of ${dueDoses.length} completed`
+          : `${supplementMeds.length} active supplements in cabinet`
+      }
+      action={
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate('/checkin?tab=protocols');
+          }}
+        >
+          <span>Cabinet</span>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      }
+      loading={loadingMeds || loadingEntries}
+    >
+      <div className="divide-y divide-border">
+        {dueDoses.map((due, idx) => {
+          const entry = entries.find((e) => entryMatchesDue(e, due));
+          const isTaken = entry?.status === 'taken';
 
-                  return (
-                    <div
-                      key={`${due.medication.id}-${due.schedule.id}-${idx}`}
-                      className="flex items-center justify-between p-2.5 rounded-lg border bg-card/60"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={cn(
-                            'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs',
-                            isTaken
-                              ? 'border-emerald-500 bg-emerald-500 text-white'
-                              : 'border-muted-foreground/30 text-transparent'
-                          )}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </span>
-                        <div className="min-w-0">
-                          <p
-                            className={cn(
-                              'font-medium text-xs truncate',
-                              isTaken && 'line-through text-muted-foreground'
-                            )}
-                          >
-                            {due.medication.display_name || due.medication.name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {formatDose(due.medication, due.schedule) ??
-                              '1 dose'}
-                          </p>
-                        </div>
-                      </div>
+          return (
+            <DataRow
+              key={`${due.medication.id}-${due.schedule.id}-${idx}`}
+              icon={Check}
+              label={due.medication.display_name || due.medication.name}
+              sublabel={formatDose(due.medication, due.schedule) ?? '1 dose'}
+              state={isTaken ? 'complete' : 'default'}
+              trailing={
+                isTaken && entry ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px] text-muted-foreground"
+                    onClick={() => handleUndo(entry)}
+                    disabled={deleteEntry.isPending}
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    {t('common.undo', 'Undo')}
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 text-xs"
+                    onClick={() => handleTakeScheduled(due)}
+                    disabled={createEntry.isPending}
+                  >
+                    {t('medications.today.take', 'Take')}
+                  </Button>
+                )
+              }
+            />
+          );
+        })}
 
-                      {isTaken && entry ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-[11px] text-muted-foreground"
-                          onClick={() => handleUndo(entry)}
-                          disabled={deleteEntry.isPending}
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          {t('common.undo', 'Undo')}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                          onClick={() => handleTakeScheduled(due)}
-                          disabled={createEntry.isPending}
-                        >
-                          {t('medications.today.take', 'Take')}
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {dueDoses.length === 0 &&
-                  prnSupplements.map((med) => {
-                    const prnEntry = entries.find(
-                      (e) =>
-                        e.medication_id === med.id && e.status === 'prn_taken'
-                    );
-                    return (
-                      <div
-                        key={med.id}
-                        className="flex items-center justify-between p-2.5 rounded-lg border bg-card/60"
+        {dueDoses.length === 0 &&
+          prnSupplements.map((med) => {
+            const prnEntry = entries.find(
+              (e) => e.medication_id === med.id && e.status === 'prn_taken'
+            );
+            return (
+              <DataRow
+                key={med.id}
+                label={med.display_name || med.name}
+                sublabel={formatDose(med) ?? 'As needed'}
+                state={prnEntry ? 'complete' : 'default'}
+                trailing={
+                  prnEntry ? (
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="secondary" className="text-[10px]">
+                        Taken
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground"
+                        onClick={() => handleUndo(prnEntry)}
+                        disabled={deleteEntry.isPending}
                       >
-                        <div className="min-w-0">
-                          <p className="font-medium text-xs truncate">
-                            {med.display_name || med.name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {formatDose(med) ?? 'As needed'}
-                          </p>
-                        </div>
-                        {prnEntry ? (
-                          <div className="flex items-center gap-1.5">
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                            >
-                              Taken
-                            </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground"
-                              onClick={() => handleUndo(prnEntry)}
-                              disabled={deleteEntry.isPending}
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-3 text-xs"
-                            onClick={() => handleTakePrn(med)}
-                            disabled={createEntry.isPending}
-                          >
-                            {t('medications.today.take', 'Take')}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-              </>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+                        <RotateCcw className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-3 text-xs"
+                      onClick={() => handleTakePrn(med)}
+                      disabled={createEntry.isPending}
+                    >
+                      {t('medications.today.take', 'Take')}
+                    </Button>
+                  )
+                }
+              />
+            );
+          })}
+      </div>
+    </SectionCard>
   );
 }

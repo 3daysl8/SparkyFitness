@@ -1,17 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
   CheckCircle2,
-  ChevronDown,
   Compass,
   Droplet,
   Dumbbell,
   Moon,
   Pill,
   Sparkles,
-  ArrowUpRight,
 } from 'lucide-react';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -29,15 +27,10 @@ import { hasLoggedWorkout } from '@/utils/workoutSessionSummary';
 import { getDueDosesForDate } from '@workspace/shared';
 import { entryMatchesDue } from '@/utils/medicationUtils';
 import type { MedicationDetail } from '@/types/medications';
-import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/biometric/SectionCard';
+import { DataRow } from '@/components/biometric/DataRow';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 
 export default function DailyCheckpointCard({
   selectedDate,
@@ -49,8 +42,6 @@ export default function DailyCheckpointCard({
   const { activeUserId } = useActiveUser();
   const { timezone } = usePreferences();
   const userId = activeUserId ?? undefined;
-
-  const [isOpen, setIsOpen] = useState(false);
 
   // 1. Focus & Habits
   const { data: snapshot } = useTodayFocusSnapshot(selectedDate);
@@ -136,11 +127,6 @@ export default function DailyCheckpointCard({
           habitsTotal > 0
             ? `${habitsDone}/${habitsTotal} done`
             : t('focus.noneScheduled', 'None scheduled'),
-        statusColor: habitsComplete
-          ? 'text-emerald-500'
-          : habitsDone > 0
-            ? 'text-amber-500'
-            : 'text-muted-foreground',
         onClick: () => {
           const el = document.getElementById('home-habits-section');
           el?.scrollIntoView({ behavior: 'smooth' });
@@ -154,9 +140,6 @@ export default function DailyCheckpointCard({
         value: workoutLogged
           ? t('common.completed', 'Logged')
           : t('common.notLogged', 'Not logged'),
-        statusColor: workoutLogged
-          ? 'text-metric-workout'
-          : 'text-muted-foreground',
         onClick: () => navigate('/workouts'),
       },
       {
@@ -165,9 +148,6 @@ export default function DailyCheckpointCard({
         icon: Droplet,
         isCompleted: waterComplete,
         value: `${waterMl} / ${waterGoalMl} ml (${waterPct}%)`,
-        statusColor: waterComplete
-          ? 'text-metric-water'
-          : 'text-muted-foreground',
         onClick: () => navigate('/diary'),
       },
       {
@@ -178,9 +158,6 @@ export default function DailyCheckpointCard({
         value: sleepLogged
           ? `${sleepDurationHours.toFixed(1)}h logged`
           : t('common.notLogged', 'Not logged'),
-        statusColor: sleepLogged
-          ? 'text-metric-sleep'
-          : 'text-muted-foreground',
         onClick: () => navigate('/checkin?tab=sleep'),
       },
       {
@@ -192,9 +169,6 @@ export default function DailyCheckpointCard({
           dueDoses.length > 0
             ? `${suppsDone}/${dueDoses.length} doses`
             : `${supplementMeds.length} active in cabinet`,
-        statusColor: suppsComplete
-          ? 'text-emerald-500'
-          : 'text-muted-foreground',
         onClick: () => navigate('/checkin?tab=protocols'),
       },
       {
@@ -205,9 +179,6 @@ export default function DailyCheckpointCard({
         value: bodyCheckInDone
           ? t('common.completed', 'Recorded')
           : t('checkIn.tapToRecord', 'Tap to record'),
-        statusColor: bodyCheckInDone
-          ? 'text-indigo-500'
-          : 'text-muted-foreground',
         onClick: () => navigate('/checkin'),
       },
     ];
@@ -236,96 +207,38 @@ export default function DailyCheckpointCard({
   const checkpointPct = Math.round((completedCount / totalCheckpoints) * 100);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-border-strong bg-card/60 shadow-sm transition-all hover:bg-card/90">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="flex cursor-pointer flex-row items-center justify-between p-3.5 sm:p-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <CheckCircle2 className="h-4 w-4" />
-              </div>
-              <div>
-                <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
-                  {t(
-                    'checkIn.dailyCheckpointTitle',
-                    'Daily Checkpoint & Accountability'
-                  )}
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {completedCount} of {totalCheckpoints} pillars completed (
-                  {checkpointPct}%)
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {completedCount === totalCheckpoints && (
-                <Badge
-                  variant="default"
-                  className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  {t('checkIn.allDone', 'Completed')}
-                </Badge>
-              )}
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 text-muted-foreground transition-transform duration-200',
-                  isOpen && 'rotate-180'
-                )}
-              />
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <CardContent className="space-y-3 p-3.5 pt-0 sm:p-4 sm:pt-0">
-            <div className="space-y-1">
-              <Progress value={checkpointPct} className="h-1.5" />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              {checkpoints.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={item.onClick}
-                    className={cn(
-                      'group flex items-center justify-between gap-3 rounded-lg border border-border-strong bg-background/50 p-2.5 text-left transition-all hover:bg-muted/50 hover:border-border',
-                      item.isCompleted &&
-                        'border-emerald-500/20 bg-emerald-500/5'
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={cn(
-                          'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs',
-                          item.isCompleted
-                            ? 'border-emerald-500 bg-emerald-500 text-white'
-                            : 'border-muted-foreground/30 text-muted-foreground'
-                        )}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium truncate text-foreground">
-                          {item.label}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {item.value}
-                        </p>
-                      </div>
-                    </div>
-
-                    <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground shrink-0" />
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+    <SectionCard
+      title={t(
+        'checkIn.dailyCheckpointTitle',
+        'Daily Checkpoint & Accountability'
+      )}
+      icon={CheckCircle2}
+      summary={`${completedCount} of ${totalCheckpoints} pillars completed (${checkpointPct}%)`}
+      badge={
+        completedCount === totalCheckpoints && (
+          <Badge variant="default" className="gap-1 text-[11px] font-medium">
+            <Sparkles className="h-3 w-3" />
+            {t('checkIn.allDone', 'Completed')}
+          </Badge>
+        )
+      }
+      defaultOpen={false}
+    >
+      <div className="space-y-3">
+        <Progress value={checkpointPct} className="h-1.5" />
+        <div className="divide-y divide-border">
+          {checkpoints.map((item) => (
+            <DataRow
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              sublabel={item.value}
+              state={item.isCompleted ? 'complete' : 'default'}
+              onSelect={item.onClick}
+            />
+          ))}
+        </div>
+      </div>
+    </SectionCard>
   );
 }

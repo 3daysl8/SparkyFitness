@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { cn } from '@/lib/utils';
 
 interface DailyHealthMetricsCardProps {
   metrics?: DailyHealthMetrics;
@@ -20,11 +21,11 @@ interface DailyHealthMetricsCardProps {
 }
 
 /**
- * Tile grid of a single day's wearable health summary (body battery, steps,
- * stress, resting HR, VO2 max, training readiness). Presentational only —
- * intentionally has no Card/CardHeader shell of its own, so a caller (e.g.
- * WearableHealthCard on Home) can wrap it in whatever card/collapsible shell
- * matches its own page's conventions.
+ * Flat vitals HUD for a single day's wearable health summary. Presentational
+ * only — has no Card/CardHeader shell of its own, so a caller (e.g.
+ * WearableHealthCard on Home) can wrap it in its own SectionCard. No per-tile
+ * border/background: the grid gaps and typography carry the separation, per
+ * the "one card boundary per region" rule.
  */
 export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
   metrics,
@@ -35,13 +36,10 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="w-full animate-pulse">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="h-20 bg-muted rounded-xl"></div>
-          <div className="h-20 bg-muted rounded-xl"></div>
-          <div className="h-20 bg-muted rounded-xl"></div>
-          <div className="h-20 bg-muted rounded-xl"></div>
-        </div>
+      <div className="grid grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-12 animate-pulse rounded-md bg-surface-2" />
+        ))}
       </div>
     );
   }
@@ -51,20 +49,12 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
   }
 
   // `== null` rather than a falsy test: 0 is a real reading (a fully drained
-  // body battery, a stress level of zero) and must not render as "no data".
-  const getBodyBatteryColor = (level?: number | null) => {
+  // body battery) and must not render as "no data".
+  const bodyBatteryStatus = (level?: number | null) => {
     if (level == null) return 'bg-muted-foreground/40';
-    if (level >= 75) return 'bg-emerald-500';
-    if (level >= 40) return 'bg-amber-500';
-    return 'bg-rose-500';
-  };
-
-  const getStressColor = (stress?: number | null) => {
-    if (stress == null) return 'text-muted-foreground';
-    if (stress <= 25) return 'text-emerald-500';
-    if (stress <= 50) return 'text-blue-500';
-    if (stress <= 75) return 'text-amber-500';
-    return 'text-rose-500';
+    if (level >= 75) return 'bg-status-optimal';
+    if (level >= 40) return 'bg-status-moderate';
+    return 'bg-status-low';
   };
 
   const distanceDisplay =
@@ -76,43 +66,129 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
         ).toFixed(2)} ${distanceUnit}`
       : null;
 
+  const tiles: {
+    key: string;
+    icon: typeof Footprints;
+    label: string;
+    value: React.ReactNode;
+    caption?: React.ReactNode;
+  }[] = [
+    {
+      key: 'steps',
+      icon: Footprints,
+      label: t('dailyHealthMetrics.steps', 'Steps'),
+      value:
+        metrics.total_steps != null
+          ? metrics.total_steps.toLocaleString()
+          : '--',
+    },
+    {
+      key: 'distance',
+      icon: Route,
+      label: t('dailyHealthMetrics.distance', 'Distance'),
+      value: distanceDisplay ?? '--',
+    },
+    {
+      key: 'floors',
+      icon: Building2,
+      label: t('dailyHealthMetrics.floors', 'Floors'),
+      value: metrics.floors_ascended ?? '--',
+      caption:
+        metrics.floors_descended != null
+          ? t('dailyHealthMetrics.floorsDescended', '↓ {{val}}', {
+              val: metrics.floors_descended,
+            })
+          : undefined,
+    },
+    {
+      key: 'stress',
+      icon: ShieldAlert,
+      label: t('dailyHealthMetrics.avgStress', 'Avg Stress'),
+      value: metrics.avg_stress_level ?? '--',
+      caption: t('dailyHealthMetrics.max', 'Max: {{val}}', {
+        val: metrics.max_stress_level ?? '--',
+      }),
+    },
+    {
+      key: 'restingHr',
+      icon: Heart,
+      label: t('dailyHealthMetrics.restingHr', 'Resting HR'),
+      value: (
+        <>
+          <span>{metrics.resting_heart_rate ?? '--'}</span>
+          <span className="ml-1 text-xs font-medium text-muted-foreground">
+            bpm
+          </span>
+        </>
+      ),
+      caption: t('dailyHealthMetrics.recovery', 'Recovery: {{val}}', {
+        val: metrics.heart_rate_recovery_1min
+          ? `${metrics.heart_rate_recovery_1min} bpm`
+          : '--',
+      }),
+    },
+    {
+      key: 'vo2max',
+      icon: TrendingUp,
+      label: t('dailyHealthMetrics.vo2Max', 'VO2 Max'),
+      value: metrics.vo2_max ?? '--',
+      caption: t('dailyHealthMetrics.fitnessAge', 'Fit Age: {{val}}', {
+        val: metrics.fitness_age ?? '--',
+      }),
+    },
+    {
+      key: 'readiness',
+      icon: Zap,
+      label: t('dailyHealthMetrics.readiness', 'Readiness'),
+      value: metrics.training_readiness_score ?? '--',
+      caption: (
+        <>
+          <RefreshCw className="mr-0.5 inline h-3 w-3" strokeWidth={1.5} />
+          {t('dailyHealthMetrics.recHours', 'Rec: {{val}}', {
+            val: metrics.recovery_time_hours
+              ? `${metrics.recovery_time_hours}h`
+              : '--',
+          })}
+        </>
+      ),
+    },
+  ];
+
   return (
-    // Fixed 2-column layout: this card lives in a narrow Home-column slot
-    // (see WearableHealthCard.tsx), so it must not rely on viewport-width
-    // breakpoints (sm:/lg:) — those measure the page, not this container,
-    // and cause overlap/truncation here.
-    <div className="grid grid-cols-2 gap-3">
-      {/* Body Battery */}
-      <div className="col-span-2 p-3.5 rounded-xl bg-muted/50 border flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-2 gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            <BatteryCharging className="h-4 w-4 text-emerald-500 shrink-0" />
+    <div className="space-y-4">
+      {/* Body Battery — kept as its own full-width row since the progress
+         bar needs the width; everything else shares one flat grid below. */}
+      <div>
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            <BatteryCharging className="h-4 w-4 shrink-0" strokeWidth={1.5} />
             <span>{t('dailyHealthMetrics.bodyBattery', 'Body Battery')}</span>
           </div>
-          <span className="text-xs font-bold text-emerald-500 whitespace-nowrap">
+          <span className="text-xs font-medium text-muted-foreground">
             +{metrics.body_battery_charged ?? 0} / -
             {metrics.body_battery_drained ?? 0}
           </span>
         </div>
-        <div className="flex items-baseline gap-2 mb-2 flex-wrap">
-          <span className="text-2xl font-black">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="metric-num text-2xl text-foreground">
             {metrics.body_battery_highest ?? '--'}
           </span>
-          <span className="text-xs text-muted-foreground font-medium">
+          <span className="text-xs font-medium text-muted-foreground">
             {t('dailyHealthMetrics.peak', 'peak')}
           </span>
-          <span className="text-xs text-muted-foreground font-mono">
-            (
+          <span className="text-xs text-muted-foreground">
             {t('dailyHealthMetrics.low', 'low: {{val}}', {
               val: metrics.body_battery_lowest ?? '--',
             })}
-            )
           </span>
         </div>
         {metrics.body_battery_highest != null && (
-          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2">
             <div
-              className={`h-full ${getBodyBatteryColor(metrics.body_battery_highest)}`}
+              className={cn(
+                'h-full',
+                bodyBatteryStatus(metrics.body_battery_highest)
+              )}
               style={{
                 width: `${Math.min(100, Math.max(0, metrics.body_battery_highest))}%`,
               }}
@@ -121,125 +197,23 @@ export const DailyHealthMetricsCard: React.FC<DailyHealthMetricsCardProps> = ({
         )}
       </div>
 
-      {/* Activity: Steps / Distance / Floors */}
-      <div className="col-span-2 grid grid-cols-3 gap-2">
-        <div className="p-3 rounded-xl bg-muted/50 border flex flex-col justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
-            <Footprints className="h-4 w-4 text-indigo-500 shrink-0" />
-            <span>{t('dailyHealthMetrics.steps', 'Steps')}</span>
+      <div className="grid grid-cols-3 gap-x-4 gap-y-4 border-t border-border pt-4">
+        {tiles.map(({ key, icon: Icon, label, value, caption }) => (
+          <div key={key} className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+              <span className="truncate">{label}</span>
+            </div>
+            <p className="metric-num mt-0.5 truncate text-lg text-foreground">
+              {value}
+            </p>
+            {caption && (
+              <p className="truncate text-[11px] text-muted-foreground">
+                {caption}
+              </p>
+            )}
           </div>
-          <span className="text-xl font-black">
-            {metrics.total_steps != null
-              ? metrics.total_steps.toLocaleString()
-              : '--'}
-          </span>
-        </div>
-        <div className="p-3 rounded-xl bg-muted/50 border flex flex-col justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
-            <Route className="h-4 w-4 text-sky-500 shrink-0" />
-            <span>{t('dailyHealthMetrics.distance', 'Distance')}</span>
-          </div>
-          <span className="text-xl font-black">{distanceDisplay ?? '--'}</span>
-        </div>
-        <div className="p-3 rounded-xl bg-muted/50 border flex flex-col justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
-            <Building2 className="h-4 w-4 text-orange-500 shrink-0" />
-            <span>{t('dailyHealthMetrics.floors', 'Floors')}</span>
-          </div>
-          <span className="text-xl font-black">
-            {metrics.floors_ascended ?? '--'}
-          </span>
-          {metrics.floors_descended != null && (
-            <span className="text-[11px] text-muted-foreground font-mono truncate">
-              {t('dailyHealthMetrics.floorsDescended', '↓ {{val}}', {
-                val: metrics.floors_descended,
-              })}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Stress Level */}
-      <div className="p-3.5 rounded-xl bg-muted/50 border flex flex-col justify-between">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
-          <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0" />
-          <span>{t('dailyHealthMetrics.avgStress', 'Avg Stress')}</span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span
-            className={`text-2xl font-black ${getStressColor(metrics.avg_stress_level)}`}
-          >
-            {metrics.avg_stress_level ?? '--'}
-          </span>
-          <span className="text-xs text-muted-foreground">/ 100</span>
-        </div>
-        <span className="text-[11px] text-muted-foreground font-mono">
-          {t('dailyHealthMetrics.max', 'Max: {{val}}', {
-            val: metrics.max_stress_level ?? '--',
-          })}
-        </span>
-      </div>
-
-      {/* Resting Heart Rate */}
-      <div className="p-3.5 rounded-xl bg-muted/50 border flex flex-col justify-between">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
-          <Heart className="h-4 w-4 text-rose-500 shrink-0" />
-          <span>{t('dailyHealthMetrics.restingHr', 'Resting HR')}</span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-black text-rose-500">
-            {metrics.resting_heart_rate ?? '--'}
-          </span>
-          <span className="text-xs text-muted-foreground">bpm</span>
-        </div>
-        <span className="text-[11px] text-muted-foreground truncate">
-          {t('dailyHealthMetrics.recovery', 'Recovery: {{val}}', {
-            val: metrics.heart_rate_recovery_1min
-              ? `${metrics.heart_rate_recovery_1min} bpm`
-              : '--',
-          })}
-        </span>
-      </div>
-
-      {/* VO2 Max */}
-      <div className="p-3.5 rounded-xl bg-muted/50 border flex flex-col justify-between">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
-          <TrendingUp className="h-4 w-4 text-cyan-500 shrink-0" />
-          <span>{t('dailyHealthMetrics.vo2Max', 'VO2 Max')}</span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-black text-cyan-500">
-            {metrics.vo2_max ?? '--'}
-          </span>
-          <span className="text-xs text-muted-foreground">ml/kg/min</span>
-        </div>
-        <span className="text-[11px] text-muted-foreground truncate">
-          {t('dailyHealthMetrics.fitnessAge', 'Fit Age: {{val}}', {
-            val: metrics.fitness_age ?? '--',
-          })}
-        </span>
-      </div>
-
-      {/* Training Readiness / Recovery */}
-      <div className="p-3.5 rounded-xl bg-muted/50 border flex flex-col justify-between">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1">
-          <Zap className="h-4 w-4 text-yellow-500 shrink-0" />
-          <span>{t('dailyHealthMetrics.readiness', 'Readiness')}</span>
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-black text-yellow-500">
-            {metrics.training_readiness_score ?? '--'}
-          </span>
-          <span className="text-xs text-muted-foreground">/ 100</span>
-        </div>
-        <span className="text-[11px] text-muted-foreground font-mono truncate">
-          <RefreshCw className="inline h-3 w-3 mr-0.5 text-muted-foreground" />
-          {t('dailyHealthMetrics.recHours', 'Rec: {{val}}', {
-            val: metrics.recovery_time_hours
-              ? `${metrics.recovery_time_hours}h`
-              : '--',
-          })}
-        </span>
+        ))}
       </div>
     </div>
   );

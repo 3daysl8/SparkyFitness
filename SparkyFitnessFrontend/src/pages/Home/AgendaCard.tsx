@@ -6,17 +6,13 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { useAgenda } from '@/hooks/useCalendar';
 import { formatTimeInZone } from '@/utils/timeFormatters';
 import { eventDayKey } from '@/utils/agenda';
+import { SectionCard } from '@/components/biometric/SectionCard';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { ChevronDown, Dumbbell, MapPin } from 'lucide-react';
+import { CalendarDays, Dumbbell, MapPin } from 'lucide-react';
 import type { CalendarEvent } from '@/types/calendar';
 import DayWeekToggle, { type DayWeekView } from './DayWeekToggle';
+import EmptyState from './EmptyState';
 
 function isUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
@@ -68,12 +64,7 @@ function EventRow({
       )}`;
 
   return (
-    <div
-      className={cn(
-        'flex items-start gap-3 rounded-lg border border-border-strong bg-background px-3 py-2',
-        compact && 'py-1.5'
-      )}
-    >
+    <div className="flex items-start gap-3 py-2">
       <span
         aria-hidden="true"
         className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
@@ -82,12 +73,12 @@ function EventRow({
         }}
       />
       <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-[11px] font-medium tabular-nums text-muted-foreground">
+        <p className="metric-num text-[11px] text-muted-foreground">
           {timeLabel}
         </p>
         <p
           className={cn(
-            'truncate font-medium',
+            'truncate font-medium text-foreground',
             compact ? 'text-xs' : 'text-sm'
           )}
         >
@@ -124,25 +115,28 @@ function DayView({
   timeFormat: string;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-6 text-center">
-        <span className="text-2xl" aria-hidden="true">
-          🌤️
-        </span>
-        <p className="text-sm font-medium">
-          {t(
-            'agenda.emptyToday',
-            'No events scheduled today — Enjoy your free time!'
-          )}
-        </p>
-      </div>
+      <EmptyState
+        icon={<CalendarDays className="h-6 w-6 text-muted-foreground" />}
+        title={t(
+          'agenda.emptyToday',
+          'No events scheduled today — enjoy your free time!'
+        )}
+        actionLabel={t('agenda.manageFeeds', 'Manage Feeds')}
+        onAction={() =>
+          navigate(
+            '/settings?tab=developer-integrations&section=calendar-feeds'
+          )
+        }
+      />
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="divide-y divide-border">
       {events.map((event) => (
         <EventRow
           key={event.id}
@@ -203,7 +197,7 @@ function WeekView({
                 {t('agenda.noEventsDay', 'No events')}
               </p>
             ) : (
-              <div className="space-y-1.5">
+              <div className="divide-y divide-border pl-3">
                 {dayEvents.map((event) => (
                   <EventRow
                     key={event.id}
@@ -226,7 +220,6 @@ export default function AgendaCard({ selectedDate }: { selectedDate: string }) {
   const { t } = useTranslation();
   const { timezone, timeFormat } = usePreferences();
   const [view, setView] = useState<DayWeekView>('day');
-  const [isOpen, setIsOpen] = useState(true);
 
   // A rolling 7-day window starting today, not a Monday-anchored calendar
   // week — "the rest of the week" reads as upcoming days, and a fixed
@@ -239,38 +232,22 @@ export default function AgendaCard({ selectedDate }: { selectedDate: string }) {
   const { data: events = [], isLoading } = useAgenda(rangeStart, rangeEnd);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="flex cursor-pointer flex-row items-center justify-between gap-2 p-4 pb-3">
-            <CardTitle className="text-base font-semibold tracking-tight text-foreground">
-              {t('agenda.title', "Today's Agenda")}
-            </CardTitle>
-            <div className="flex items-center gap-1.5">
-              <DayWeekToggle view={view} onChange={setView} />
-              <ChevronDown className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">
-                {t('common.loading', 'Loading...')}
-              </p>
-            ) : view === 'day' ? (
-              <DayView events={events} tz={timezone} timeFormat={timeFormat} />
-            ) : (
-              <WeekView
-                weekStart={weekStart}
-                events={events}
-                tz={timezone}
-                timeFormat={timeFormat}
-              />
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+    <SectionCard
+      title={t('agenda.title', "Today's Agenda")}
+      icon={CalendarDays}
+      action={<DayWeekToggle view={view} onChange={setView} />}
+      loading={isLoading}
+    >
+      {view === 'day' ? (
+        <DayView events={events} tz={timezone} timeFormat={timeFormat} />
+      ) : (
+        <WeekView
+          weekStart={weekStart}
+          events={events}
+          tz={timezone}
+          timeFormat={timeFormat}
+        />
+      )}
+    </SectionCard>
   );
 }

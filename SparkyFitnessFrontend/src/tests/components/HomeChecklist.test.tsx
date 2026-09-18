@@ -69,6 +69,14 @@ jest.mock('@/hooks/CheckIn/useSleep', () => ({
   useSleepEntriesQuery: () => ({ data: [] }),
 }));
 
+// DailyStatusHero (rendered by HomeChecklist itself, not stubbed like the
+// other cards below) surfaces a readiness badge when wearable data exists —
+// keep it absent here so these tests stay focused on week-strip/midnight
+// behavior, matching WearableHealthCard's own stub below.
+jest.mock('@/hooks/useGenericHealth', () => ({
+  useDailyHealthMetrics: () => ({ data: undefined, isLoading: false }),
+}));
+
 jest.mock('@/hooks/useCycle', () => ({
   useCycleActive: () => ({ isCycleActive: false, isFemale: false }),
   useCyclePhase: () => ({

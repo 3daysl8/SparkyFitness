@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Heart, Dumbbell, ChevronRight } from 'lucide-react';
+import { Dumbbell, ChevronRight } from 'lucide-react';
 import {
   useCycleActive,
   useCyclePhase,
@@ -19,51 +19,14 @@ interface CycleSnapshotCardProps {
   className?: string;
 }
 
-const PHASE_COLORS: Record<
-  CyclePhase,
-  {
-    bg: string;
-    text: string;
-    border: string;
-    badgeBg: string;
-    badgeText: string;
-    indicator: string;
-  }
-> = {
-  menstrual: {
-    bg: 'bg-rose-500/10 dark:bg-rose-950/30',
-    text: 'text-rose-700 dark:text-rose-300',
-    border: 'border-rose-200 dark:border-rose-900/50',
-    badgeBg: 'bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200',
-    badgeText: 'text-rose-800 dark:text-rose-200',
-    indicator: 'bg-rose-500',
-  },
-  follicular: {
-    bg: 'bg-violet-500/10 dark:bg-violet-950/30',
-    text: 'text-violet-700 dark:text-violet-300',
-    border: 'border-violet-200 dark:border-violet-900/50',
-    badgeBg:
-      'bg-violet-100 dark:bg-violet-900/60 text-violet-800 dark:text-violet-200',
-    badgeText: 'text-violet-800 dark:text-violet-200',
-    indicator: 'bg-violet-500',
-  },
-  ovulatory: {
-    bg: 'bg-teal-500/10 dark:bg-teal-950/30',
-    text: 'text-teal-700 dark:text-teal-300',
-    border: 'border-teal-200 dark:border-teal-900/50',
-    badgeBg: 'bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200',
-    badgeText: 'text-teal-800 dark:text-teal-200',
-    indicator: 'bg-teal-500',
-  },
-  luteal: {
-    bg: 'bg-amber-500/10 dark:bg-amber-950/30',
-    text: 'text-amber-700 dark:text-amber-300',
-    border: 'border-amber-200 dark:border-amber-900/50',
-    badgeBg:
-      'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200',
-    badgeText: 'text-amber-800 dark:text-amber-200',
-    indicator: 'bg-amber-500',
-  },
+// A single dot colour per phase — the only place phase colour appears. Every
+// other surface (background, border, badge) stays neutral, per the "accent
+// is for data, not decoration" rule.
+const PHASE_DOT: Record<CyclePhase, string> = {
+  menstrual: 'bg-status-low',
+  follicular: 'bg-metric-sleep',
+  ovulatory: 'bg-metric-recovery',
+  luteal: 'bg-metric-fasting',
 };
 
 export const CycleSnapshotCard: React.FC<CycleSnapshotCardProps> = ({
@@ -81,39 +44,25 @@ export const CycleSnapshotCard: React.FC<CycleSnapshotCardProps> = ({
     return null;
   }
 
-  const phaseColors = PHASE_COLORS[phaseInfo.phase] || PHASE_COLORS.follicular;
+  const dotColor = PHASE_DOT[phaseInfo.phase] ?? PHASE_DOT.follicular;
 
   return (
     <>
       <Card
-        className={cn(
-          'transition-all duration-200 shadow-sm border overflow-hidden hover:shadow-md cursor-pointer',
-          phaseColors.border,
-          className
-        )}
+        className={cn('cursor-pointer transition-colors', className)}
         onClick={() => setIsDialogOpen(true)}
       >
-        <CardContent className="p-4 sm:p-5 space-y-3">
+        <CardContent className="space-y-3 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center',
-                  phaseColors.bg
-                )}
-              >
-                <Heart className={cn('w-4 h-4', phaseColors.text)} />
-              </div>
+              <span
+                aria-hidden="true"
+                className={cn('h-2.5 w-2.5 shrink-0 rounded-full', dotColor)}
+              />
               <div>
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                   {t('cycle.title', 'Cycle & Phase')}
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'text-xs font-medium border-0',
-                      phaseColors.badgeBg
-                    )}
-                  >
+                  <Badge variant="secondary" className="text-xs font-medium">
                     {t(`cycle.phases.${phaseInfo.phase}`, phaseInfo.phaseName)}
                   </Badge>
                 </h3>
@@ -156,21 +105,17 @@ export const CycleSnapshotCard: React.FC<CycleSnapshotCardProps> = ({
             </div>
             <Progress
               value={phaseInfo.phaseProgressPercent}
-              className="h-1.5 bg-muted"
+              className="h-1.5"
             />
           </div>
 
-          {/* Actionable Training Focus Banner */}
-          <div
-            className={cn(
-              'rounded-md p-2.5 flex items-start gap-2 text-xs',
-              phaseColors.bg
-            )}
-          >
+          {/* Actionable Training Focus */}
+          <div className="flex items-start gap-2 border-t border-border pt-3 text-xs">
             <Dumbbell
-              className={cn('w-4 h-4 shrink-0 mt-0.5', phaseColors.text)}
+              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+              strokeWidth={1.5}
             />
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <span className="font-semibold text-foreground">
                 {phaseInfo.trainingGuidance.title}:{' '}
               </span>
