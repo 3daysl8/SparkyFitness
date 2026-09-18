@@ -1,8 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dumbbell, History, Search } from 'lucide-react';
+import { SegmentedControl } from '@/components/biometric/SegmentedControl';
 import WorkoutsRoutinesTab from './WorkoutsRoutinesTab';
 import WorkoutsHistoryTab from './WorkoutsHistoryTab';
 import WorkoutsLibraryTab from './WorkoutsLibraryTab';
@@ -53,28 +53,16 @@ const WorkoutsPage = () => {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1 mb-6 pb-2 border-b">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <Button
-                key={tab.id}
-                variant={isActive ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => handleTabChange(tab.id)}
-                className={`rounded-full px-4 h-9 gap-2 transition-all ${
-                  isActive
-                    ? 'bg-slate-200/60 dark:bg-muted shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-              >
-                <Icon className="w-4.5 h-4.5" />
-                <span className="text-xs font-semibold">{tab.label}</span>
-              </Button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          options={tabs.map(({ id, label, icon }) => ({
+            value: id,
+            label,
+            icon,
+          }))}
+          value={activeTab}
+          onChange={handleTabChange}
+          className="mb-6"
+        />
 
         <TabsContent value="routines" className="focus-visible:outline-none">
           <WorkoutsRoutinesTab />

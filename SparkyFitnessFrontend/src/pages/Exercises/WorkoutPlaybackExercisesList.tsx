@@ -39,7 +39,14 @@ interface WorkoutPlaybackExercisesListProps {
   onUncompleteSet: (pointer: WorkoutSetPointer) => void;
   onSetFieldChange: (
     pointer: WorkoutSetPointer,
-    field: 'reps' | 'weight' | 'duration' | 'rest_time' | 'set_type' | 'notes',
+    field:
+      | 'reps'
+      | 'weight'
+      | 'duration'
+      | 'rest_time'
+      | 'set_type'
+      | 'notes'
+      | 'rpe',
     value: number | string | null
   ) => void;
   onOpenRestEditor: (pointer: WorkoutSetPointer) => void;
@@ -399,6 +406,7 @@ const WorkoutPlaybackExercisesList = ({
                         duration={set.duration}
                         restTime={set.rest_time}
                         notes={set.notes}
+                        rpe={set.rpe}
                         completed={set.completed}
                         isNotesVisible={
                           setNotesVisibility[`${exerciseKey}-${setIndex}`] ??

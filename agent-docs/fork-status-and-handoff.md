@@ -4,15 +4,72 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-18 (evening) — dark biometric redesign, Phase 3 of 6, implemented and
-validated, NOT yet committed**: full plan at
-`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
-`agent-docs/design-system.md`. Phase 1 (`2399c91a3`) and Phase 2 (`729cc1393`) are both committed on
-`main` — the Phase 2 entry below previously said "uncommitted"; that was stale, it landed the same
-session. **Phase 3 (Check-in, plus the global shell work §3.1 never got its own phase number) is
-implemented, fully validated (`pnpm run validate`; full suite 137/137 suites, 1180/1180 tests,
-unchanged from baseline), and live-verified at 390px against the local dev Docker stack — but not yet
-committed.**
+**Status as of 2026-09-19 — dark biometric redesign, Phase 4 of 6, in progress (RPE feature + partial
+restyle done, committed; live verification and the remainder of the restyle still outstanding)**: full
+plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
+`agent-docs/design-system.md`. Phase 1 (`2399c91a3`), Phase 2 (`729cc1393`) and Phase 3 (`fe9624c16`)
+are all committed on `main` (Phase 3's "not yet committed" note here was stale — confirmed landed
+before this session started).
+
+**WaterIntake.tsx decided and resolved** (Phase 3 had left this open): deleted outright, along with
+its test file (`e35d15f9b`) — grepped confirmed zero remaining references beyond its own test; Home's
+separate inline water ring is unaffected and remains the only water-ring implementation in the app.
+
+**Phase 4 (Workouts) — what's done so far, committed on `main`**:
+- **The RPE control (§3.4's one real feature gap) is fully wired**: `rpe: number | null` already
+  flowed end-to-end through the draft/session data layer (`utils/workoutPlayback.ts`'s set shape,
+  `addWorkoutSetToExercise`, `buildPresetSessionCreateRequestFromDraft`) — only the UI input and the
+  `onSetFieldChange` field unions were missing, confirming the plan's own claim precisely.
+  `WorkoutPlaybackSetRow.tsx` gained a 1-10-in-0.5-steps stepper (`clampRpe`/`formatRpe`, mirroring
+  the mobile app's already-shipped `parseRpeInput` semantics in
+  `SparkyFitnessMobile/src/utils/workoutSession.ts`, adapted rather than copied) rendered in the
+  existing secondary nudge-buttons row for both timed and untimed sets; the field union threading
+  goes through `WorkoutPlaybackExercisesList.tsx` and `WorkoutPlaybackPage.tsx`'s
+  `handleSetFieldChange`. Deliberately did **not** replicate mobile's 4-tier tone-color system
+  (easy/moderate/hard/max) — a single `text-metric-workout` accent is enough for a stepper; that's a
+  scope call, not an oversight.
+- **`WorkoutsPage.tsx`'s hand-rolled pill row → `SegmentedControl`**, mechanically identical to Phase
+  3's `CheckIn.tsx` conversion.
+- **`WorkoutFinishSummaryModal.tsx`'s two gradients and rainbow stat-tile icons fixed**: the PR-badge
+  circle and PR showcase card were `bg-gradient-to-tr`/`bg-gradient-to-b` — flattened to single-tone
+  amber fills (amber itself kept, matching the existing PR/Trophy convention used elsewhere in
+  `WorkoutHistorySessionCard.tsx` and `WorkoutPlaybackSetRow.tsx` — not swapped to a status token,
+  since that would break an established cross-file convention for a single file). The 4 stat-tile
+  icons (indigo/emerald/blue/amber, one per tile, no semantic meaning) → uniform
+  `text-muted-foreground`, same fix pattern Phase 3 applied to Medications' Cabinet KPI tiles. The
+  completion-rate percentage and the "Copied!" check → `text-status-optimal` (a real semantic "good"
+  reading, unlike the stat-tile icons).
+- **`ExerciseSearchListItem.tsx`'s "9 saturated fills" tokenized**: card background/border, image ring,
+  text colors, meta pills, muscle/equipment/description text, and the speak-instructions hover all
+  moved off hardcoded `gray-*`/`blue-*` onto `bg-card`/`border-border`/`text-muted-foreground`/
+  `bg-surface-2`; the three `SOURCE_BADGES` (wger/free-exercise-db/nutritionix) collapsed from
+  emerald/violet/amber to one neutral `bg-surface-2 text-muted-foreground` treatment, same
+  "categorical rainbow → monochrome" call as the Cabinet KPI fix; the calorie figure kept an accent
+  but moved it to `text-metric-workout` (exertion-coded, not an arbitrary orange). **One real bug found
+  while doing this**: the action button had a `bg-blue-600` override that, if just deleted, would have
+  fallen through to `Button`'s own `default` variant — which still carries a leftover
+  `dark:bg-slate-800` from before the dark-only cutover and overrides `bg-primary` in a
+  permanently-dark app. Not fixed here (it's a `Button.tsx` primitive with app-wide blast radius, well
+  outside this file's diff) — kept an explicit `bg-primary text-primary-foreground` override instead so
+  this button is correct regardless. **`Button.tsx`'s stale `dark:bg-slate-800` on the `default`
+  variant should get its own small fix pass** — flagged here so it doesn't get silently relied upon by
+  the next file that removes a color override.
+- Verified: `pnpm run validate` clean, full suite unchanged at 136/136 suites · 1169/1169 tests (was
+  137/1180 before the WaterIntake test file's own deletion dropped 1 suite/11 tests — expected, not a
+  regression).
+
+**Not yet done for Phase 4**: the tonnage/volume strip (§3.3 — needs a new data fetch on
+`WorkoutsPage.tsx`; no existing hook aggregates tonnage outside the Reports date-range query, so this
+is real wiring work, not a restyle, and was deliberately left rather than half-built), the equipment
+chip rail and blue/slate/gray colors in `WorkoutsLibraryTab.tsx`, `ExerciseSearchListItem` → `DataRow`
+conversion inside the library tab's own table (the plan names this but `WorkoutsLibraryTab.tsx`
+actually renders exercises through `DataTable`, not `ExerciseSearchListItem` — that component is only
+reachable from `ExerciseSearch.tsx`'s picker dialog; confirmed by grep, not a plan-vs-code mismatch to
+silently paper over), `WorkoutsHistoryTab.tsx`/`WorkoutHistorySessionCard.tsx` → `DataRow` bodies (the
+card is already reasonably token-clean; the plan's specific ask wasn't done), and
+`WorkoutPlaybackStickyBar.tsx`'s frosted treatment. **No live verification at 390px yet** — same
+standing lesson as every phase before this: a clean build has never been sufficient proof on this
+project, and this entry should not be read as "Phase 4 done" until that happens.
 
 **What Phase 3 built**:
 - **New `SegmentedControl`** (`src/components/biometric/SegmentedControl.tsx`) — the horizontally-

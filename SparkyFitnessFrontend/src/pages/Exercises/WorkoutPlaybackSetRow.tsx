@@ -51,6 +51,17 @@ function parseNullableInteger(raw: string): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+/** Clamp to RPE's 1-10 scale in 0.5 steps. */
+function clampRpe(value: number): number {
+  const snapped = Math.round(value * 2) / 2;
+  return Math.min(10, Math.max(1, snapped));
+}
+
+function formatRpe(rpe: number | null | undefined): string {
+  if (rpe == null) return '—';
+  return Number.isInteger(rpe) ? String(rpe) : rpe.toFixed(1);
+}
+
 interface WorkoutPlaybackSetRowProps {
   exerciseName: string;
   exerciseKey: string;
@@ -64,6 +75,7 @@ interface WorkoutPlaybackSetRowProps {
   duration: number | null | undefined;
   restTime: number | null | undefined;
   notes: string | null | undefined;
+  rpe: number | null | undefined;
   completed: boolean;
   isNotesVisible: boolean;
   onToggleNotesVisibility: (setKey: string) => void;
@@ -72,7 +84,14 @@ interface WorkoutPlaybackSetRowProps {
   onUncompleteSet: (pointer: WorkoutSetPointer) => void;
   onSetFieldChange: (
     pointer: WorkoutSetPointer,
-    field: 'reps' | 'weight' | 'duration' | 'rest_time' | 'set_type' | 'notes',
+    field:
+      | 'reps'
+      | 'weight'
+      | 'duration'
+      | 'rest_time'
+      | 'set_type'
+      | 'notes'
+      | 'rpe',
     value: number | string | null
   ) => void;
   onOpenRestEditor: (pointer: WorkoutSetPointer) => void;
@@ -101,6 +120,7 @@ const WorkoutPlaybackSetRow = ({
   duration,
   restTime,
   notes,
+  rpe,
   completed,
   isNotesVisible,
   onToggleNotesVisibility,
@@ -133,6 +153,9 @@ const WorkoutPlaybackSetRow = ({
 
   const stepReps = (delta: number) => {
     onSetFieldChange(pointer, 'reps', Math.max(0, (reps ?? 0) + delta));
+  };
+  const stepRpe = (delta: number) => {
+    onSetFieldChange(pointer, 'rpe', clampRpe((rpe ?? 0) + delta));
   };
   const stepWeight = (delta: number) => {
     const next = Math.max(0, (weight ?? 0) + delta);
@@ -392,6 +415,56 @@ const WorkoutPlaybackSetRow = ({
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    aria-label={`Decrease RPE for set ${setNumber}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => stepRpe(-0.5)}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="w-9 text-center text-[9px] tabular-nums text-metric-workout">
+                    RPE {formatRpe(rpe)}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Increase RPE for set ${setNumber}`}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => stepRpe(0.5)}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isTimedExercise && (
+            <div
+              className="col-span-4 -mt-1 flex items-center justify-end gap-2 px-1 sm:col-start-3 sm:col-span-2 sm:mt-0"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  aria-label={`Decrease RPE for set ${setNumber}`}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => stepRpe(-0.5)}
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+                <span className="w-9 text-center text-[9px] tabular-nums text-metric-workout">
+                  RPE {formatRpe(rpe)}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Increase RPE for set ${setNumber}`}
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => stepRpe(0.5)}
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
               </div>
             </div>
           )}

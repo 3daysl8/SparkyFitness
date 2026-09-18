@@ -80,7 +80,7 @@ const WorkoutFinishSummaryModal = ({
         <WorkoutConfetti />
 
         <DialogHeader className="space-y-2 pt-2">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500/20 to-yellow-500/30 border border-amber-500/30 shadow-inner">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15 border border-amber-500/30">
             {hasPrs ? (
               <Trophy className="h-7 w-7 text-amber-500 animate-bounce" />
             ) : (
@@ -103,7 +103,7 @@ const WorkoutFinishSummaryModal = ({
 
         {/* PR Showcase Card */}
         {hasPrs && (
-          <div className="space-y-2 rounded-xl bg-gradient-to-b from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/30 p-3.5 text-left shadow-sm">
+          <div className="space-y-2 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-left">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-amber-500" />
@@ -157,7 +157,7 @@ const WorkoutFinishSummaryModal = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
           {/* Duration */}
           <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
-            <Clock className="h-4 w-4 text-indigo-500" />
+            <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-bold tabular-nums">
               {formatMinutesToHHMM(durationMinutes)}
             </span>
@@ -168,7 +168,7 @@ const WorkoutFinishSummaryModal = ({
 
           {/* Volume */}
           <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
-            <Dumbbell className="h-4 w-4 text-emerald-500" />
+            <Dumbbell className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-bold tabular-nums">
               {formatWeight(summary.totalVolume, weightUnit)}
             </span>
@@ -179,12 +179,12 @@ const WorkoutFinishSummaryModal = ({
 
           {/* Sets & Completion */}
           <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
-            <Layers className="h-4 w-4 text-blue-500" />
+            <Layers className="h-4 w-4 text-muted-foreground" />
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold tabular-nums">
                 {summary.setsCompleted}/{summary.totalSets}
               </span>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+              <span className="text-[10px] text-status-optimal font-semibold">
                 ({completionRate}%)
               </span>
             </div>
@@ -195,7 +195,7 @@ const WorkoutFinishSummaryModal = ({
 
           {/* Intensity / Density or Supersets */}
           <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
-            <Zap className="h-4 w-4 text-amber-500" />
+            <Zap className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-bold tabular-nums">
               {summary.supersetsCompleted && summary.supersetsCompleted > 0
                 ? `${summary.supersetsCompleted}`
@@ -276,7 +276,7 @@ const WorkoutFinishSummaryModal = ({
           >
             {isCopied ? (
               <>
-                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                <Check className="h-3.5 w-3.5 text-status-optimal" />
                 {t('exercise.workoutFinishSummary.copied', 'Copied!')}
               </>
             ) : (
