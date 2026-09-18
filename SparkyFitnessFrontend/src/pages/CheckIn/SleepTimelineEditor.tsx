@@ -117,6 +117,29 @@ const SleepTimelineEditor: React.FC<SleepTimelineEditorProps> = ({
     return newDate;
   }, []);
 
+  // Hourly tick marks for the timeline axis, thinned to a "nice" step so a
+  // long session (e.g. a 16h bedtime->wake span, or any span dense enough to
+  // pack many hours into a narrow mobile card) doesn't render one label per
+  // hour and pile them up into unreadable, off-screen overlapping text.
+  const hourMarkers = useMemo(() => {
+    const totalHours = totalDurationMinutes / 60;
+    if (!Number.isFinite(totalHours) || totalHours <= 0) return [];
+
+    const maxLabels = 7;
+    const niceStepsHours = [0.5, 1, 2, 3, 4, 6, 8, 12, 24];
+    const stepHours =
+      niceStepsHours.find((step) => totalHours / step <= maxLabels) ??
+      Math.ceil(totalHours / maxLabels);
+
+    const markers: { hours: number; time: Date }[] = [];
+    for (let h = 0; h < totalHours; h += stepHours) {
+      markers.push({ hours: h, time: addMinutes(parsedBedtime, h * 60) });
+    }
+    // Always show the wake-time end, even if it doesn't land on a step.
+    markers.push({ hours: totalHours, time: parsedWakeTime });
+    return markers;
+  }, [totalDurationMinutes, parsedBedtime, parsedWakeTime]);
+
   const getPositionAndWidth = useCallback(
     (start: string, end: string) => {
       const startDateTime = parseISO(start);
@@ -443,7 +466,7 @@ const SleepTimelineEditor: React.FC<SleepTimelineEditorProps> = ({
       </h4>
 
       {isEditing && ( // Conditionally render buttons for editing mode
-        <div className="flex space-x-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           {['awake', 'rem', 'light', 'deep'].map((stageType) => (
             <Button
               key={stageType}
@@ -505,24 +528,34 @@ const SleepTimelineEditor: React.FC<SleepTimelineEditorProps> = ({
 
       <div
         ref={timelineRef}
-        className={`relative h-12 bg-muted rounded-md ${isEditing ? 'cursor-crosshair' : ''}`}
+        className={`relative h-12 overflow-hidden bg-muted rounded-md ${isEditing ? 'cursor-crosshair' : ''}`}
         onMouseDown={isEditing ? handleMouseDown : undefined}
         onMouseMove={isEditing ? handleMouseMove : undefined}
         onMouseUp={isEditing ? handleMouseUp : undefined}
         onMouseLeave={isEditing ? handleMouseUp : undefined}
       >
-        {/* Time Axis - hourly markers */}
-        <div className="absolute inset-0 flex text-xs ">
-          {Array.from({ length: totalDurationMinutes / 60 + 1 }).map((_, i) => {
-            const hourTime = addMinutes(parsedBedtime, i * 60);
-            const left = ((i * 60) / (totalDurationMinutes || 1)) * 100;
+        {/* Time Axis - hourly markers. Anchored left/center/right by
+            position so the first and last labels stay inside the card
+            instead of overflowing off the edge. */}
+        <div className="absolute inset-0">
+          {hourMarkers.map(({ hours, time }, i) => {
+            const left = (hours / (totalDurationMinutes / 60 || 1)) * 100;
+            const isFirst = i === 0;
+            const isLast = i === hourMarkers.length - 1;
             return (
               <span
                 key={`hour-${i}`}
-                className="absolute"
-                style={{ left: `${left}%` }}
+                className="absolute top-0 whitespace-nowrap text-[10px] text-muted-foreground"
+                style={{
+                  left: `${left}%`,
+                  transform: isFirst
+                    ? undefined
+                    : isLast
+                      ? 'translateX(-100%)'
+                      : 'translateX(-50%)',
+                }}
               >
-                {formatTimeWithPreference(hourTime, timeFormat)}
+                {formatTimeWithPreference(time, timeFormat)}
               </span>
             );
           })}

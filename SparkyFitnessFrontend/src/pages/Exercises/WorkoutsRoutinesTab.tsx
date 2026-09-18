@@ -52,8 +52,9 @@ const WorkoutsRoutinesTab = () => {
 
   return (
     <div className="space-y-6">
-      <ActiveProgramWidget />
-      <PlannedWorkoutsList />
+      {/* Quick Start sits right below the page header (above the widgets
+          below, which can grow tall) so it stays visible and clickable
+          without scrolling. */}
       <ProgramsActionBar
         onStartBlankWorkout={handleStartBlankWorkout}
         onAddSchedule={() => setIsAddScheduleOpen(true)}
@@ -61,6 +62,8 @@ const WorkoutsRoutinesTab = () => {
         onPlanWorkout={() => setIsPlanWorkoutOpen(true)}
         onExploreTemplates={() => setIsExploreTemplatesOpen(true)}
       />
+      <ActiveProgramWidget />
+      <PlannedWorkoutsList />
       <MyProgramsGrid
         isAddOpen={isAddProgramOpen}
         onAddOpenChange={setIsAddProgramOpen}

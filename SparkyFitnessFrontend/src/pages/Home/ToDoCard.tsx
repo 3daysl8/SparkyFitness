@@ -28,7 +28,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ChevronDown, Clock, Plus } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Clock, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import type { Focus } from '@/types/focus';
 import CheckTarget from './CheckTarget';
@@ -107,9 +107,7 @@ function ToDoWeekView({
   if (days.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-6 text-center">
-        <span className="text-2xl" aria-hidden="true">
-          🎉
-        </span>
+        <CheckCircle2 className="h-6 w-6 text-emerald-500" aria-hidden="true" />
         <p className="text-sm font-medium">
           {t('focus.noTasksThisWeek', 'Nothing scheduled this week.')}
         </p>
@@ -268,7 +266,7 @@ export default function ToDoCard({ selectedDate }: { selectedDate: string }) {
               <>
                 {dayTasks.length === 0 && (
                   <EmptyState
-                    emoji="🎉"
+                    icon={<CheckCircle2 className="h-6 w-6 text-emerald-500" />}
                     title={t('focus.allCaughtUp', 'All caught up for today!')}
                     actionLabel={t('focus.addTask', 'Add Task')}
                     onAction={openAdd}
