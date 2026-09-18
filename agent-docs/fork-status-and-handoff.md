@@ -4,13 +4,46 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-19 — dark biometric redesign, Phase 4 of 6 shipped, live-verified, and
-actually deployed to Pi5** (see the deploy-gotcha note below — the first deploy attempt silently
-missed, catch that before repeating it). Phase 5 (Progress/chartTheme) is next, not started. Full
-plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
-`agent-docs/design-system.md`. Phases 1-4 (`2399c91a3`, `729cc1393`, `fe9624c16`, `28ecb2bb3`) all
-committed and deployed; a follow-up fix (`62a85bff1`, Recent Activity's raw-JSON-stress-blob display
-bug) shipped in the same deploy cycle.
+**Status as of 2026-09-19 — dark biometric redesign, Phase 5 of 6 shipped and live-verified on the
+local dev stack, NOT yet deployed to Pi5.** Full plan at
+`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
+`agent-docs/design-system.md`. Phases 1-5 (`2399c91a3`, `729cc1393`, `fe9624c16`, `28ecb2bb3`,
+`3bc8fecc6`) all committed on `main`; Phases 1-4 plus a follow-up fix (`62a85bff1`) are deployed to
+Pi5, Phase 5 is not. Phase 6 (Focus + Settings) is next, not started.
+
+**Phase 5 (`3bc8fecc6`) — chartTheme rollout across Progress/Reports**: new
+`src/lib/chartTheme.ts` exports shared recharts defaults (grid/axis stroke off `--border`/
+`--foreground-dim`, tooltip on `--card` with a hairline border, series colours from the metric
+palette) and is applied across all 37 recharts chart files in the app (14 in `ExerciseCharts/`, the
+rest under `pages/Reports/`), replacing each file's own hand-rolled hex colours and — in a few
+files (`SleepAnalyticsCharts.tsx`, `SleepScience/*`) — dead `isDark ? x : y` ternaries left over from
+before the Phase 1 dark-only cutover (same class of bug as the `Button.tsx` fix in Phase 4, just
+never triggered visually since these files already resolved to the dark branch). Real multi-category
+palettes were deliberately left alone where the color IS the data (sleep-stage bars, HR zones,
+fasting-zone pie, sleep-need breakdown) — only single-series "categorical rainbow for no reason"
+cases were collapsed to one accent (e.g. `MeasurementChartsGrid.tsx`'s 10 body-measurement line
+charts, each previously an arbitrary distinct hex, now all `--metric-recovery` except body-water %
+which correctly gets `--metric-water`).
+
+`ReportsControls.tsx`'s 8-item hand-rolled `Button` pill row → `SegmentedControl`. `DataTable.tsx`
+lost its 5 saturated blue/gray fills (loading-progress bar, selected-row highlight, mobile-card
+default look) for tokens, plus `metric-num` on its mobile-card value cells; `ReportsTables.tsx`'s
+three remaining hardcoded fills (summary row, PR-row highlight, expanded-set row) tokenized too.
+`KeyStatsWidget.tsx` (8 gradient tiles) and `FastingReport.tsx` (4 gradient summary cards + a
+dead-ternary heatmap) rebuilt on `MetricCard`. **`WeeklyAlcoholCard.tsx`, fully built since before
+this redesign started but never mounted anywhere, is now wired into Reports' Measurements tab**
+(`case 'measurements'` in `Reports.tsx`, right after `RespirationCard`) — this was the one real
+"missing feature" item in Phase 5's scope, not just a restyle.
+
+Verified: `pnpm run validate` clean (typecheck/lint/format/knip — knip's baseline noise is pre-existing,
+unrelated to this phase), full suite unchanged at 136/136 suites · 1169/1169 tests, a production
+`vite build` succeeds, and live-verified on the local dev stack at both desktop and 390px width
+(Exercise Progress tab's KeyStatsWidget tiles + volume/weight bar charts, Measurements tab's new
+WeeklyAlcoholCard + Daily Steps chart, Fasting tab's four MetricCard tiles + zone pie + heatmap +
+trend line) — dev container was restarted first per the standing stale-cache gotcha. **Not yet
+deployed to Pi5** — next session should do that deploy (frontend-only, no `SparkyFitnessServer/`
+changes) before starting Phase 6, and must build/tag as `sparkyfitness:custom` per the gotcha above,
+not a guessed image name.
 
 **WaterIntake.tsx decided and resolved** (Phase 3 had left this open): deleted outright, along with
 its test file (`e35d15f9b`) — grepped confirmed zero remaining references beyond its own test; Home's
