@@ -52,6 +52,7 @@ import FocusBanner from '@/pages/Home/FocusBanner';
 import DailyCheckpointCard from '@/pages/Home/DailyCheckpointCard';
 import SupplementsSnapshotCard from '@/pages/Home/SupplementsSnapshotCard';
 import CycleSnapshotCard from '@/pages/Home/CycleSnapshotCard';
+import WearableHealthCard from '@/pages/Home/WearableHealthCard';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -445,6 +446,9 @@ export default function HomeChecklist() {
       {/* 3. Metric Tiles & Missed Workout Alerts */}
       <MetricCards selectedDate={selectedDate} />
       <MissedWorkoutsNudge selectedDate={selectedDate} />
+
+      {/* 3b. Wearable Health Summary (Garmin/other provider daily sync) */}
+      <WearableHealthCard selectedDate={selectedDate} />
 
       {/* 4. Daily Accountability Checkpoint */}
       <DailyCheckpointCard selectedDate={selectedDate} />

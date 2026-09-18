@@ -117,6 +117,7 @@ jest.mock('@/pages/Home/FocusBanner', () => () => null);
 jest.mock('@/pages/Home/DailyCheckpointCard', () => () => null);
 jest.mock('@/pages/Home/SupplementsSnapshotCard', () => () => null);
 jest.mock('@/pages/Home/HabitCard', () => () => null);
+jest.mock('@/pages/Home/WearableHealthCard', () => () => null);
 
 // WorkoutCard has its own dedicated test suite (tests/components/WorkoutCard.test.tsx)
 // — here it's stubbed to a marker that surfaces the `selectedDate` HomeChecklist
