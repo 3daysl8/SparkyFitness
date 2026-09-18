@@ -4,12 +4,13 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-19 — dark biometric redesign, Phase 4 of 6, restyle scope complete, NOT yet
-live-verified or deployed**: full plan at
-`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
-`agent-docs/design-system.md`. Phase 1 (`2399c91a3`), Phase 2 (`729cc1393`) and Phase 3 (`fe9624c16`)
-are all committed on `main` (Phase 3's "not yet committed" note here was stale — confirmed landed
-before this session started).
+**Status as of 2026-09-19 — dark biometric redesign, Phase 4 of 6 shipped, live-verified, and
+actually deployed to Pi5** (see the deploy-gotcha note below — the first deploy attempt silently
+missed, catch that before repeating it). Phase 5 (Progress/chartTheme) is next, not started. Full
+plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
+`agent-docs/design-system.md`. Phases 1-4 (`2399c91a3`, `729cc1393`, `fe9624c16`, `28ecb2bb3`) all
+committed and deployed; a follow-up fix (`62a85bff1`, Recent Activity's raw-JSON-stress-blob display
+bug) shipped in the same deploy cycle.
 
 **WaterIntake.tsx decided and resolved** (Phase 3 had left this open): deleted outright, along with
 its test file (`e35d15f9b`) — grepped confirmed zero remaining references beyond its own test; Home's
@@ -145,9 +146,36 @@ documented judgment call above, **and live-verified at 390px against the local d
   set row. This is `UnitInput`'s own layout, untouched by this phase's diff — flagged for whoever next
   touches that component, not fixed here as an unscoped drive-by.
 
-This phase is still uncommitted-to-deploy (frontend-only diff, no `SparkyFitnessServer/` changes, so a
-frontend-only rebuild is sufficient when that time comes) — live verification passing is not the same
-as deploying, and Isaac hasn't asked for that yet.
+**Phase 4 is now pushed and deployed to Pi5** (2026-09-19), commit `28ecb2bb3`, plus one more fix
+found live afterward (below), commit `62a85bff1`. Frontend-only, no `SparkyFitnessServer/` changes.
+
+**New deploy gotcha found this session, cost a full redeploy cycle to catch**: the standard deploy
+recipe used throughout this doc (`docker build --no-cache -t sparkyfitness-sparkyfitness-frontend-1
+:latest -f docker/Dockerfile.frontend .` then `docker compose up -d --force-recreate
+sparkyfitness-frontend`) **tags the wrong image name**. The live compose file's frontend service
+actually reads `image: sparkyfitness:custom`, not `sparkyfitness-sparkyfitness-frontend-1:latest` —
+so a build tagged under the container-name-shaped tag sits there unused while `--force-recreate`
+faithfully recreates the container from the *old* `sparkyfitness:custom` image, no error, no
+warning. `docker inspect <container> --format '{{.Image}}'` matching the freshly built image's ID is
+the only real confirmation a deploy took — checking the container starts cleanly, or even grepping a
+built *image* (not what's actually running) for an expected string, is not enough. **This means the
+Phase 4 "live-verified" deploy earlier in this doc never actually happened on Pi5** — the Button.tsx
+fix and everything else in Phase 4 sat undeployed under a decoy tag until this was caught. Always
+build/tag as `sparkyfitness:custom` (check the compose file's `image:` line first if that ever
+changes) and confirm with the inspect command above before trusting a frontend deploy again.
+
+**The fix that surfaced this**: Isaac spotted Garmin's per-day stress time-series rendering as a raw
+escaped-JSON blob in Check-in's Recent Activity list. Root cause:
+`garminHealthProcessor.ts` stores `raw_stress_data` as a `custom_measurements` entry under a
+category literally named "Raw Stress Data" (`measurement_type: 'JSON'`), intended only for the
+Stress report's own parsing (a separate code path, confirmed `StressChart.tsx` doesn't touch this
+category) — never meant for direct display. `useCheckInLogic.ts`'s `recentMeasurements` builder had
+no concept of "internal-only" categories and stringified the value like any other custom
+measurement. Fixed by skipping any category with `measurement_type === 'JSON'` when building the
+feed (`62a85bff1`) — generic enough to catch any future internal-JSON category, not just this one.
+A DB migration (`202511232110_delete_raw_stress_data_categories.sql`) shows this exact bug was
+"fixed" once before by deleting the bad rows outright — that only ever addressed the symptom, since
+Garmin sync keeps recreating the category; this is the first fix at the actual display-layer cause.
 
 **What Phase 3 built**:
 - **New `SegmentedControl`** (`src/components/biometric/SegmentedControl.tsx`) — the horizontally-
