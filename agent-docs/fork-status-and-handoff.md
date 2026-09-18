@@ -4,6 +4,140 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
+**Status as of 2026-09-18** (commits `f7a668268`, `172b5fc91`, `4b59cb056` on `main`):
+
+**Kingdom was 13 commits stale** (Isaac also builds this app in Antigravity, which pushes directly
+— Kingdom's clone isn't automatically in sync). Fast-forwarded `018f546b8` → `f417d3d25` clean, zero
+line-ending churn despite a new `.gitattributes` (`text=auto eol=lf` normalizes on checkout, doesn't
+touch history), `pnpm install --frozen-lockfile` needed (server gained a direct
+`@simplewebauthn/server` dep the custom `dynamicPasskey` plugin needs). **Always check
+`git ls-remote origin main` before trusting a local Kingdom clone is current** — this cost a wasted
+exploration pass earlier this session before being caught.
+
+**Garmin Connect integration — root-caused and fixed. It was never actually running.** Isaac tried
+to connect and got nothing. Root cause, found via SSH + `docker logs`: `getaddrinfo ENOTFOUND
+sparkyfitness-garmin` — the backend/frontend were live and the app's Garmin code (routes, DB schema,
+UI) has been fully built for a while, but the `sparkyfitness-garmin` microservice **container had
+never been deployed**. The upstream `docker-compose.prod.yml` template ships that service
+commented out behind a stale `# Garmin integration is still work in progress. Enable once table is
+ready.` comment — true for upstream, not for this fork, where the table (`external_data_providers`'
+token columns, migration `202508201215`) and the whole integration have been ready for a while.
+Nobody had ever uncommented it on the live Pi5 deploy.
+
+**Fix**: built `sparkyfitness_garmin:custom` on Pi5 (`--no-cache`, context `SparkyFitnessGarmin/`,
+`docker/Dockerfile.garmin_microservice` — matches the CI workflow's own build args, *not* the repo-
+root context the server/frontend Dockerfiles need). Uncommented the service block + the frontend's
+`depends_on` in `/home/pi1/sparkyfitness/docker-compose.yml` (the **live** compose file — it's a
+manually-maintained copy that has already diverged from the repo's tracked
+`docker/docker-compose.prod.yml` in several ways: `:custom` image tags instead of upstream `:latest`,
+`restart: unless-stopped` vs `always`, a host-IP-pinned frontend port, and the extra
+`sparkyfitness-tailscale` sidecar — so this edit was made directly via SSH, not as a repo commit).
+`.env`'s `GARMIN_MICROSERVICE_URL`/`GARMIN_SERVICE_PORT`/`GARMIN_SERVICE_IS_CN` were already correctly
+set, nothing to change there. `docker compose up -d sparkyfitness-garmin` — no restart of any other
+container needed.
+
+**Verified end-to-end, not just "container is up"**: from inside the backend container,
+`wget http://sparkyfitness-garmin:8000/` succeeded (the exact DNS name that was failing). Isaac then
+logged in for real through the app (email/password → MFA code), confirmed via the microservice's own
+logs (`INFO:routes:Successfully resumed Garmin login`). A manual sync a few minutes later pulled 8
+real days of history straight from Garmin Connect: `daily_health_metrics` gained steps/distance/
+floors/body-battery/stress/resting-HR/VO2-max/training-readiness rows, `exercise_entries`/
+`sleep_entries` gained real rows too — confirmed by querying the DB directly, not by trusting the UI.
+
+**A real, separate discovery mid-session, not a fix — worth knowing before re-investigating "why
+don't Garmin steps show up anywhere"**: they already did. `garminHealthProcessor.ts` writes daily
+wellness data (steps included) to `daily_health_metrics`, which **nothing in the frontend reads at
+all** (confirmed: zero references to `total_steps` anywhere in `SparkyFitnessFrontend/src`) — but a
+*second*, independent Garmin pipeline (`integrations/garminconnect/garminMeasurementMapping.ts` →
+`parseGarminHealthMeasurements`, called from both `garminService.ts` and `garminRoutes.ts`'s manual-
+sync route) already maps `steps` (and weight/body-fat/neck/waist/hips/muscle-mass/bone-mass/BMR) into
+`check_in_measurements`, which **is** read — by `Reports → Measurements → Daily Steps` chart
+(`MeasurementChartsGrid.tsx`). Verified directly against the DB: values identical to what synced.
+**Don't assume "no frontend reads this specific column" means the data isn't visible anywhere** —
+this codebase has more than one write path for the same underlying Garmin payload; check both before
+concluding something needs building.
+
+**A real bug found, not yet fixed — deliberately out of scope this session**:
+`sync_frequency`'s `'hourly'` and `'daily'` options (Garmin card → Edit → Sync Frequency, same field
+exists for Withings/Fitbit/Oura/Strava/Polar/Google Health too) are **indistinguishable to the
+scheduler**. `SparkyFitnessServer.ts`'s per-provider `cron.schedule('0 * * * *', ...)` blocks
+(~line 698 onward) only check `provider.sync_frequency !== 'manual'` — picking "Daily" still syncs
+every hour. Not urgent (more-frequent-than-promised, not less), but the label is misleading across
+every provider that has this field, not just Garmin. **Isaac's own Garmin connection is still set to
+`manual`** — no auto-sync configured yet; he'd need to switch it to Hourly (the honest label, given
+the bug above) for it to sync without a manual tap.
+
+**Garmin's provider-card "Token Expires" display was also misleading, fixed**: it decoded the `exp`
+claim of a short-lived session JWT (`di_token`, ~24h window observed) captured at login, not the
+long-lived OAuth1 credential that actually gates continued access — which the backend already
+re-persists a refreshed pair for on every sync (`garminConnectService.ts`'s `new_tokens` handling,
+confirmed live: DB `token_expires_at` moved from ~24h out to further out after a sync, no re-login
+needed). `googlehealth` already got this exact treatment in `ProviderCard.tsx` with the comment
+"access tokens auto-refresh; showing 1h expiry misleads users" — Garmin was missed; now matches.
+
+**Five mobile-UI fixes, screenshotted and diagnosed from an actual phone**, all deployed:
+- **Sleep timeline overflow** (`SleepTimelineEditor.tsx`): hourly axis labels were rendered one per
+  hour with no cap, overlapping into unreadable garbage and running off the right edge on a long
+  session. Now thinned adaptively (max ~7 labels, "nice" step sizes), first/last labels clamp inside
+  the box via `transform`, container gets `overflow-hidden`. The Awake/REM/Light/Deep/Clear button
+  row now `flex-wrap`s instead of running the 5th button off-screen.
+- **Today's Supplements card** (`SupplementsSnapshotCard.tsx`) is now collapsible — same
+  `Collapsible`/chevron pattern `HabitCard.tsx`/`ToDoCard.tsx` already established; it was the one
+  Home card that hadn't gotten it, and it's the one whose list actually grows unbounded.
+- **To-Do list party emoji removed** (`ToDoCard.tsx`): 🎉 replaced with a `CheckCircle2` lucide icon
+  in both empty states, matching the app's otherwise-monochrome iconography. `EmptyState.tsx` now
+  takes an optional `icon` prop alongside `emoji` so every other caller is unaffected.
+- **Workouts "Quick Start" button moved above the fold** (`WorkoutsRoutinesTab.tsx`): it rendered
+  third, after `ActiveProgramWidget`/`PlannedWorkoutsList`, both of which can run long — now renders
+  immediately below the page's tab header.
+- **Focus & Motivation pillar cards collapsible** (`GoalCascadeCard.tsx`): each Life Pillar card, same
+  pattern again — a pillar with a long daily-habit list no longer forces the whole page to scroll.
+- Same pass also fixed the "Note from CodewithCJ" box shown on every provider settings card
+  (`ProviderCard.tsx`) — a non-wrapping `flex` row that ran off the right edge on a phone; added
+  `flex-wrap`.
+
+**New Home card: Daily Wearable Health Summary** (`WearableHealthCard.tsx`, new). Revives
+`DailyHealthMetricsCard.tsx`, which turned out to be dead code — fully built (body battery, stress,
+resting HR, VO2 max, training readiness tiles) but **never mounted anywhere**; its own comment
+referenced a `DailyProgress.tsx` sidebar page that doesn't exist in this fork (pre-dates the Home
+redesign). It's the only UI that reads `daily_health_metrics` at all. Stripped its own `Card` shell
+(now pure tile-grid content) so the new `WearableHealthCard` wrapper can own a `Collapsible`+`Card`
+shell matching every other Home card this session touched. Placed right after the Workout/Water/
+Sleep tile row — continues that "today's vitals" story before the app moves on to check-ins/to-dos;
+Reports already owns the historical/trend version of body battery (`BodyBatteryCard`), so this is
+deliberately the today-snapshot counterpart, not a duplicate. Added the three tiles the dead
+component never had: **Steps**, **Distance** (respects the km/miles preference via the existing
+`convertDistance` helper from `PreferencesContext`), **Floors**. Invisible when there's no wearable
+data for the date, same rule as `SupplementsSnapshotCard`. New test coverage:
+`WearableHealthCard.test.tsx` (empty state, populated tiles, missing-data fallback).
+
+**Verified**: `tsc -b` clean, `eslint --max-warnings 0` clean, full frontend suite **137 suites /
+1180 tests** passing, `knip` clean (no longer flags `DailyHealthMetricsCard`/`useDailyHealthMetrics`
+as unused — the whole point of reviving them). Deploy was **frontend-only** — none of this session's
+changes touched `SparkyFitnessServer/`, so the backend/DB/Garmin-microservice/Tailscale containers
+were never restarted.
+
+**Deployed to Pi5**: `pg_dump -Fc` backup taken and verified restorable (`pg_restore -l` inside the
+db container after `docker cp`, 998 TOC entries) despite zero migration this session (same "cheap
+insurance" policy every phase has followed) — also specifically protects the Garmin data that had
+just synced. Frontend image tagged `sparkyfitness:pre-f417d3d25` before rebuild. `--no-cache` build
+of the frontend only from `/home/pi1/sparkyfitness-build`, confirmed the built image's
+`locales/en/translation.json` actually contains the new `dailyHealthMetrics.steps` key
+(`docker create`+`docker cp`+grep) before deploying. `docker compose up -d --force-recreate
+sparkyfitness-frontend` (only), confirmed healthy in ~12s, confirmed the live site's served
+`index-*.js` hash matches the freshly built image's exactly, confirmed backend `/api/health` still
+`{"status":"UP"}` throughout (never touched). `docker builder prune -f` after.
+
+**Pi5 SSH still has no `~/.ssh/config` alias** (same gotcha as before) — `ssh -i
+~/.ssh/id_ed25519_pi5 pi1@100.103.152.66` every time; the backup-dir permission workaround
+(`sudo bash -c '... > backup/file.dump && chown pi1:pi1 ...'`) still applies too, same as documented
+below in Known Gotchas.
+
+---
+
+**Previous entry, 2026-09-17** (commit `520ee452c` and earlier, passkey RP ID fix + Home habit
+redesign):
+
 **Status as of 2026-09-17:**
 - **Home Habit Tracking, Focus & Goals Reminder, and Daily Accountability Checkpoint Redesign:** FULLY COMPLETED.
   - Extracted modular `HabitCard.tsx` (completion progress bar, Life Pillar color tags/filters, streak counters with flame badges, quick reflection note logging modal, numeric progress controls, fixed weekday logic).
@@ -1106,6 +1240,8 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 - **A multi-column partial unique index's uniqueness only holds across the *combination* of its indexed columns, not each column independently** — a cleanup/dedup query that checks such a key one column at a time will silently mis-delete or mis-spare rows whenever two different key-combinations happen to share a value in just one column. Hit this 2026-09-15 building `planned_workouts`' `(template_id, generated_for_date, slot)` regeneration key: `slot` is only unique *per day-of-week* (each day's assignments are independently 0-indexed), so a first-draft cleanup DELETE comparing bare `slot` values across different dates treated every day's "slot 0" as the same slot and wrongly spared (or deleted) the wrong day's row. The real-database integration test caught this immediately; a mocked unit test never would have. Fix: compare the full column tuple, e.g. `NOT EXISTS (SELECT 1 FROM unnest($dates::date[], $slots::smallint[]) AS d(date, slot) WHERE d.date = tbl.col_a AND d.slot = tbl.col_b)` rather than `NOT (col_b = ANY($slots))`. Worth remembering for any future multi-column-keyed partial-unique table.
 - **A TypeScript package with no bundled `.d.ts` and no `noImplicitAny` diagnostic on an *existing* import site can still be genuinely untyped** — `pg-format` (used by several repository files for bulk `INSERT ... VALUES %L`) has no types at all, but only newly-added files importing it surfaced `TS7016`; existing files turned out to each carry their own `// @ts-expect-error TS(7016)` comment suppressing it, which isn't obvious from a quick grep for the import line alone. Added a proper ambient declaration (`types/pg-format.d.ts`, matching the existing `types/garmin-fitsdk.d.ts` precedent for untyped packages) instead of another suppression — this made the old per-file `@ts-expect-error` comments stale (`TS2578: Unused '@ts-expect-error' directive`), so they all had to come out together. If tsc ever flags an unused `@ts-expect-error` on an import line, check whether a *different* file just added a real ambient type for that module.
 - **Spreading a value with an unresolvable type (e.g. from a dynamic `import()` of a non-literal, variable path) into an object literal silently widens the *entire* literal's inferred type**, not just that one spread's contribution — `models/exerciseRepository.ts` did `const { default: x } = await import(somePathVariable); export default { ...a, ...b, ...x, ... }`, and because `x` was untypeable (TS can't statically resolve a variable-path dynamic import), the whole merged default export object's type collapsed toward permissive/untyped for every key, not just `x`'s. This silently masked a real type-safety gap in an unrelated test file (`exerciseSourceScoping.test.ts` called `.mockResolvedValueOnce` directly on a property with no compile-time indication it needed `vi.mocked()` or a suppression comment, because the whole object was too loosely typed to catch it) until the dead spread was removed for an unrelated reason (deleting `exerciseTemplate.ts`, whose exports `x` was pulling in). If removing a spread from a merged default-export object suddenly produces type errors in files that never imported that spread's source directly, check whether the removed spread was the thing quietly keeping the *whole* merged type loose.
+- **A live-deployed compose file can silently diverge from the repo's own tracked `docker/docker-compose.prod.yml`, and a service block being commented out in the repo doesn't mean it's commented out (or correctly configured) on the actual running host, or vice versa** — found this because Garmin's service block was commented out in *both* places independently (upstream's stale "still WIP" comment never got cleaned up when this fork actually built the feature), but the live `/home/pi1/sparkyfitness/docker-compose.yml` already has several deliberate un-committed differences from the tracked file (custom image tags, restart policy, a pinned frontend port, an extra Tailscale sidecar). **Before trusting either file's contents, check the other one and check what's actually running (`docker ps`)** — don't assume they agree.
+- **A component or hook that TypeScript happily compiles and knip doesn't flag can still be completely dead if you only grep for its import, not its actual JSX usage** — `DailyHealthMetricsCard`/`useDailyHealthMetrics` had zero consumers anywhere in the app (the component that was supposed to use it referenced a page that no longer exists), which `grep -l` for the component name across `pages/` correctly showed as zero matches — but a quicker surface-level check (does the export exist, does it typecheck) would have missed it. When investigating "does this built feature actually show up anywhere," grep for `<ComponentName` or the hook's call site specifically, not just its existence.
 
 ## Not yet done (from the original broader plan — still open)
 
@@ -1123,6 +1259,8 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 6. **Minor known edge case, not fixed**: in `FocusPage.tsx`'s recurring-habit day picker, unchecking all 7 weekday buttons stores an empty `recurrence_days_of_week` array, and Postgres's `ANY('{}')` is always false — the habit would silently never appear in the checklist or `get_today` again (still editable/deletable from the Focus page's management list though). Low priority: the default is all-days-checked, so a user has to go out of their way to hit it.
 7. **JS bundle is on the large side** (`vendor-others` ~2.2MB uncompressed) — not broken, but the reason a PWA update after a deploy can take ~30s to finish downloading on a mobile connection before the app becomes usable again (one-time per device per deploy, self-healing via the existing `chunkRecovery.ts` reload mechanism). Worth revisiting with code-splitting if that one-time wait ever actually bothers the user — hasn't been asked for yet.
 8. **Pre-existing test-suite gaps, unrelated to any of the above**: `translationKeysCoverage.test.ts` has intermittently had missing-key failures from various past sessions' new `t()` calls (each session's own new keys get added as part of that session — check this doesn't regress, don't assume it's someone else's problem to fix). `WorkoutPlaybackPage.test.tsx` has previously shown an i18next module-loading error in isolation in at least one past session; it did not reproduce during this session's test runs (13/13 passing, including 2 new tests for the Finish Workout Summary modal) — if it comes back, it's pre-existing and not necessarily caused by whatever you're working on, but verify rather than assume.
+9. **`sync_frequency`'s `'hourly'` vs `'daily'` distinction is cosmetic only** — the scheduler (`SparkyFitnessServer.ts`, one `cron.schedule('0 * * * *', ...)` block per provider) treats both identically (anything `!== 'manual'` syncs every hour). Affects Garmin, Withings, Fitbit, Oura, Strava, Polar, Google Health — every provider with that field. Not urgent, but worth fixing properly before relying on "Daily" meaning daily for any provider.
+10. **Isaac's Garmin connection is still `sync_frequency: 'manual'`** — no auto-sync configured. He needs to flip it to Hourly (Settings → Garmin card → Edit) if he wants it to sync without a manual tap each time, once the item above is fixed or accepted as-is.
 
 ## Quick file map for the Focus domain
 
