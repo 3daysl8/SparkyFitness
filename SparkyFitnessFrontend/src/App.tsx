@@ -13,7 +13,6 @@ import {
   ActiveUserProvider,
   useActiveUser,
 } from '@/contexts/ActiveUserContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
 import DraggableChatbotButton from '@/components/DraggableChatbotButton';
 import AnnouncementDialog, {
   AnnouncementInfo,
@@ -145,58 +144,56 @@ const Root = () => {
     <AuthProvider>
       <TooltipProvider>
         <PreferencesProvider>
-          <ThemeProvider>
-            <ActiveUserProvider>
-              <WaterContainerProvider>
-                <LanguageHandler />
-                <AppSetup
-                  setAnnouncement={setAnnouncement}
-                  setShowAnnouncementDialog={setShowAnnouncementDialog}
+          <ActiveUserProvider>
+            <WaterContainerProvider>
+              <LanguageHandler />
+              <AppSetup
+                setAnnouncement={setAnnouncement}
+                setShowAnnouncementDialog={setShowAnnouncementDialog}
+              />
+              <Suspense
+                fallback={
+                  <div className="min-h-screen flex items-center justify-center">
+                    Loading Site...
+                  </div>
+                }
+              >
+                <Outlet />
+              </Suspense>
+              <ErrorBoundary
+                fallback={<ComponentFallback />}
+                onError={(error, { componentStack }) => {
+                  logError(
+                    getUserLoggingLevel(),
+                    'DraggableChatbotButton failed:',
+                    error,
+                    componentStack
+                  );
+                }}
+              >
+                <DraggableChatbotButton />
+              </ErrorBoundary>
+              <ErrorBoundary
+                fallback={<ComponentFallback />}
+                onError={(error, { componentStack }) => {
+                  logError(
+                    getUserLoggingLevel(),
+                    'AnnouncementDialog failed:',
+                    error,
+                    componentStack
+                  );
+                }}
+              >
+                <AnnouncementDialog
+                  isOpen={showAnnouncementDialog}
+                  onClose={() => setShowAnnouncementDialog(false)}
+                  announcement={announcement}
+                  onDismiss={handleDismissAnnouncement}
                 />
-                <Suspense
-                  fallback={
-                    <div className="min-h-screen flex items-center justify-center">
-                      Loading Site...
-                    </div>
-                  }
-                >
-                  <Outlet />
-                </Suspense>
-                <ErrorBoundary
-                  fallback={<ComponentFallback />}
-                  onError={(error, { componentStack }) => {
-                    logError(
-                      getUserLoggingLevel(),
-                      'DraggableChatbotButton failed:',
-                      error,
-                      componentStack
-                    );
-                  }}
-                >
-                  <DraggableChatbotButton />
-                </ErrorBoundary>
-                <ErrorBoundary
-                  fallback={<ComponentFallback />}
-                  onError={(error, { componentStack }) => {
-                    logError(
-                      getUserLoggingLevel(),
-                      'AnnouncementDialog failed:',
-                      error,
-                      componentStack
-                    );
-                  }}
-                >
-                  <AnnouncementDialog
-                    isOpen={showAnnouncementDialog}
-                    onClose={() => setShowAnnouncementDialog(false)}
-                    announcement={announcement}
-                    onDismiss={handleDismissAnnouncement}
-                  />
-                </ErrorBoundary>
-                <Toaster />
-              </WaterContainerProvider>
-            </ActiveUserProvider>
-          </ThemeProvider>
+              </ErrorBoundary>
+              <Toaster />
+            </WaterContainerProvider>
+          </ActiveUserProvider>
         </PreferencesProvider>
       </TooltipProvider>
     </AuthProvider>

@@ -214,7 +214,7 @@ const BarbellPlateCalculatorContent = ({
 
         {/* Plate Breakdown Text List */}
         {result.platesPerSide.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-border/40">
+          <div className="mt-2 flex flex-wrap gap-1.5 pt-2 border-t border-border-strong">
             {result.platesPerSide.map((item) => (
               <span
                 key={item.plate.weight}

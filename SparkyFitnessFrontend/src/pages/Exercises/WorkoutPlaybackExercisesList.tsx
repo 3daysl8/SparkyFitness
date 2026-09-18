@@ -101,7 +101,7 @@ const WorkoutPlaybackExercisesList = ({
 
   if (exercises.length === 0) {
     return (
-      <Card className="border-dashed border-border/80 bg-gradient-to-br from-card/80 to-muted/20">
+      <Card className="border-dashed border-border-strong bg-gradient-to-br from-card/80 to-muted/20">
         <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Dumbbell className="h-7 w-7" />
@@ -176,7 +176,7 @@ const WorkoutPlaybackExercisesList = ({
         return (
           <Card
             key={`${exercise.exercise_id}-${exerciseIndex}`}
-            className={`border-border/70 shadow-none transition-colors ${
+            className={`border-border-strong shadow-none transition-colors ${
               supersetInfo ? `border-l-4 ${supersetInfo.colorClass}` : ''
             }`}
           >

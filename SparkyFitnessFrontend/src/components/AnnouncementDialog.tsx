@@ -44,7 +44,7 @@ const AnnouncementDialog: React.FC<AnnouncementDialogProps> = ({
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent className="max-w-xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-primary/20 bg-background text-foreground shadow-2xl">
-        <AlertDialogHeader className="px-6 pt-6 pb-4 border-b border-border/40 flex-row items-center justify-between space-y-0">
+        <AlertDialogHeader className="px-6 pt-6 pb-4 border-b border-border-strong flex-row items-center justify-between space-y-0">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
               <Megaphone className="w-5 h-5" />
@@ -83,7 +83,7 @@ const AnnouncementDialog: React.FC<AnnouncementDialogProps> = ({
           </ReactMarkdown>
         </div>
 
-        <AlertDialogFooter className="px-6 py-4 border-t border-border/40 flex items-center justify-end space-x-3 bg-muted/20">
+        <AlertDialogFooter className="px-6 py-4 border-t border-border-strong flex items-center justify-end space-x-3 bg-muted/20">
           <AlertDialogCancel
             onClick={handleDismiss}
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2 font-medium rounded-lg text-sm transition-colors"

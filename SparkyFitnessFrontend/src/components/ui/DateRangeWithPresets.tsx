@@ -72,7 +72,7 @@ export const DateRangePickerWithPresets = ({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="gap-2 font-normal rounded-md px-4 text-sm h-9 border-border/60 hover:border-border transition-colors"
+          className="gap-2 font-normal rounded-md px-4 text-sm h-9 border-border-strong hover:border-border transition-colors"
         >
           <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
           <span>
@@ -84,13 +84,13 @@ export const DateRangePickerWithPresets = ({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-auto p-0 rounded-md shadow-lg border-border/60 overflow-hidden"
+        className="w-auto p-0 rounded-md shadow-lg border-border-strong overflow-hidden"
         align="end"
         sideOffset={8}
       >
         <div className="flex">
           {/* Presets sidebar */}
-          <div className="flex flex-col gap-0.5 p-2 border-r border-border/40 bg-muted/30 min-w-[130px]">
+          <div className="flex flex-col gap-0.5 p-2 border-r border-border-strong bg-muted/30 min-w-[130px]">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 pt-1 pb-2">
               Quick select
             </p>

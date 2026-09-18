@@ -237,7 +237,7 @@ export default function DailyCheckpointCard({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-border/70 bg-card/60 shadow-sm transition-all hover:bg-card/90">
+      <Card className="border-border-strong bg-card/60 shadow-sm transition-all hover:bg-card/90">
         <CollapsibleTrigger asChild>
           <CardHeader className="flex cursor-pointer flex-row items-center justify-between p-3.5 sm:p-4">
             <div className="flex items-center gap-2.5">
@@ -292,7 +292,7 @@ export default function DailyCheckpointCard({
                     key={item.id}
                     onClick={item.onClick}
                     className={cn(
-                      'group flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/50 p-2.5 text-left transition-all hover:bg-muted/50 hover:border-border',
+                      'group flex items-center justify-between gap-3 rounded-lg border border-border-strong bg-background/50 p-2.5 text-left transition-all hover:bg-muted/50 hover:border-border',
                       item.isCompleted &&
                         'border-emerald-500/20 bg-emerald-500/5'
                     )}

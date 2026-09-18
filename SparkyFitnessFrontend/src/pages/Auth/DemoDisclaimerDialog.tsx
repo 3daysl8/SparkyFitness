@@ -60,7 +60,7 @@ export const DemoDisclaimerDialog: React.FC<DemoDisclaimerDialogProps> = ({
         </CardHeader>
 
         <CardContent className="space-y-4 text-sm text-muted-foreground max-h-[60vh] overflow-y-auto pr-2">
-          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border-strong">
             <Scale className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <div className="flex items-center justify-between">
@@ -86,7 +86,7 @@ export const DemoDisclaimerDialog: React.FC<DemoDisclaimerDialogProps> = ({
             </div>
           </div>
 
-          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border-strong">
             <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">
@@ -104,7 +104,7 @@ export const DemoDisclaimerDialog: React.FC<DemoDisclaimerDialogProps> = ({
             </div>
           </div>
 
-          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border-strong">
             <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">
@@ -119,7 +119,7 @@ export const DemoDisclaimerDialog: React.FC<DemoDisclaimerDialogProps> = ({
             </div>
           </div>
 
-          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border-strong">
             <RefreshCw className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">
@@ -134,7 +134,7 @@ export const DemoDisclaimerDialog: React.FC<DemoDisclaimerDialogProps> = ({
             </div>
           </div>
 
-          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+          <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50 border border-border-strong">
             <Lock className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-foreground">
@@ -166,7 +166,7 @@ export const DemoDisclaimerDialog: React.FC<DemoDisclaimerDialogProps> = ({
           </label>
         </CardContent>
 
-        <CardFooter className="flex justify-end space-x-3 pt-4 border-t border-border/40">
+        <CardFooter className="flex justify-end space-x-3 pt-4 border-t border-border-strong">
           <Button
             type="button"
             variant="outline"

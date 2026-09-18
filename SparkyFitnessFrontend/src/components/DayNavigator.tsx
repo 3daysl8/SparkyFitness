@@ -102,7 +102,7 @@ const DayNavigator = ({
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-muted-foreground h-9 px-3 rounded-full border border-border/60"
+            className="text-xs text-muted-foreground h-9 px-3 rounded-full border border-border-strong"
             onClick={handleToday}
           >
             Today
@@ -111,7 +111,7 @@ const DayNavigator = ({
       </div>
       <div
         className={cn(
-          'relative flex items-center gap-0 rounded-full border border-border/60 bg-background overflow-hidden transition-colors',
+          'relative flex items-center gap-0 rounded-full border border-border-strong bg-background overflow-hidden transition-colors',
           selectedDateRelation === 'past' && 'border-date-past/40',
           selectedDateRelation === 'future' && 'border-date-future/40',
           'h-12 sm:h-9'
@@ -130,7 +130,7 @@ const DayNavigator = ({
           variant="ghost"
           size="icon"
           onClick={handlePreviousDay}
-          className="relative h-12 w-12 sm:h-9 sm:w-9 rounded-none border-r border-border/60"
+          className="relative h-12 w-12 sm:h-9 sm:w-9 rounded-none border-r border-border-strong"
         >
           <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" />
         </Button>
@@ -183,7 +183,7 @@ const DayNavigator = ({
           variant="ghost"
           size="icon"
           onClick={handleNextDay}
-          className="relative h-12 w-12 sm:h-9 sm:w-9 rounded-none border-l border-border/60"
+          className="relative h-12 w-12 sm:h-9 sm:w-9 rounded-none border-l border-border-strong"
         >
           <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
         </Button>

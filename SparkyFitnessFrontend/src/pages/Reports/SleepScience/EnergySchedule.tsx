@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTheme } from '@/contexts/ThemeContext';
 import { EnergyCurveData } from '@workspace/shared';
 import type React from 'react';
 import { ReactNode, useMemo } from 'react';
@@ -30,8 +29,8 @@ const ZONE_COLORS: Record<string, string> = {
 
 const EnergySchedule: React.FC<EnergyScheduleProps> = ({ data }) => {
   const { t } = useTranslation();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+  // App is dark-only; kept as a flag rather than inlining every ternary below.
+  const isDark = true;
 
   const chartData = useMemo(() => {
     if (!data.points) return [];

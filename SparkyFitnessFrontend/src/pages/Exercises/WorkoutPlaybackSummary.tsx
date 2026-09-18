@@ -132,7 +132,7 @@ const WorkoutPlaybackSummary = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 px-0 pt-0">
-          <div className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-sm border border-border/60 bg-border text-center sm:grid-cols-4">
+          <div className="grid w-full grid-cols-2 gap-px overflow-hidden rounded-sm border border-border-strong bg-border text-center sm:grid-cols-4">
             <div
               className={`flex min-w-0 flex-col items-center justify-center bg-background px-1 py-2 transition-colors ${
                 isWorkoutPaused ? 'bg-amber-500/5' : ''

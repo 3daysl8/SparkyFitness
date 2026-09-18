@@ -2,7 +2,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ZoomableChart from '@/components/ZoomableChart';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import {
   SLEEP_STAGE_COLORS,
   type SleepAnalyticsData,
@@ -92,15 +91,14 @@ const SleepAnalyticsCharts = ({
   latestSleepEntry,
 }: SleepAnalyticsChartsProps) => {
   const { formatDateInUserTimezone, dateFormat, timezone } = usePreferences();
-  const { resolvedTheme } = useTheme();
   const { t } = useTranslation();
   const { data: sleepDebtData } = useSleepDebtQuery();
   const personalizedSleepNeed = sleepDebtData?.sleepNeed || 8;
 
-  const tickColor = resolvedTheme === 'dark' ? '#E0E0E0' : '#333';
-  const gridColor = resolvedTheme === 'dark' ? '#444' : '#ccc';
-  const tooltipBackgroundColor = resolvedTheme === 'dark' ? '#333' : '#fff';
-  const tooltipBorderColor = resolvedTheme === 'dark' ? '#555' : '#ccc';
+  const tickColor = '#E0E0E0';
+  const gridColor = '#444';
+  const tooltipBackgroundColor = '#333';
+  const tooltipBorderColor = '#555';
 
   const [showAllHypnograms, setShowAllHypnograms] = useState(false);
 
@@ -232,7 +230,7 @@ const SleepAnalyticsCharts = ({
             const totalMin = payload[0]?.payload?.totalMinutes;
             if (totalMin && totalMin > 0) {
               return (
-                <div className="mt-2 pt-2 border-t border-border/50 text-sm font-semibold flex justify-between">
+                <div className="mt-2 pt-2 border-t border-border-strong text-sm font-semibold flex justify-between">
                   <span>{t('sleepAnalyticsCharts.total', 'Total')}:</span>
                   <span>{formatSecondsToHHMM(totalMin * 60)}</span>
                 </div>

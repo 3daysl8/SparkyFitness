@@ -235,7 +235,7 @@ export default function GoalCascadeCard({
                   return (
                     <div
                       key={daily.id}
-                      className="rounded-lg border bg-card p-3 transition-colors hover:border-border/80 space-y-2"
+                      className="rounded-lg border bg-card p-3 transition-colors hover:border-border-strong space-y-2"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-0.5">

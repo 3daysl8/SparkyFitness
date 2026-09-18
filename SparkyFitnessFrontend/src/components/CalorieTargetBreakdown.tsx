@@ -481,7 +481,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
   const isMeasuredBmr = bmrSource === 'measured';
 
   const body = (
-    <div className="mt-3 space-y-4 pl-1 text-xs text-muted-foreground leading-relaxed border-l border-border/60 ml-1.5 text-left font-sans">
+    <div className="mt-3 space-y-4 pl-1 text-xs text-muted-foreground leading-relaxed border-l border-border-strong ml-1.5 text-left font-sans">
       {/* Step 1: BMR/RMR Calculation */}
       <div className="space-y-1">
         <div className="flex items-center justify-between font-medium text-foreground">
@@ -498,7 +498,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
           </span>
         </div>
         {isMeasuredBmr ? (
-          <div className="text-muted-foreground text-sm bg-muted/40 p-1.5 rounded border border-border/60 space-y-1">
+          <div className="text-muted-foreground text-sm bg-muted/40 p-1.5 rounded border border-border-strong space-y-1">
             <div>
               {t('diary.calculateExplanation.bmrMeasuredDesc', {
                 defaultValue:
@@ -516,7 +516,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
             </div>
           </div>
         ) : (
-          <pre className="text-muted-foreground font-sans whitespace-pre-line text-sm bg-muted/40 p-1.5 rounded border border-border/60">
+          <pre className="text-muted-foreground font-sans whitespace-pre-line text-sm bg-muted/40 p-1.5 rounded border border-border-strong">
             {bmrMathText()}
           </pre>
         )}
@@ -546,7 +546,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
             {bodyFatAlgorithmLabel}
           </span>
         </div>
-        <pre className="text-muted-foreground font-sans whitespace-pre-line text-sm bg-muted/40 p-1.5 rounded border border-border/60">
+        <pre className="text-muted-foreground font-sans whitespace-pre-line text-sm bg-muted/40 p-1.5 rounded border border-border-strong">
           {bodyFatMathText()}
         </pre>
         <div className="flex justify-between items-center bg-muted/50 dark:bg-muted/40 p-1.5 rounded mt-1">
@@ -626,7 +626,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
                 : t('diary.calculateExplanation.adaptiveTdee', 'Adaptive TDEE')}
             </span>
           </div>
-          <div className="text-muted-foreground text-sm bg-muted/40 p-1.5 rounded border border-border/60 space-y-1 text-left">
+          <div className="text-muted-foreground text-sm bg-muted/40 p-1.5 rounded border border-border-strong space-y-1 text-left">
             <div className="font-semibold text-foreground">
               {t('settings.breakdown.adaptiveFormula', {
                 defaultValue:
@@ -673,8 +673,8 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
                   })}
                 </p>
 
-                <div className="bg-muted/50 dark:bg-muted/40 p-2 rounded border border-border/60 space-y-1.5 mt-1 text-sm">
-                  <span className="font-semibold text-foreground block border-b border-border/60 pb-1 mb-1">
+                <div className="bg-muted/50 dark:bg-muted/40 p-2 rounded border border-border-strong space-y-1.5 mt-1 text-sm">
+                  <span className="font-semibold text-foreground block border-b border-border-strong pb-1 mb-1">
                     {t(
                       'diary.calculateExplanation.adaptiveChecklist',
                       'Adaptive TDEE checklist to transition from fallback:'
@@ -1066,7 +1066,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
                 })}
           </span>
         </div>
-        <div className="text-muted-foreground text-sm bg-muted/40 p-1.5 rounded border border-border/60 space-y-1 text-left">
+        <div className="text-muted-foreground text-sm bg-muted/40 p-1.5 rounded border border-border-strong space-y-1 text-left">
           <div>
             <span className="font-medium">{baselineLabel}:</span>{' '}
             {isAdaptiveMethod ? (
@@ -1273,7 +1273,7 @@ export const CalorieTargetBreakdown: React.FC<CalorieTargetBreakdownProps> = ({
                 </span>
               </div>
             )}
-          <div className="pt-1 border-t border-border/60 font-bold text-foreground mt-1 flex justify-between items-center text-sm">
+          <div className="pt-1 border-t border-border-strong font-bold text-foreground mt-1 flex justify-between items-center text-sm">
             <span>
               {t(
                 'diary.calculateExplanation.finalTarget',

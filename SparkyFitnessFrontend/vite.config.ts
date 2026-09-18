@@ -64,7 +64,8 @@ export default defineConfig(({ mode }) => {
             name: 'Ouros Life',
             short_name: 'Ouros Life',
             description: 'Your personal fitness companion',
-            theme_color: '#000000',
+            background_color: '#0A0D12',
+            theme_color: '#0A0D12',
             icons: [
               {
                 src: 'images/icons/icon-192x192.png',

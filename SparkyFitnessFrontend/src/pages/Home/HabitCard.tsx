@@ -341,7 +341,7 @@ export default function HabitCard({ selectedDate }: { selectedDate: string }) {
                       'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border',
                       selectedDomainFilter === dom.id
                         ? 'border-primary bg-primary/15 text-foreground font-semibold'
-                        : 'border-border/60 bg-card/60 text-muted-foreground hover:text-foreground'
+                        : 'border-border-strong bg-card/60 text-muted-foreground hover:text-foreground'
                     )}
                   >
                     <span
@@ -391,7 +391,7 @@ export default function HabitCard({ selectedDate }: { selectedDate: string }) {
                 <div
                   key={habit.id}
                   className={cn(
-                    'group relative rounded-xl border border-border/70 bg-card/60 p-3 transition-all hover:bg-card/90',
+                    'group relative rounded-xl border border-border-strong bg-card/60 p-3 transition-all hover:bg-card/90',
                     habit.done && 'border-emerald-500/30 bg-emerald-500/5'
                   )}
                   style={

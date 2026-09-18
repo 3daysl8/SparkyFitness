@@ -144,8 +144,8 @@ const WorkoutPlaybackSetRow = ({
       <div
         className={`w-full rounded-sm border px-2 py-1.5 text-left ${
           completed
-            ? 'border-border/60 bg-muted/40 text-muted-foreground'
-            : 'border-border/70 bg-background'
+            ? 'border-border-strong bg-muted/40 text-muted-foreground'
+            : 'border-border-strong bg-background'
         }`}
       >
         <div className={WORKOUT_PLAYBACK_SET_GRID_CLASSES}>
@@ -215,7 +215,7 @@ const WorkoutPlaybackSetRow = ({
             <SelectTrigger
               aria-label={`Type set ${setNumber}`}
               onClick={(event) => event.stopPropagation()}
-              className="col-span-2 border-border/70 bg-transparent shadow-none outline-none ring-0 focus:border-border/70 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:border-border/70 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:border-border/70 data-[state=open]:outline-none data-[state=open]:ring-0 data-[state=open]:shadow-none sm:col-start-2 sm:col-span-1"
+              className="col-span-2 border-border-strong bg-transparent shadow-none outline-none ring-0 focus:border-border-strong focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:border-border-strong focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:border-border-strong data-[state=open]:outline-none data-[state=open]:ring-0 data-[state=open]:shadow-none sm:col-start-2 sm:col-span-1"
             >
               <SelectValue />
             </SelectTrigger>

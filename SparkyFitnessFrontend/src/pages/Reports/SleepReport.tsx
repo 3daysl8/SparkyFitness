@@ -447,7 +447,7 @@ const SleepReport = ({ startDate, endDate }: SleepReportProps) => {
                 latestSleepEntry={getLatestSleepEntry()}
               />
 
-              <div className="pt-6 border-t border-border/50">
+              <div className="pt-6 border-t border-border-strong">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-semibold px-1">
                     {t(

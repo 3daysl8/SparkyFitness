@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTheme } from '@/contexts/ThemeContext';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatSecondsToHHMM } from '@/utils/timeFormatters';
@@ -21,8 +20,8 @@ interface SleepNeedBreakdownProps {
 
 const SleepNeedBreakdown: React.FC<SleepNeedBreakdownProps> = ({ data }) => {
   const { t } = useTranslation();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+  // App is dark-only; kept as a flag rather than inlining every ternary below.
+  const isDark = true;
 
   const chartData = [
     {

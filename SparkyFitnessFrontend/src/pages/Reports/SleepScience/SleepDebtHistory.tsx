@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTheme } from '@/contexts/ThemeContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import type React from 'react';
@@ -62,9 +61,9 @@ const TrendIcon: React.FC<{ direction: string }> = ({ direction }) => {
 
 const SleepDebtHistory: React.FC<SleepDebtHistoryProps> = ({ data }) => {
   const { t } = useTranslation();
-  const { resolvedTheme } = useTheme();
   const { formatDateInUserTimezone, dateFormat } = usePreferences();
-  const isDark = resolvedTheme === 'dark';
+  // App is dark-only; kept as a flag rather than inlining every ternary below.
+  const isDark = true;
 
   const chartData = useMemo(() => {
     return [...data.last14Days].reverse().map((day) => ({

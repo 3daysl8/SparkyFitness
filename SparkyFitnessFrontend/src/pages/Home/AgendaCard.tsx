@@ -70,7 +70,7 @@ function EventRow({
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-lg border border-border/70 bg-background px-3 py-2',
+        'flex items-start gap-3 rounded-lg border border-border-strong bg-background px-3 py-2',
         compact && 'py-1.5'
       )}
     >

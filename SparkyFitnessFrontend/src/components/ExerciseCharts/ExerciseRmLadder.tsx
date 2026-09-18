@@ -156,7 +156,7 @@ export const ExerciseRmLadder = ({
               key={tier}
               className={`rounded-md border p-2.5 transition-colors ${
                 record
-                  ? 'bg-card border-border/80'
+                  ? 'bg-card border-border-strong'
                   : 'bg-muted/30 border-dashed opacity-60'
               }`}
             >

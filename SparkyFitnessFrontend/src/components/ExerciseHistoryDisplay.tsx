@@ -92,7 +92,7 @@ const ExerciseHistoryDisplay: React.FC<ExerciseHistoryDisplayProps> = ({
           {validHistory.map((entry, index) => (
             <div
               key={entry.id || index}
-              className="flex flex-col border-b border-border/50 pb-1 last:border-0 last:pb-0"
+              className="flex flex-col border-b border-border-strong pb-1 last:border-0 last:pb-0"
             >
               <span className="font-medium text-[10px] text-muted-foreground mb-1">
                 {entry.entry_date

@@ -4,7 +4,60 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-18** (commits `f7a668268`, `172b5fc91`, `4b59cb056` on `main`):
+**Status as of 2026-09-18 (later same day) — dark biometric redesign, Phase 1 of 6, uncommitted**:
+full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`. The app is being
+rebuilt from stock shadcn light-mode into a Whoop/Oura-style dark biometric interface — deep matte
+canvas, elevated charcoal cards, hairline borders, zero shadows, accent colour reserved for data.
+Rollout is phased (1 Foundation → 2 Today → 3 Check-in → 4 Workouts → 5 Progress → 6 Focus+Settings),
+each phase its own deployable commit. **Phase 1 (tokens + Card primitive + dark-only cutover) is
+implemented and fully validated locally — `pnpm run validate` and the full test suite (137/137
+suites, 1180/1180 tests) both green — but has NOT been committed or deployed yet.** Design spec is
+now durable at `agent-docs/design-system.md`.
+
+**What Phase 1 actually touches**: `SparkyFitnessFrontend/src/index.css` (`--card` now genuinely
+elevated above `--background`, a `--primary`/`--metric-recovery` mint replacing the light-mode
+default, `--surface-2`/`--surface-3` wells, `--border-strong`, `.metric-num` utility, self-hosted
+`@fontsource-variable/inter`); `components/ui/card.tsx` (`shadow-sm` removed, `CardTitle` becomes the
+small-caps label spec instead of `text-2xl` — this one change reshapes all 111 files that import
+`Card`, without touching any of them); a full dark-only cutover (`src/lib/sleep/whoop-colors.ts`,
+`src/contexts/ThemeContext.tsx`, `src/components/ThemeToggle.tsx` all deleted; `App.tsx`/
+`MainLayout.tsx` un-wrapped; `.dark` hardcoded on `<html>`; 5 Sleep-report chart files that read
+`resolvedTheme` off the deleted context now hardcode their dark-branch colours; `manifest.json` +
+`vite.config.ts`'s inline PWA manifest + a new `theme-color` meta all re-pointed to `#0A0D12` so a
+PWA launch no longer flashes white).
+
+**A real bug self-discovered and fixed, not yet documented anywhere else**: `--border` is now an
+alpha-bearing value (`0 0% 100% / 0.06`), and Tailwind v4 opacity modifiers on a theme colour compile
+to `color-mix(in srgb, hsl(var(--border)) N%, transparent)` (confirmed by inspecting the actual
+compiled CSS from a `vite build`, not assumed) — the modifier multiplies against the token's own
+already-baked-in 6% alpha rather than erroring, so every existing `border-border/50`-style usage
+(55 occurrences across 23 files) would have rendered at roughly 3-5% opacity instead of the visible
+divider it used to be. Fixed by converting all of them to the new `border-border-strong` token
+(12% alpha, no modifier) via a scoped sed pass, re-validated after. **Any new code should never put
+a Tailwind opacity modifier on `border-border` (or `bg-border`/`divide-border`) — use
+`border-border-strong` instead.**
+
+**New gotcha for the Known Gotchas list below**: running `pnpm run format` (prettier, no path filter)
+repo-wide on this Windows/Kingdom checkout made `git status` show ~600 files as modified, even though
+`git diff --shortstat` showed real content changes in only ~39 of them — `core.autocrlf=true`
+colliding with `.gitattributes`' `* text=auto eol=lf` makes prettier's writes look like changes to
+every file it touches, not just the ones it actually reformatted. Recovered by diffing
+`git status --short` against `git diff --name-only` and `git checkout --pathspec-from-file=` on the
+set difference (files with zero real diff) — see the Known Gotchas entry for the exact recipe. Scope
+`prettier --write` to specific files/dirs on this box instead of running it bare across the repo.
+
+**Not yet done**: this phase hasn't been committed, hasn't been pushed, and hasn't been deployed to
+Pi5. No live-verification at 390px has happened yet — that's the real acceptance test per this doc's
+own repeated lesson, and it hasn't run. Phases 2-6 (the actual page-by-page visual rebuild — Today
+dashboard, Check-in nav promotion, Workouts, Progress charts, Focus/Settings) haven't started; none
+of the new shared primitives (`MetricCard`, `DataRow`, `SectionCard`, `SegmentedControl`,
+`GoalCascade`, `chartTheme`) exist yet — each lands in the same commit as its first real page caller,
+per knip's zero-unused-exports rule, starting Phase 2.
+
+---
+
+**Previous entry, 2026-09-18 (earlier that day)** (commits `f7a668268`, `172b5fc91`, `4b59cb056` on
+`main`):
 
 **Kingdom was 13 commits stale** (Isaac also builds this app in Antigravity, which pushes directly
 — Kingdom's clone isn't automatically in sync). Fast-forwarded `018f546b8` → `f417d3d25` clean, zero
@@ -1242,6 +1295,8 @@ The previous handoff's "PICK UP HERE" fix (`bdb5d557c`) was deployed and live-te
 - **Spreading a value with an unresolvable type (e.g. from a dynamic `import()` of a non-literal, variable path) into an object literal silently widens the *entire* literal's inferred type**, not just that one spread's contribution — `models/exerciseRepository.ts` did `const { default: x } = await import(somePathVariable); export default { ...a, ...b, ...x, ... }`, and because `x` was untypeable (TS can't statically resolve a variable-path dynamic import), the whole merged default export object's type collapsed toward permissive/untyped for every key, not just `x`'s. This silently masked a real type-safety gap in an unrelated test file (`exerciseSourceScoping.test.ts` called `.mockResolvedValueOnce` directly on a property with no compile-time indication it needed `vi.mocked()` or a suppression comment, because the whole object was too loosely typed to catch it) until the dead spread was removed for an unrelated reason (deleting `exerciseTemplate.ts`, whose exports `x` was pulling in). If removing a spread from a merged default-export object suddenly produces type errors in files that never imported that spread's source directly, check whether the removed spread was the thing quietly keeping the *whole* merged type loose.
 - **A live-deployed compose file can silently diverge from the repo's own tracked `docker/docker-compose.prod.yml`, and a service block being commented out in the repo doesn't mean it's commented out (or correctly configured) on the actual running host, or vice versa** — found this because Garmin's service block was commented out in *both* places independently (upstream's stale "still WIP" comment never got cleaned up when this fork actually built the feature), but the live `/home/pi1/sparkyfitness/docker-compose.yml` already has several deliberate un-committed differences from the tracked file (custom image tags, restart policy, a pinned frontend port, an extra Tailscale sidecar). **Before trusting either file's contents, check the other one and check what's actually running (`docker ps`)** — don't assume they agree.
 - **A component or hook that TypeScript happily compiles and knip doesn't flag can still be completely dead if you only grep for its import, not its actual JSX usage** — `DailyHealthMetricsCard`/`useDailyHealthMetrics` had zero consumers anywhere in the app (the component that was supposed to use it referenced a page that no longer exists), which `grep -l` for the component name across `pages/` correctly showed as zero matches — but a quicker surface-level check (does the export exist, does it typecheck) would have missed it. When investigating "does this built feature actually show up anywhere," grep for `<ComponentName` or the hook's call site specifically, not just its existence.
+- **Running `prettier --write` (or `pnpm run format`) with no path filter, repo-wide, on this Windows/Kingdom checkout makes `git status` show hundreds of files as modified even when almost none of them actually changed content.** `core.autocrlf=true` (local git config) collides with this repo's `.gitattributes` (`* text=auto eol=lf`): prettier rewrites every file it touches, and the resulting bytes trip `git status`'s modified-check even where `git diff` shows zero real difference. Hit this 2026-09-18: `pnpm run format` with no args during the redesign's Phase 1 flagged 616 files, but `git diff --shortstat` showed real content changes in only 39. Recovery recipe: `comm -23 <(git status --short | awk '$1=="M"{print $2}' | sort) <(git diff --name-only | sort)` gives the phantom set, then `git checkout --pathspec-from-file=<that list> --` restores them (exclude untracked `??` files from the list first, or the pathspec errors and the whole checkout aborts — even for the files that would've matched). **Always scope `prettier --write`/`pnpm run format` to the specific files or directories actually being changed on this box, never run it bare.**
+- **`--border` (and any other alpha-bearing HSL CSS variable, e.g. `0 0% 100% / 0.06`) does NOT combine safely with a Tailwind v4 opacity modifier.** `border-border/50` compiles to `color-mix(in srgb, hsl(var(--border)) 50%, transparent)` (confirmed from actual `vite build` output, not assumed) — this multiplies the modifier against the token's own already-baked-in alpha rather than erroring, so a `/50` on a 6%-alpha token renders at ~3% opacity, not 50%. This isn't unique to `--border`: it'll bite any future alpha-bearing token the same way. Use a second, non-modified token at the target alpha instead (this is why `--border-strong` exists) — never stack a Tailwind opacity modifier on top of a CSS variable that already carries its own alpha channel.
 
 ## Not yet done (from the original broader plan — still open)
 

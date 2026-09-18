@@ -5,7 +5,6 @@ import { type SleepChartData, SLEEP_STAGE_COLORS } from '@/types';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { formatTimeInZone, sleepEntryZone } from '@/utils/timeFormatters';
 import ZoomableChart from '@/components/ZoomableChart';
-import { useTheme } from '@/contexts/ThemeContext';
 
 interface SleepStageChartProps {
   sleepChartData: SleepChartData;
@@ -36,7 +35,6 @@ const SleepStageChart = ({ sleepChartData }: SleepStageChartProps) => {
   const { t } = useTranslation();
   const { formatDateInUserTimezone, dateFormat, timeFormat, timezone } =
     usePreferences();
-  const { resolvedTheme } = useTheme();
   const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -165,7 +163,7 @@ const SleepStageChart = ({ sleepChartData }: SleepStageChartProps) => {
               y1={y1}
               x2={currentEndX}
               y2={y2}
-              stroke={resolvedTheme === 'dark' ? 'white' : 'black'}
+              stroke="white"
               strokeWidth={LINE_WIDTH}
             />
           );
@@ -182,7 +180,7 @@ const SleepStageChart = ({ sleepChartData }: SleepStageChartProps) => {
                 y1={y1}
                 x2={nextStartX}
                 y2={y1}
-                stroke={resolvedTheme === 'dark' ? 'white' : 'black'}
+                stroke="white"
                 strokeWidth={LINE_WIDTH}
                 strokeDasharray="4 4"
               />
@@ -220,7 +218,7 @@ const SleepStageChart = ({ sleepChartData }: SleepStageChartProps) => {
           x="-10" // Position to the left of the chart
           y={yPos + STAGE_HEIGHT / 2 + 5} // Center vertically
           textAnchor="end"
-          fill={resolvedTheme === 'dark' ? 'white' : 'black'}
+          fill="white"
           fontSize="12"
         >
           {stageTypeLabel &&
@@ -260,7 +258,7 @@ const SleepStageChart = ({ sleepChartData }: SleepStageChartProps) => {
           x={xPos}
           y={CHART_HEIGHT - CHART_PADDING_VERTICAL + 15} // Position below the chart
           textAnchor="middle"
-          fill={resolvedTheme === 'dark' ? 'white' : 'black'}
+          fill="white"
           fontSize="12"
         >
           {timeString}
@@ -346,7 +344,7 @@ const SleepStageChart = ({ sleepChartData }: SleepStageChartProps) => {
                   y="0"
                   width={SVG_BASE_WIDTH + 80}
                   height={CHART_HEIGHT + 40}
-                  fill={resolvedTheme === 'dark' ? 'black' : 'white'}
+                  fill="black"
                 />
                 {renderGridAndLabels()}
                 {renderConnectingLines()}

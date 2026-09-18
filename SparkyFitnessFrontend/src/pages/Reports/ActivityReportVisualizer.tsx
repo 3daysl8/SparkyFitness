@@ -397,7 +397,7 @@ const ActivityReportVisualizer = ({
   return (
     <div className="activity-report-visualizer p-4">
       <div className="flex items-center mb-4 flex-wrap gap-2">
-        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mr-2 shadow-sm border border-border/60">
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mr-2 shadow-sm border border-border-strong">
           <span className="text-2xl">
             {getActivityIcon(activityTypeKey, displayTitle)}
           </span>

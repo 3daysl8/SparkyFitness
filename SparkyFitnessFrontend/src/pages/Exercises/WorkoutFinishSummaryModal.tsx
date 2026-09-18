@@ -127,7 +127,7 @@ const WorkoutFinishSummaryModal = ({
                 {summary.prAchievements.map((pr, index) => (
                   <div
                     key={`${pr.exerciseName}-${index}`}
-                    className="flex items-center justify-between text-xs bg-background/80 backdrop-blur-xs rounded-lg px-3 py-2 border border-border/40"
+                    className="flex items-center justify-between text-xs bg-background/80 backdrop-blur-xs rounded-lg px-3 py-2 border border-border-strong"
                   >
                     <div className="flex items-center gap-2 font-medium text-foreground">
                       <Award className="h-3.5 w-3.5 text-amber-500 shrink-0" />
@@ -156,7 +156,7 @@ const WorkoutFinishSummaryModal = ({
         {/* 4 Core Workout Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
           {/* Duration */}
-          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border/50 bg-card/60 p-2.5">
+          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
             <Clock className="h-4 w-4 text-indigo-500" />
             <span className="text-sm font-bold tabular-nums">
               {formatMinutesToHHMM(durationMinutes)}
@@ -167,7 +167,7 @@ const WorkoutFinishSummaryModal = ({
           </div>
 
           {/* Volume */}
-          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border/50 bg-card/60 p-2.5">
+          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
             <Dumbbell className="h-4 w-4 text-emerald-500" />
             <span className="text-sm font-bold tabular-nums">
               {formatWeight(summary.totalVolume, weightUnit)}
@@ -178,7 +178,7 @@ const WorkoutFinishSummaryModal = ({
           </div>
 
           {/* Sets & Completion */}
-          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border/50 bg-card/60 p-2.5">
+          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
             <Layers className="h-4 w-4 text-blue-500" />
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold tabular-nums">
@@ -194,7 +194,7 @@ const WorkoutFinishSummaryModal = ({
           </div>
 
           {/* Intensity / Density or Supersets */}
-          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border/50 bg-card/60 p-2.5">
+          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border-strong bg-card/60 p-2.5">
             <Zap className="h-4 w-4 text-amber-500" />
             <span className="text-sm font-bold tabular-nums">
               {summary.supersetsCompleted && summary.supersetsCompleted > 0
@@ -232,11 +232,11 @@ const WorkoutFinishSummaryModal = ({
             </button>
 
             {showExerciseDetails && (
-              <div className="space-y-1.5 max-h-48 overflow-y-auto rounded-lg border border-border/50 bg-card/40 p-2">
+              <div className="space-y-1.5 max-h-48 overflow-y-auto rounded-lg border border-border-strong bg-card/40 p-2">
                 {summary.exercises.map((ex, idx) => (
                   <div
                     key={`${ex.name}-${idx}`}
-                    className="flex items-center justify-between text-xs rounded bg-background/60 px-2.5 py-1.5 border border-border/30"
+                    className="flex items-center justify-between text-xs rounded bg-background/60 px-2.5 py-1.5 border border-border-strong"
                   >
                     <div className="min-w-0 pr-2">
                       <p className="font-medium text-foreground truncate">

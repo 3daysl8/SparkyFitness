@@ -16,7 +16,6 @@ import type { LucideIcon } from 'lucide-react';
 
 import SparkyChat from '../pages/Chat/SparkyChat';
 import AddComp from '@/layouts/AddComp';
-import ThemeToggle from '@/components/ThemeToggle';
 import GlobalSyncButton from '@/components/GlobalSyncButton';
 import UserAccountMenu from '@/components/UserAccountMenu';
 import GitHubStarCounter from '@/components/GitHubStarCounter';
@@ -272,7 +271,6 @@ const MainLayout: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <GlobalSyncButton />
-            <ThemeToggle />
             <GlobalNotificationIcon />
             <UserAccountMenu />
           </div>

@@ -1,14 +1,21 @@
 @import 'tailwindcss';
 @import 'tw-shimmer';
+@import '@fontsource-variable/inter';
 @plugin "tailwindcss-animate";
 @custom-variant dark (&:is(.dark *));
 
 @theme {
+  --font-sans:
+    'InterVariable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
   --color-border: hsl(var(--border));
+  --color-border-strong: hsl(var(--border-strong));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
+  --color-foreground-dim: hsl(var(--foreground-dim));
 
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
@@ -31,16 +38,27 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 
+  /* Elevation wells above --card. No border of their own — background step
+     alone is the separation device (see agent-docs/design-system.md). */
+  --color-surface-2: hsl(var(--surface-2));
+  --color-surface-3: hsl(var(--surface-3));
+
   --color-date-today: hsl(var(--date-today));
   --color-date-past: hsl(var(--date-past));
   --color-date-future: hsl(var(--date-future));
 
-  /* Dashboard metric-ring accents (Workout/Water/Sleep). Named "metric-*"
-     rather than "ring-*" to avoid colliding with the existing focus-ring
-     tokens above. */
+  /* Biometric accents. Reserved strictly for data — a ring stroke, a track
+     fill, a data series, a status dot. Never a card background or button
+     fill (the one sanctioned exception is the FAB, see MainLayout). */
+  --color-metric-recovery: hsl(var(--metric-recovery));
   --color-metric-workout: hsl(var(--metric-workout));
-  --color-metric-water: hsl(var(--metric-water));
   --color-metric-sleep: hsl(var(--metric-sleep));
+  --color-metric-water: hsl(var(--metric-water));
+  --color-metric-fasting: hsl(var(--metric-fasting));
+
+  --color-status-optimal: hsl(var(--status-optimal));
+  --color-status-moderate: hsl(var(--status-moderate));
+  --color-status-low: hsl(var(--status-low));
 
   --color-sidebar: hsl(var(--sidebar-background));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
@@ -51,6 +69,7 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
+  --radius-xl: calc(var(--radius) + 4px);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -110,92 +129,67 @@
   }
 }
 
+/* Tabular-numeral metric display. See agent-docs/design-system.md §1.2 —
+   every number that can change without its neighbours reflowing uses this. */
+@utility metric-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --date-today: 160 84% 39%;
-    --date-past: 20 90% 50%;
-    --date-future: 40 90% 50%;
-
-    --metric-workout: 24 94% 53%;
-    --metric-water: 199 89% 48%;
-    --metric-sleep: 255 60% 62%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
+  /* Dark-only biometric palette (agent-docs/design-system.md). `.dark` is
+     hardcoded on <html> (index.html), so this is the only value source —
+     there is no light `:root` block to fall back to. */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 217 29% 5%; /* #0A0D12 matte obsidian canvas */
+    --foreground: 210 20% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 222 25% 10%; /* #131720 — the only card boundary */
+    --card-foreground: 210 20% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 222 25% 10%;
+    --popover-foreground: 210 20% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 162 100% 45%; /* #00E5A0 mint — CTA + recovery accent */
+    --primary-foreground: 217 29% 5%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 222 20% 14%;
+    --secondary-foreground: 210 20% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 222 20% 14%;
+    --muted-foreground: 215 16% 58%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 220 18% 19%;
+    --accent-foreground: 210 20% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 356 90% 62%;
+    --destructive-foreground: 210 20% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 0 0% 100% / 0.06;
+    --border-strong: 0 0% 100% / 0.12;
+    --input: 0 0% 100% / 0.06;
+    --ring: 162 100% 45%;
+
+    --foreground-dim: 215 15% 42%;
+    --surface-2: 222 20% 14%;
+    --surface-3: 220 18% 19%;
 
     --date-today: 158 64% 52%;
     --date-past: 20 90% 30%;
     --date-future: 40 90% 30%;
 
-    --metric-workout: 24 94% 60%;
-    --metric-water: 199 89% 62%;
-    --metric-sleep: 255 65% 72%;
+    --metric-recovery: 162 100% 45%; /* #00E5A0 */
+    --metric-workout: 17 100% 64%; /* #FF7A47 */
+    --metric-sleep: 252 100% 68%; /* #7C5CFF */
+    --metric-water: 188 86% 53%; /* #22D3EE */
+    --metric-fasting: 41 96% 56%; /* #FBBF24 */
+
+    --status-optimal: 162 100% 45%;
+    --status-moderate: 41 96% 56%;
+    --status-low: 356 90% 62%;
+
+    --radius: 0.75rem;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;

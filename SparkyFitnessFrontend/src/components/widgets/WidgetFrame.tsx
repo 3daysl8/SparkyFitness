@@ -51,7 +51,7 @@ const WidgetFrame = ({
   }, [onMeasure, widgetKey]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border/60 bg-card">
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border-strong bg-card">
       {/* Natural-height inner content. Child Card chrome is flattened so only
           the frame's border shows. Content is top-aligned; when the tile is
           taller (row-equalized), the extra space sits inside this one border. */}
@@ -64,7 +64,7 @@ const WidgetFrame = ({
 
       {editMode && (
         <div
-          className="widget-drag-handle absolute right-1.5 top-1.5 z-20 flex cursor-move items-center gap-0.5 rounded-md border border-border/60 bg-background/95 px-1 py-0.5 shadow-sm"
+          className="widget-drag-handle absolute right-1.5 top-1.5 z-20 flex cursor-move items-center gap-0.5 rounded-md border border-border-strong bg-background/95 px-1 py-0.5 shadow-sm"
           title={title}
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
