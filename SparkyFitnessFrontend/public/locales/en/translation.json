@@ -1184,7 +1184,8 @@
       "quickStart": "Quick Start",
       "addTrainingSchedule": "Create Program / Split",
       "createProgram": "New Routine",
-      "createRoutine": "New Routine"
+      "createRoutine": "New Routine",
+      "weeklyTonnage": "{{volume}} lifted this week"
     },
     "activeProgramWidget": {
       "rest": "Rest",

@@ -27,7 +27,7 @@ const WorkoutPlaybackStickyBar = ({
   const { t } = useTranslation();
 
   return (
-    <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 flex gap-2 border-t bg-background/95 p-3 backdrop-blur sm:hidden">
+    <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 flex gap-2 border-t bg-background/80 p-3 backdrop-blur-xl sm:hidden">
       <Button
         type="button"
         variant="outline"

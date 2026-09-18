@@ -4,9 +4,9 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-19 — dark biometric redesign, Phase 4 of 6, in progress (RPE feature + partial
-restyle done, committed; live verification and the remainder of the restyle still outstanding)**: full
-plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
+**Status as of 2026-09-19 — dark biometric redesign, Phase 4 of 6, restyle scope complete, NOT yet
+live-verified or deployed**: full plan at
+`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
 `agent-docs/design-system.md`. Phase 1 (`2399c91a3`), Phase 2 (`729cc1393`) and Phase 3 (`fe9624c16`)
 are all committed on `main` (Phase 3's "not yet committed" note here was stale — confirmed landed
 before this session started).
@@ -54,22 +54,57 @@ separate inline water ring is unaffected and remains the only water-ring impleme
   this button is correct regardless. **`Button.tsx`'s stale `dark:bg-slate-800` on the `default`
   variant should get its own small fix pass** — flagged here so it doesn't get silently relied upon by
   the next file that removes a color override.
-- Verified: `pnpm run validate` clean, full suite unchanged at 136/136 suites · 1169/1169 tests (was
-  137/1180 before the WaterIntake test file's own deletion dropped 1 suite/11 tests — expected, not a
+- **`WorkoutsLibraryTab.tsx` tokenized**: thumbnail ring/background, tag chips, category text, calorie
+  figure (→ `text-metric-workout`, same exertion-accent convention as the search list item), muscle/
+  equipment text, search/filter icons, and the Add Exercise button (`bg-slate-900` → `bg-primary`) all
+  moved off hardcoded `gray-*`/`blue-*`/`slate-*`. The edit-mode toggle's blue active state → the same
+  `bg-surface-3` treatment `SegmentedControl` uses for its own active tab, not a new pattern. **The
+  equipment filter row became the "horizontally scrolling filter rail" §3.3 asked for**: was
+  `flex flex-wrap` (wrapped to multiple lines), now `overflow-x-auto` with `shrink-0 whitespace-nowrap`
+  chips; active state `bg-primary/15 border-primary/40 text-primary`, inactive `bg-surface-2
+  text-muted-foreground`, replacing the old solid-blue-vs-white-card treatment.
+- **The tonnage/volume strip (§3.3) is now real, not skipped**: reused `useExerciseDashboardData`
+  (`hooks/Reports/useReports.ts`, the exact hook `ExerciseReportsDashboard.tsx` already uses) over a
+  rolling 7-day window — the same trailing-window convention `SleepVitalsHud` established in Phase 3,
+  not an invented range — and fed its `exerciseEntries` into `calculateTotalTonnage` exactly as the
+  plan specified ("reuse that helper, do not recompute"). Renders as a single compact
+  `bg-surface-2` line above the tab row, self-suppressing when there's no data yet (new users, or a
+  quiet week) rather than showing a zero. Added the real `en/translation.json` key
+  (`exercise.workoutsPage.weeklyTonnage`) rather than relying on `t()`'s inline `defaultValue` alone —
+  confirmed `translationKeysCoverage.test.ts` still passes with it.
+- **`WorkoutPlaybackStickyBar.tsx` now matches the global shell's exact frosted values**
+  (`bg-background/80 backdrop-blur-xl`, was `bg-background/95 backdrop-blur` — functionally similar but
+  a different opacity/blur pairing than `MainLayout.tsx` uses; now the same one).
+- **Two plan-vs-code findings, left as deliberate judgment calls rather than forced conversions**:
+  (1) The plan says "the rest timer → `CircularProgress` with `sweep={270}`", but neither
+  `WorkoutPlaybackFloatingRestTimer.tsx` nor `WorkoutPlaybackSummary.tsx` has an actual ring — the
+  floating timer is a compact text pill, the summary's rest tile is a plain number. There is no
+  rainbow-gradient ring here the way there was in `FastingTimerRing` (Phase 3); forcing a decorative
+  ring into a working, already-token-clean compact stat would be a redesign beyond what's needed, not
+  a fix. (2) `WorkoutHistorySessionCard.tsx`'s expanded body uses a wrapped `Badge` chip cloud per
+  exercise (all sets visible at once, compact) rather than one-row-per-item — `DataRow`'s API
+  (`label`/`value`/`trailing` in a single flex row, `sublabel` capped to one truncated line) doesn't
+  accommodate a variable-length multi-set summary without either flattening to one `DataRow` per *set*
+  (verbose — a 5-set exercise would push the card a lot taller) or fighting the component's own layout
+  assumptions. Left the chip cloud as-is; it's already on tokens (`Badge`, `text-muted-foreground`,
+  the same amber-Trophy PR convention used elsewhere) and isn't a duplicated hand-rolled pattern
+  DataRow was built to retire.
+- Verified: `pnpm run validate` clean (including a fresh `translationKeysCoverage` pass), full suite
+  unchanged at 136/136 suites · 1169/1169 tests throughout every step above (was 137/1180 before the
+  WaterIntake test file's own deletion dropped 1 suite/11 tests earlier this session — expected, not a
   regression).
 
-**Not yet done for Phase 4**: the tonnage/volume strip (§3.3 — needs a new data fetch on
-`WorkoutsPage.tsx`; no existing hook aggregates tonnage outside the Reports date-range query, so this
-is real wiring work, not a restyle, and was deliberately left rather than half-built), the equipment
-chip rail and blue/slate/gray colors in `WorkoutsLibraryTab.tsx`, `ExerciseSearchListItem` → `DataRow`
-conversion inside the library tab's own table (the plan names this but `WorkoutsLibraryTab.tsx`
-actually renders exercises through `DataTable`, not `ExerciseSearchListItem` — that component is only
-reachable from `ExerciseSearch.tsx`'s picker dialog; confirmed by grep, not a plan-vs-code mismatch to
-silently paper over), `WorkoutsHistoryTab.tsx`/`WorkoutHistorySessionCard.tsx` → `DataRow` bodies (the
-card is already reasonably token-clean; the plan's specific ask wasn't done), and
-`WorkoutPlaybackStickyBar.tsx`'s frosted treatment. **No live verification at 390px yet** — same
-standing lesson as every phase before this: a clean build has never been sufficient proof on this
-project, and this entry should not be read as "Phase 4 done" until that happens.
+**Phase 4's restyle scope (§3.3/§3.4) is now fully addressed** — either implemented or resolved as a
+documented judgment call above. **What's still outstanding before this phase can be called done**:
+**no live verification at 390px yet** (blocked this session by a stale Playwright browser profile lock
+at `C:\Users\ICPET\AppData\Local\ms-playwright-mcp\mcp-chrome-3a1305c` — many `chrome.exe` processes
+were running under the user's own session and killing them wasn't safe to do unilaterally; Isaac chose
+to skip live verification for now rather than have that resolved automatically — whoever picks this up
+should close stray automation browser windows or clear that lockfile before retrying), and this whole
+phase is still uncommitted-to-deploy (frontend-only, no `SparkyFitnessServer/` changes, so a
+frontend-only rebuild is sufficient when that time comes). Same standing lesson as every phase before
+this: a clean build has never been sufficient proof on this project, and this entry should not be read
+as "Phase 4 done" until 390px verification actually happens.
 
 **What Phase 3 built**:
 - **New `SegmentedControl`** (`src/components/biometric/SegmentedControl.tsx`) — the horizontally-

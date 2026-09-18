@@ -105,7 +105,7 @@ const ExerciseRowThumbnail = ({
   }
 
   return (
-    <div className="flex-shrink-0 w-10 h-10 rounded-md overflow-hidden ring-1 ring-gray-200 dark:ring-gray-700 bg-gray-50 dark:bg-gray-800">
+    <div className="flex-shrink-0 w-10 h-10 rounded-md overflow-hidden ring-1 ring-border bg-surface-2">
       <img
         src={src}
         alt={exercise.name}
@@ -301,7 +301,7 @@ const WorkoutsLibraryTab = () => {
                     .map((tag) => (
                       <span
                         key={tag}
-                        className="text-[9px] font-medium px-1 py-0 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 flex items-center gap-0.5"
+                        className="text-[9px] font-medium px-1 py-0 rounded-full bg-surface-2 text-muted-foreground flex items-center gap-0.5"
                       >
                         {tag === 'public' && <Share2 className="w-2 w-2" />}
                         {tag === 'family' && <Users className="w-2 w-2" />}
@@ -321,7 +321,7 @@ const WorkoutsLibraryTab = () => {
         // Disabled sorting for category since there is a dropdown above it
         enableSorting: false,
         cell: ({ row }) => (
-          <span className="text-xs font-medium text-blue-600 dark:text-blue-400 capitalize">
+          <span className="text-xs font-medium text-muted-foreground capitalize">
             {row.original.category}
           </span>
         ),
@@ -341,7 +341,7 @@ const WorkoutsLibraryTab = () => {
             )
           );
           return (
-            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+            <span className="text-xs text-metric-workout font-medium">
               {caloriesPerHour} {getEnergyUnitString(energyUnit)}/h
             </span>
           );
@@ -357,13 +357,13 @@ const WorkoutsLibraryTab = () => {
             <div className="flex flex-col gap-0.5">
               {exercise.primary_muscles &&
                 exercise.primary_muscles.length > 0 && (
-                  <div className="text-[10px] text-gray-500 truncate max-w-[150px]">
+                  <div className="text-[10px] text-muted-foreground truncate max-w-[150px]">
                     <span className="font-medium">Muscles: </span>
                     {exercise.primary_muscles.join(', ')}
                   </div>
                 )}
               {exercise.equipment && exercise.equipment.length > 0 && (
-                <div className="text-[10px] text-gray-500 truncate max-w-[150px]">
+                <div className="text-[10px] text-muted-foreground truncate max-w-[150px]">
                   <span className="font-medium">Equipment: </span>
                   {exercise.equipment.join(', ')}
                 </div>
@@ -469,7 +469,7 @@ const WorkoutsLibraryTab = () => {
           <div className="flex flex-col gap-4 mb-4">
             <div className="flex flex-row flex-wrap items-center gap-4">
               <div className="relative flex-1 min-w-[180px]">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder={t(
@@ -487,7 +487,7 @@ const WorkoutsLibraryTab = () => {
               </div>
 
               <div className="flex items-center gap-2 whitespace-nowrap">
-                <Filter className="h-4 w-4 text-gray-500" />
+                <Filter className="h-4 w-4 text-muted-foreground" />
                 <Select
                   onValueChange={(val) => {
                     setCategoryFilter(val);
@@ -575,9 +575,7 @@ const WorkoutsLibraryTab = () => {
                   size={isMobile ? 'icon' : 'default'}
                   onClick={toggleEditMode}
                   className={`shrink-0 ${
-                    isEditMode
-                      ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
-                      : ''
+                    isEditMode ? 'bg-surface-3 border-transparent' : ''
                   }`}
                   title={
                     isEditMode
@@ -598,7 +596,7 @@ const WorkoutsLibraryTab = () => {
                   )}
                 </Button>
                 <Button
-                  className="bg-slate-900 hover:bg-slate-800 text-white"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                   onClick={() => setIsAddExerciseDialogOpen(true)}
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -611,17 +609,17 @@ const WorkoutsLibraryTab = () => {
             </div>
 
             {availableEquipment.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5">
                 {availableEquipment.map((eq) => (
                   <button
                     key={eq}
                     type="button"
                     onClick={() => toggleEquipment(eq)}
-                    className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors capitalize
+                    className={`shrink-0 whitespace-nowrap text-xs px-2.5 py-1 rounded-full border font-medium transition-colors capitalize
                       ${
                         equipmentFilter.includes(eq)
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600'
+                          ? 'bg-primary/15 border-primary/40 text-primary'
+                          : 'bg-surface-2 border-transparent text-muted-foreground hover:text-foreground'
                       }`}
                   >
                     {eq}
@@ -634,7 +632,7 @@ const WorkoutsLibraryTab = () => {
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-md border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm text-gray-600 dark:text-gray-400"
+                  className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-sm text-muted-foreground"
                 >
                   <span className="flex items-center gap-1.5">
                     {t(
