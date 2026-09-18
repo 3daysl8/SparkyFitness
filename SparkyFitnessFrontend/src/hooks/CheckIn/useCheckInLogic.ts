@@ -405,6 +405,9 @@ export const useCheckInLogic = (currentUserId: string | undefined) => {
 
     recentCustom.forEach((m) => {
       const category = customCategories.find((c) => c.id === m.category_id);
+      // Categories like Garmin's "Raw Stress Data" store a JSON blob for
+      // internal use by reports (StressChart), not for direct display here.
+      if (category?.measurement_type === 'JSON') return;
       allMeasurements.push({
         id: m.id,
         entry_date: m.entry_date.toString(),
