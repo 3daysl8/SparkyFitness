@@ -4,11 +4,128 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-19 — dark biometric redesign, Phases 1-5 of 6 all shipped, live-verified, and
-deployed to Pi5.** Full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`;
+**Status as of 2026-09-19 — dark biometric redesign, all 6 phases now built. Phase 6
+(`2a2dfc6e6`) is committed locally on `main` but NOT yet deployed to Pi5** (per this fork's
+per-phase convention: local commit + local verification, deploy is a separate follow-up step
+after Isaac reviews). Full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`;
 design spec at `agent-docs/design-system.md`. Phases 1-5 (`2399c91a3`, `729cc1393`, `fe9624c16`,
-`28ecb2bb3`, `3bc8fecc6`) plus the follow-up fix (`62a85bff1`) all committed and deployed. Phase 6
-(Focus + Settings) is next, not started.
+`28ecb2bb3`, `3bc8fecc6`) plus their follow-up fixes (`62a85bff1`, and Phase 5's deploy) are all
+committed and deployed to Pi5 already — only Phase 6 is still pending deploy.
+
+**Phase 6 (`2a2dfc6e6`) — Focus + Settings, the final phase**: built `src/components/biometric/
+GoalCascade.tsx` per plan §2.4 — a single vertical rail (hairline `bg-border` spine, absolutely
+positioned tier nodes) replacing `GoalCascadeCard.tsx`'s three nested coloured/bordered boxes.
+Tier 1 (North Star) is a filled `bg-metric-recovery` node with `text-base font-semibold`; Tier 2
+(Weekly Focus) is a hollow `border-2 border-metric-recovery` ring node, `text-sm font-medium`,
+indented one step (`pl-14`); Tier 3 (Daily Habits) is a small `bg-foreground-dim` dot with a
+`DataRow` body per habit inside a `divide-y divide-border` list, indented two steps (`pl-20`).
+**Kept the exact same prop shape `GoalCascadeCard` used** (`{ domain?, longTerm?, weekly?,
+dailyList[] }`, populated by `FocusPage.tsx`'s existing `domain_id`+`timeframe` grouping) rather
+than switching to `Focus.parent_focus_id` — the plan is explicit that's a data-model change out
+of scope for a restyle, not an oversight to fix here. `GoalCascadeCard.tsx` deleted outright (zero
+other callers); its dedicated test file renamed `GoalCascadeCard.test.tsx` →
+`GoalCascade.test.tsx` and re-pointed at the new component rather than deleted, since the
+assertions (domain/tier text renders, WOOP cue/if-then parsing, check-in button wiring) still
+apply almost unchanged. **One real test-authoring gotcha hit while doing this**: the original
+component rendered a daily habit's WOOP cue/if-then text as `<strong>Cue:</strong> {cue}` sharing
+one `<span>`, so `getByText('Clothes laid out')` only ever matched because it was the *only*
+text node structure RTL could isolate — copying that pattern verbatim into the new rail (which
+also needed a combined `DataRow` sublabel) would have made the cue/if-then text unqueryable by
+exact match. Fixed by giving each of cue and if-then its own innermost `<span>{cue}</span>` /
+`<span>{ifThen}</span>` with no sibling text inside that span, so `getByText` can match the
+value alone regardless of the surrounding label markup — worth remembering next time a `<strong>
+label: {value}</strong>` pattern needs both compact rendering and exact-text testability.
+`GuidedGoalWizardModal.tsx` got the token-cleanup-only pass the plan asked for (no rebuild): a
+stray `hover:shadow-sm` removed, `text-amber-600 dark:text-amber-400` → `text-status-moderate`,
+`text-emerald-600 dark:text-emerald-400` → `text-metric-recovery`. `FocusPage.tsx` itself also
+had gradients/hardcoded hues outside the two files the plan named explicitly (the "Guide My
+Goals" CTA and onboarding-hero gradients, the Today's Briefing accent colours, the whole Weekly
+Motivation & Mindset checkpoint card) — fixed in the same pass since leaving them would have
+been an inconsistent restyle of a single page.
+
+**Settings — the 5th and last hand-rolled pill row retired**: `SettingsPage.tsx`'s
+`Profile & Account / Wellness & Tracking / Developer & Integrations` row now uses
+`SegmentedControl`, mechanically identical to the CheckIn/Workouts/Reports/Medications
+conversions in Phases 3-5. **The accordion-flattening turned out to touch more files than the
+4 named in scope**: `SettingsPage.tsx` wraps most accordion items directly with
+`className="border rounded-lg mb-4"`, but 5 of the 11 settings sections
+(`AccountSecurity.tsx`, `ApiSettings.tsx`, `DevloperResources.tsx`, `WaterTrackingSettings.tsx`,
+`CalendarFeedSettings.tsx`) own their *own* `<AccordionItem>` wrapper internally with the same
+`border rounded-lg mb-4` override — those five files needed the identical fix or the flattening
+would have been inconsistent across sections for no visible reason. `AccordionItem`'s own
+primitive default (`className={cn('border-b', className)}` in `components/ui/accordion.tsx`)
+already provides the correct hairline separator once the override is gone, so this was a pure
+deletion in every case, not a new style to invent. Each section's header icon also picked up
+`text-muted-foreground` (was unstyled/default-foreground, or `text-rose-500` for the cycle-
+tracking Heart icon) per the "icons are monochrome unless the icon *is* the data" rule.
+`ApiSettings.tsx`'s "New API Key Generated" box and `EditProviderForm.tsx`'s green "Connected to
+Garmin" box moved off hardcoded yellow/green onto `status-moderate`/`metric-recovery` tokens
+while in these files anyway. **`CalendarFeedSettings.tsx`'s per-feed row was a second nested
+card** (`rounded-lg border p-3` inside the now-flattened accordion item) — flattened to a
+`divide-y divide-border` list matching the "one card boundary per region" rule, not just the
+narrower "accordion item" instruction, since leaving a nested card one level down would have
+defeated the point.
+
+**`ProviderCard.tsx`**: the sync-status line (`Last Sync: ... | Token Expires: ...`, plain
+`text-sm text-muted-foreground`) is now two `metric-num` timestamp chips each with their own
+status dot (`bg-metric-recovery` for last-sync, `bg-status-moderate` for token-expiry), matching
+Phase 5's `DataTable`/`MetricCard` convention for tabular numerals. The hardcoded yellow
+"Note from CodewithCJ" box and the gray-100/800 mock-data-path code snippet in its tooltip both
+moved onto `status-moderate`/`surface-2` tokens — not explicitly named in the plan's one-line
+scope for this file, but they're hardcoded Tailwind colours in a file already being edited for
+the same reason (bespoke-color sweep), so leaving them would have been an inconsistent partial
+pass. **`EditProviderForm.tsx` and `ProviderSpecificFields.tsx`** (996 and 626 lines): scoped
+strictly to the token sweep as instructed — red warning boxes (YAZIO unofficial-API notice,
+provider-type-specific caveats) → `status-low` tokens, the green "Connected to Garmin" box →
+`metric-recovery`, `text-blue-500` documentation links → `text-primary` (matching the link colour
+convention already used elsewhere in `ProviderCard.tsx`). No structural changes to either form.
+
+**Judgment call, left alone — flagged for a future pass, not fixed here**:
+`ExternalProviderSettings.tsx` (wraps the whole provider list in its own `<Card>`) and
+`ExternalProviderList.tsx` (each provider row is its own `border rounded-lg p-4` div) together
+produce the same "card inside the now-flattened accordion item" pattern
+`CalendarFeedSettings.tsx` had — but neither file is named in this phase's scope
+(`SettingsPage.tsx`/`ProviderCard.tsx`/`EditProviderForm.tsx`/`ProviderSpecificFields.tsx` only),
+and `ExternalProviderList.tsx` has real drag-and-drop reordering (`@dnd-kit`) wired to that
+per-row `border rounded-lg` div as its drop target styling — collapsing it to a flat
+`divide-y` list is a real behavioural/visual redesign of a working drag-and-drop list, not a
+mechanical token swap, so it was left as-is rather than guessed at. Same class of call as Phase
+4's `TodayMedications.tsx`/`ScheduleManager.tsx` deferral.
+
+**Verified**: `tsc -b` clean, `eslint --max-warnings 0` clean on every touched file,
+`prettier --check` clean (scoped to touched files per the Windows phantom-diff gotcha — never ran
+bare `pnpm run format`), `knip` shows zero new flags (`GoalCascade.tsx`'s default export sits in
+the same pre-existing "default export" baseline noise as `DataRow`/`MetricCard`/`SectionCard`/
+`SegmentedControl`, not a new issue). Full suite unchanged at **136 suites / 1169 tests** (the
+`GoalCascadeCard.test.tsx` → `GoalCascade.test.tsx` rename keeps the same 2 tests, net zero
+change). `translationKeysCoverage.test.ts` still passes — no new i18n keys were needed since every
+new user-facing string in `GoalCascade.tsx` reuses an existing `t()` key `GoalCascadeCard.tsx`
+already had. A production `pnpm run build` (which runs the full `validate` pipeline internally)
+succeeds clean, confirming typecheck/lint/format/knip pass repo-wide, not just on the scoped
+file list.
+
+**Live verification — partially blocked, honestly incomplete this session**: the dev frontend
+container was restarted first per the standing stale-Vite-cache gotcha, and confirmed serving
+fresh source (`curl`ing `/src/pages/Focus/FocusPage.tsx` and `/src/components/biometric/
+GoalCascade.tsx` straight from the dev server showed the new code, not a cached transform). But
+the actual Playwright browser check — desktop + 390px screenshots of the Focus cascade, the goal
+wizard modal, and the Settings segmented control/flattened accordions/provider forms — **could
+not run**: the shared `mcp-chrome-3a1305c` profile was locked exactly the same way Phase 4's
+handoff already documented (`lockfile` removal fails with "Device or resource busy" even with no
+obviously-matching `chrome.exe` process by command line). Phase 4's fix was Isaac approving a
+blanket `taskkill //F //IM chrome.exe` — that's a destructive, session-wide action (kills every
+Chrome window, including unrelated ones with unsaved state) that this session had no live human
+to get that approval from, so it was correctly **not** done unilaterally. **Whoever picks this up
+next should either free the profile lock (close the stray Chrome instance holding it, or approve
+the taskkill) and re-run the visual check before trusting this phase's UI at both widths, or run
+it themselves interactively** — the code is typecheck/lint/test/build-clean and the token/markup
+review was thorough, but per this doc's own standing lesson, a clean build has never once been
+sufficient proof on this project by itself.
+
+**Deploy still pending for Phase 6**: not yet built/tagged/pushed to Pi5. Follow the same
+`sparkyfitness:custom` tag + `docker inspect --format '{{.Image}}'` confirmation recipe as every
+prior phase (see the Phase 4 deploy-gotcha entry below) — frontend-only, no
+`SparkyFitnessServer/` changes this phase. Take the live visual verification above first.
 
 **Phase 5 deploy, done correctly this time**: built/tagged straight to `sparkyfitness:custom` (per
 the gotcha below — no decoy tag this round), confirmed `docker inspect` on the recreated container
