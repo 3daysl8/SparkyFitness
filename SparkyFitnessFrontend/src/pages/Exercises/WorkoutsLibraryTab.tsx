@@ -595,10 +595,7 @@ const WorkoutsLibraryTab = () => {
                     t('common.select', 'Select')
                   )}
                 </Button>
-                <Button
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                  onClick={() => setIsAddExerciseDialogOpen(true)}
-                >
+                <Button onClick={() => setIsAddExerciseDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   {t(
                     'exercise.databaseManager.addExerciseButton',

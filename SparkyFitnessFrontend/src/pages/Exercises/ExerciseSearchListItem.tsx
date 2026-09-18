@@ -240,7 +240,7 @@ export const ExerciseSearchListItem = ({
           onClick={handleAction}
           disabled={isActioning}
           size="sm"
-          className="h-8 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5"
+          className="h-8 px-3 text-xs gap-1.5"
         >
           {isActioning ? (
             <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />

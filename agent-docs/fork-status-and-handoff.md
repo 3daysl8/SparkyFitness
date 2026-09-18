@@ -95,16 +95,59 @@ separate inline water ring is unaffected and remains the only water-ring impleme
   regression).
 
 **Phase 4's restyle scope (§3.3/§3.4) is now fully addressed** — either implemented or resolved as a
-documented judgment call above. **What's still outstanding before this phase can be called done**:
-**no live verification at 390px yet** (blocked this session by a stale Playwright browser profile lock
-at `C:\Users\ICPET\AppData\Local\ms-playwright-mcp\mcp-chrome-3a1305c` — many `chrome.exe` processes
-were running under the user's own session and killing them wasn't safe to do unilaterally; Isaac chose
-to skip live verification for now rather than have that resolved automatically — whoever picks this up
-should close stray automation browser windows or clear that lockfile before retrying), and this whole
-phase is still uncommitted-to-deploy (frontend-only, no `SparkyFitnessServer/` changes, so a
-frontend-only rebuild is sufficient when that time comes). Same standing lesson as every phase before
-this: a clean build has never been sufficient proof on this project, and this entry should not be read
-as "Phase 4 done" until 390px verification actually happens.
+documented judgment call above, **and live-verified at 390px against the local dev Docker stack**
+(Isaac asked to retry after an earlier attempt was blocked — see below).
+
+**Live verification session — what it actually found**:
+- **The dev container was again serving stale code**, the same "clean build was never sufficient
+  proof" lesson Phase 3's handoff already recorded once this session (Vite's transform cache, not a
+  source bug) — confirmed by inspecting the live DOM: `WorkoutsPage`'s tab row was still the *old*
+  hand-rolled `Button`-based pill row (`bg-slate-200/60 dark:bg-muted`, `flex flex-wrap`), not
+  `SegmentedControl`. `docker restart docker-sparkyfitness-frontend-1` fixed it — after the restart the
+  same DOM inspection showed the real `role="tablist"` / `SegmentedControl` markup. **Whoever stands up
+  this dev stack next should restart the frontend container before trusting anything it renders**, not
+  just once per session — it happened again today after already happening in Phase 3.
+- **The Playwright MCP browser profile lock from earlier this session was genuinely stuck**, not just
+  transient: removing only the zero-byte lockfile at
+  `C:\Users\ICPET\AppData\Local\ms-playwright-mcp\mcp-chrome-3a1305c\lockfile` failed with "Device or
+  resource busy" even though no `chrome.exe` process referenced that profile path on its command line.
+  Isaac approved a full `taskkill //F //IM chrome.exe` to clear it (his call, not a unilateral one) —
+  after that the browser launched cleanly. If this profile locks again, that's the working fix; trying
+  to identify "the one process" holding it by command line alone doesn't work — child/renderer
+  processes don't repeat `--user-data-dir`.
+- **A real, live app-wide bug found and fixed**: `Button.tsx`'s `default` variant still carried
+  `dark:bg-slate-800 dark:text-white dark:hover:bg-slate-600` from before the Phase 1 dark-only cutover
+  — and since the app is now *permanently* in dark mode, that `dark:` override wins over `bg-primary`
+  for every default-variant button in the entire app, unconditionally. This was flagged as a
+  theoretical risk earlier in this same session (see the `ExerciseSearchListItem` note above) but
+  confirmed **live** here: `getComputedStyle` on the exercise-search "Select" button showed
+  `oklch(0.279 0.041 260.031)` (slate) instead of the `--primary` mint token before the fix, and
+  `rgb(0, 230, 161)` (exactly `--primary`) after. Fixed by deleting the stale `dark:*` classes from
+  `buttonVariants`' `default` variant in `src/components/ui/button.tsx` — `--primary`/
+  `--primary-foreground` were already correctly defined for the dark-only palette, so this was a pure
+  deletion, not a new value to pick. **This is an app-wide change** (every default-variant `Button` in
+  every page), so it was validated harder than a normal file diff: full `pnpm run validate` + test
+  suite (136/136 · 1169/1169) after the change, then live-checked on Home, Check-in, Reports, and
+  Workouts/active-logger at 390px with no visual regressions found on any of them. The now-redundant
+  explicit `bg-primary text-primary-foreground hover:bg-primary/90` overrides added earlier this
+  session in `ExerciseSearchListItem.tsx` and `WorkoutsLibraryTab.tsx` (as workarounds for this same
+  bug) were removed again once the real fix landed — they'd just be dead weight now.
+- **The RPE stepper works correctly end-to-end**, live-tested by adding an exercise to a real draft
+  workout and clicking Increase RPE twice: null → 1 (clamped, not 0.5, confirming the `clampRpe` floor)
+  → 1.5 (confirming the 0.5 step and `formatRpe`'s one-decimal display). Test draft discarded afterward
+  so no fake session was left in the demo account's history.
+- **The tonnage strip, History tab's chip-cloud judgment call, and the Library tab's filter rail all
+  render as designed** — screenshots confirmed the weekly figure ("11596.3 lbs lifted this week"), the
+  expanded history card's set chips (compact, all sets visible, exactly the layout the DataRow-vs-chip-
+  cloud tradeoff was made for), and the equipment rail's neutral chip styling.
+- **One pre-existing, unrelated cosmetic oddity spotted but not touched**: the weight input's
+  placeholder text appears to run into its `lbs` unit suffix with no gap ("Weiglbs") at 390px on the
+  set row. This is `UnitInput`'s own layout, untouched by this phase's diff — flagged for whoever next
+  touches that component, not fixed here as an unscoped drive-by.
+
+This phase is still uncommitted-to-deploy (frontend-only diff, no `SparkyFitnessServer/` changes, so a
+frontend-only rebuild is sufficient when that time comes) — live verification passing is not the same
+as deploying, and Isaac hasn't asked for that yet.
 
 **What Phase 3 built**:
 - **New `SegmentedControl`** (`src/components/biometric/SegmentedControl.tsx`) — the horizontally-
