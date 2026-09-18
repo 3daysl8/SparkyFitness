@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface EnergyScheduleProps {
   data: EnergyCurveData;
@@ -29,8 +30,6 @@ const ZONE_COLORS: Record<string, string> = {
 
 const EnergySchedule: React.FC<EnergyScheduleProps> = ({ data }) => {
   const { t } = useTranslation();
-  // App is dark-only; kept as a flag rather than inlining every ternary below.
-  const isDark = true;
 
   const chartData = useMemo(() => {
     if (!data.points) return [];
@@ -118,31 +117,22 @@ const EnergySchedule: React.FC<EnergyScheduleProps> = ({ data }) => {
                 })}
               </linearGradient>
             </defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}
-              vertical={false}
-            />
+            <CartesianGrid {...chartTheme.grid} vertical={false} />
             <XAxis
               dataKey="hour"
               tickFormatter={formatHour}
-              stroke={isDark ? '#888' : '#666'}
-              fontSize={11}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
               ticks={[0, 4, 8, 12, 16, 20]}
             />
             <YAxis
               domain={[0, 100]}
-              stroke={isDark ? '#888' : '#666'}
-              fontSize={11}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
               ticks={[0, 25, 50, 75, 100]}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: isDark ? '#1e1e1e' : '#fff',
-                border: `1px solid ${isDark ? '#333' : '#ddd'}`,
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
+              {...chartTheme.tooltip}
               formatter={(
                 value:
                   string | number | ReadonlyArray<string | number> | undefined,
@@ -180,7 +170,7 @@ const EnergySchedule: React.FC<EnergyScheduleProps> = ({ data }) => {
             {/* Current time marker */}
             <ReferenceLine
               x={currentHour}
-              stroke={isDark ? '#fff' : '#000'}
+              stroke="hsl(var(--foreground))"
               strokeDasharray="4 4"
               strokeWidth={1.5}
             />
@@ -193,8 +183,8 @@ const EnergySchedule: React.FC<EnergyScheduleProps> = ({ data }) => {
               dot={false}
               activeDot={{
                 r: 5,
-                fill: isDark ? '#fff' : '#000',
-                stroke: isDark ? '#fff' : '#000',
+                fill: 'hsl(var(--foreground))',
+                stroke: 'hsl(var(--foreground))',
               }}
             />
           </AreaChart>

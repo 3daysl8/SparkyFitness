@@ -33,9 +33,10 @@ import {
   format as formatDF,
 } from 'date-fns';
 import ZoomableChart from '@/components/ZoomableChart';
-import { List, Clock, Hourglass, Award } from 'lucide-react';
 import { calculateSmartYAxisDomain, getChartConfig } from '@/utils/chartUtils';
 import { FastingLog } from '@/types/fasting';
+import { MetricCard } from '@/components/biometric/MetricCard';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface FastingReportProps {
   fastingData: FastingLog[];
@@ -190,50 +191,26 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-r from-indigo-600 to-violet-500 text-white">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <List className="w-4 h-4" />
-              {t('reports.fasting.totalFasts', 'Total Fasts')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold text-white">
-            {summary.totalFasts}
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-r from-cyan-500 to-sky-600 text-white">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              {t('reports.fasting.totalHours', 'Total Hours')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold text-white">
-            {summary.totalHours}
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Hourglass className="w-4 h-4" />
-              {t('reports.fasting.avgDuration', 'Avg Duration (hrs)')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold text-white">
-            {summary.avgDuration}
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-r from-rose-500 to-red-600 text-white">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Award className="w-4 h-4" />
-              {t('reports.fasting.longestFast', 'Longest Fast (hrs)')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-3xl font-bold text-white">
-            {summary.longestFast}
-          </CardContent>
-        </Card>
+        <MetricCard
+          metric="fasting"
+          label={t('reports.fasting.totalFasts', 'Total Fasts')}
+          value={summary.totalFasts}
+        />
+        <MetricCard
+          metric="fasting"
+          label={t('reports.fasting.totalHours', 'Total Hours')}
+          value={summary.totalHours}
+        />
+        <MetricCard
+          metric="fasting"
+          label={t('reports.fasting.avgDuration', 'Avg Duration (hrs)')}
+          value={summary.avgDuration}
+        />
+        <MetricCard
+          metric="fasting"
+          label={t('reports.fasting.longestFast', 'Longest Fast (hrs)')}
+          value={summary.longestFast}
+        />
       </div>
 
       {/* Daily Fasting Duration Bar Chart */}
@@ -261,13 +238,21 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
                       debounce={100}
                     >
                       <BarChart data={dailyData}>
-                        <XAxis dataKey="date" />
+                        <CartesianGrid {...chartTheme.grid} />
+                        <XAxis
+                          dataKey="date"
+                          stroke={chartTheme.axis.stroke}
+                          tick={chartTheme.axis.tick}
+                        />
                         <YAxis
                           domain={dailyDomain}
+                          stroke={chartTheme.axis.stroke}
+                          tick={chartTheme.axis.tick}
                           label={{
                             value: t('reports.fasting.hours', 'Hours'),
                             angle: -90,
                             position: 'insideLeft',
+                            fill: chartTheme.axis.stroke,
                           }}
                           tickFormatter={(val) => {
                             if (val === null || val === undefined) return '';
@@ -279,10 +264,13 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
                               : num.toFixed(2);
                           }}
                         />
-                        <Tooltip formatter={formatHoursToReadable} />
+                        <Tooltip
+                          formatter={formatHoursToReadable}
+                          {...chartTheme.tooltip}
+                        />
                         <Bar
                           dataKey="hours"
-                          fill="#6366f1"
+                          fill={chartTheme.colors.fasting}
                           isAnimationActive={false}
                         />
                       </BarChart>
@@ -318,8 +306,12 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
               debounce={100}
             >
               <PieChart>
-                <Tooltip />
-                <Legend verticalAlign="bottom" height={36} />
+                <Tooltip {...chartTheme.tooltip} />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  wrapperStyle={chartTheme.legend.wrapperStyle}
+                />
                 <Pie
                   data={zoneData}
                   dataKey="value"
@@ -430,15 +422,14 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
             {heatmapData.map((d) => {
               // Determine shade of green based on minutes fasted
               // 0 = gray, > 0 = scale
-              let bgClass = 'bg-muted';
+              let bgClass = 'bg-surface-2';
               if (d.minutesFasted > 0) {
-                if (d.minutesFasted < 12 * 60)
-                  bgClass = 'bg-green-300 dark:bg-green-800';
+                if (d.minutesFasted < 12 * 60) bgClass = 'bg-metric-fasting/30';
                 else if (d.minutesFasted < 16 * 60)
-                  bgClass = 'bg-green-400 dark:bg-green-700';
+                  bgClass = 'bg-metric-fasting/55';
                 else if (d.minutesFasted < 20 * 60)
-                  bgClass = 'bg-green-500 dark:bg-green-600';
-                else bgClass = 'bg-green-600 dark:bg-green-500';
+                  bgClass = 'bg-metric-fasting/80';
+                else bgClass = 'bg-metric-fasting';
               }
               return (
                 <div
@@ -452,11 +443,11 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
           <div className="flex gap-2 items-center mt-4 text-xs text-muted-foreground">
             <span>{t('reports.fasting.less', 'Less')}</span>
             <div className="flex gap-[3px]">
-              <div className="w-4 h-4 rounded-sm bg-muted" />
-              <div className="w-4 h-4 rounded-sm bg-green-300 dark:bg-green-800" />
-              <div className="w-4 h-4 rounded-sm bg-green-400 dark:bg-green-700" />
-              <div className="w-4 h-4 rounded-sm bg-green-500 dark:bg-green-600" />
-              <div className="w-4 h-4 rounded-sm bg-green-600 dark:bg-green-500" />
+              <div className="w-4 h-4 rounded-sm bg-surface-2" />
+              <div className="w-4 h-4 rounded-sm bg-metric-fasting/30" />
+              <div className="w-4 h-4 rounded-sm bg-metric-fasting/55" />
+              <div className="w-4 h-4 rounded-sm bg-metric-fasting/80" />
+              <div className="w-4 h-4 rounded-sm bg-metric-fasting" />
             </div>
             <span>{t('reports.fasting.more', 'More')}</span>
           </div>
@@ -486,14 +477,21 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
                       debounce={100}
                     >
                       <LineChart data={trendData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
+                        <CartesianGrid {...chartTheme.grid} />
+                        <XAxis
+                          dataKey="date"
+                          stroke={chartTheme.axis.stroke}
+                          tick={chartTheme.axis.tick}
+                        />
                         <YAxis
                           domain={trendDomain}
+                          stroke={chartTheme.axis.stroke}
+                          tick={chartTheme.axis.tick}
                           label={{
                             value: t('reports.fasting.avgHours', 'Avg Hours'),
                             angle: -90,
                             position: 'insideLeft',
+                            fill: chartTheme.axis.stroke,
                           }}
                           tickFormatter={(val) => {
                             if (val === null || val === undefined) return '';
@@ -506,11 +504,14 @@ export const FastingReport = ({ fastingData }: FastingReportProps) => {
                               : num.toFixed(2);
                           }}
                         />
-                        <Tooltip formatter={formatHoursToReadable} />
+                        <Tooltip
+                          formatter={formatHoursToReadable}
+                          {...chartTheme.tooltip}
+                        />
                         <Line
                           type="monotone"
                           dataKey="avg"
-                          stroke="#06b6d4"
+                          stroke={chartTheme.colors.fasting}
                           isAnimationActive={false}
                         />
                       </LineChart>

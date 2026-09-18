@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { formatWeight } from '@/utils/numberFormatting';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface PrData {
   date: string;
@@ -54,17 +55,22 @@ export const PrProgressionChart = ({
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={sortedData}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid {...chartTheme.grid} />
               <XAxis
                 dataKey="date"
                 tickFormatter={(date) => formatDate(date)}
                 minTickGap={30}
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
               />
               <YAxis
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
                 tickFormatter={(value) => formatWeight(value, weightUnit)}
               />
               <Tooltip
                 labelFormatter={(label) => formatDate(label)}
+                {...chartTheme.tooltip}
                 formatter={(
                   value:
                     | string
@@ -82,12 +88,12 @@ export const PrProgressionChart = ({
                   ];
                 }}
               />
-              <Legend />
+              <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
               <Line
                 type="monotone"
                 dataKey="oneRM"
                 name="oneRM"
-                stroke="#10b981"
+                stroke={chartTheme.colors.workout}
                 strokeWidth={2}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}
@@ -96,7 +102,8 @@ export const PrProgressionChart = ({
                 type="monotone"
                 dataKey="maxWeight"
                 name="maxWeight"
-                stroke="#3b82f6"
+                stroke={chartTheme.colors.workout}
+                strokeOpacity={0.6}
                 strokeWidth={2}
                 dot={{ r: 4 }}
               />

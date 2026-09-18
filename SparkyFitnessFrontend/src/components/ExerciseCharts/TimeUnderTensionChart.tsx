@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface TimeUnderTensionChartProps {
   data: { date: string; timeUnderTension: number }[];
@@ -53,9 +54,15 @@ export const TimeUnderTensionChart = ({
                 data={data}
                 margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
+                <CartesianGrid {...chartTheme.grid} />
+                <XAxis
+                  dataKey="date"
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <YAxis
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                   label={{
                     value: t(
                       'exerciseReportsDashboard.timeUnderTensionMin',
@@ -64,16 +71,17 @@ export const TimeUnderTensionChart = ({
                     angle: -90,
                     position: 'insideLeft',
                     offset: 10,
-                    style: { textAnchor: 'middle' },
+                    style: {
+                      textAnchor: 'middle',
+                      fill: chartTheme.axis.stroke,
+                    },
                   }}
                 />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
-                />
-                <Legend />
+                <Tooltip {...chartTheme.tooltip} />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Bar
                   dataKey="timeUnderTension"
-                  fill="#d0ed57"
+                  fill={chartTheme.colors.workout}
                   name={exerciseName}
                   isAnimationActive={false}
                 />

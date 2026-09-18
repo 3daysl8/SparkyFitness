@@ -25,6 +25,7 @@ import {
   CustomCategoriesResponse,
   CustomMeasurementsResponse,
 } from '@workspace/shared';
+import { chartTheme } from '@/lib/chartTheme';
 
 // Respiration metric names as they come from Garmin sync
 const RESPIRATION_METRICS = [
@@ -266,26 +267,26 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
               <div className="flex justify-center gap-8">
                 {/* Sleep Avg */}
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-blue-500">
+                  <p className="text-4xl font-bold text-metric-recovery">
                     {stats?.sleepAvg?.toFixed(0) ??
                       latestData?.sleepAvg?.toFixed(0) ??
                       '--'}
                   </p>
                   <p className="text-sm text-muted-foreground">brpm</p>
-                  <p className="text-sm font-medium text-blue-500">
+                  <p className="text-sm font-medium text-metric-recovery">
                     {t('reports.sleepAvg', 'Sleep Avg')}
                   </p>
                 </div>
 
                 {/* Awake Avg */}
                 <div className="text-center">
-                  <p className="text-4xl font-bold text-cyan-500">
+                  <p className="text-4xl font-bold text-metric-recovery">
                     {stats?.awakeAvg?.toFixed(0) ??
                       latestData?.awakeAvg?.toFixed(0) ??
                       '--'}
                   </p>
                   <p className="text-sm text-muted-foreground">brpm</p>
-                  <p className="text-sm font-medium text-cyan-500">
+                  <p className="text-sm font-medium text-metric-recovery">
                     {t('reports.awakeAvg', 'Awake Avg')}
                   </p>
                 </div>
@@ -327,37 +328,26 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
                   syncId={REPORTS_CHART_SYNC_ID}
                   syncMethod={syncMethod}
                 >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="hsl(var(--border))"
-                  />
+                  <CartesianGrid {...chartTheme.grid} vertical={false} />
                   <XAxis
                     {...getTimeXAxisProps({
                       chartScaleMode,
                       formatDate: formatDateInUserTimezone,
                     })}
-                    fontSize={11}
                     tickLine={false}
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                   />
                   <YAxis
                     domain={[8, 24]}
-                    fontSize={11}
                     tickLine={false}
                     axisLine={false}
-                    stroke="hsl(var(--muted-foreground))"
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                     tickFormatter={(value) => `${value}`}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                      color: 'hsl(var(--foreground))',
-                    }}
+                    {...chartTheme.tooltip}
                     formatter={(
                       value:
                         | string
@@ -382,6 +372,7 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
                     labelFormatter={formatChartDate}
                   />
                   <Legend
+                    wrapperStyle={chartTheme.legend.wrapperStyle}
                     formatter={(value) => {
                       const labels: Record<string, string> = {
                         sleepAvg: t('reports.sleepAvg', 'Sleep Avg'),
@@ -396,23 +387,33 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
                     <Line
                       type="monotone"
                       dataKey="sleepAvg"
-                      stroke="#3b82f6"
+                      stroke={chartTheme.colors.recovery}
                       strokeWidth={2}
-                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, fill: '#3b82f6' }}
+                      dot={{
+                        fill: chartTheme.colors.recovery,
+                        strokeWidth: 2,
+                        r: 4,
+                      }}
+                      activeDot={{ r: 6, fill: chartTheme.colors.recovery }}
                       connectNulls
                       isAnimationActive={false}
                     />
                   )}
-                  {/* Awake Avg line (cyan) */}
+                  {/* Awake Avg line */}
                   {hasSleepAwakeData && (
                     <Line
                       type="monotone"
                       dataKey="awakeAvg"
-                      stroke="#06b6d4"
+                      stroke={chartTheme.colors.recovery}
+                      strokeOpacity={0.6}
                       strokeWidth={2}
-                      dot={{ fill: '#06b6d4', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, fill: '#06b6d4' }}
+                      dot={{
+                        fill: chartTheme.colors.recovery,
+                        strokeWidth: 2,
+                        r: 4,
+                        fillOpacity: 0.6,
+                      }}
+                      activeDot={{ r: 6, fill: chartTheme.colors.recovery }}
                       connectNulls
                       isAnimationActive={false}
                     />
@@ -422,10 +423,14 @@ const RespirationCard: React.FC<RespirationCardProps> = ({
                     <Line
                       type="monotone"
                       dataKey="average"
-                      stroke="#3b82f6"
+                      stroke={chartTheme.colors.recovery}
                       strokeWidth={2}
-                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, fill: '#3b82f6' }}
+                      dot={{
+                        fill: chartTheme.colors.recovery,
+                        strokeWidth: 2,
+                        r: 4,
+                      }}
+                      activeDot={{ r: 6, fill: chartTheme.colors.recovery }}
                       connectNulls
                       isAnimationActive={false}
                     />

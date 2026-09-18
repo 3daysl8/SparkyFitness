@@ -60,7 +60,7 @@ export const WeeklyAlcoholCard = ({ date, userId }: WeeklyAlcoholCardProps) => {
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
         <div className="flex items-center space-x-2">
-          <Wine className="w-5 h-5 text-indigo-500" />
+          <Wine className="w-5 h-5 text-muted-foreground" />
           <CardTitle className="text-base font-medium">
             {t('reports.alcohol.weeklyAlcohol', 'Weekly Alcohol Intake')}
           </CardTitle>
@@ -94,7 +94,7 @@ export const WeeklyAlcoholCard = ({ date, userId }: WeeklyAlcoholCardProps) => {
               ) : (
                 <Badge
                   variant="secondary"
-                  className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
+                  className="flex items-center gap-1 text-xs text-status-optimal bg-status-optimal/15"
                 >
                   <CheckCircle className="w-3 h-3" />
                   {t('reports.alcohol.onTrack', 'Under limit')}
@@ -112,12 +112,12 @@ export const WeeklyAlcoholCard = ({ date, userId }: WeeklyAlcoholCardProps) => {
           <div className="space-y-1">
             <Progress
               value={barValue}
-              className={`h-2 ${over_limit ? '[&>div]:bg-red-500' : '[&>div]:bg-indigo-500'}`}
+              className={`h-2 ${over_limit ? '[&>div]:bg-status-low' : '[&>div]:bg-status-optimal'}`}
             />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{percentage}%</span>
               {over_limit ? (
-                <span className="text-red-600 dark:text-red-400 font-medium">
+                <span className="text-status-low font-medium">
                   {t('reports.alcohol.drinksOver', {
                     defaultValue: '{{count}} drinks over',
                     count: Math.abs(drinksDelta),
@@ -154,10 +154,10 @@ export const WeeklyAlcoholCard = ({ date, userId }: WeeklyAlcoholCardProps) => {
                 }
                 className={`flex flex-col items-center p-1.5 rounded text-xs border ${
                   hasIntake
-                    ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800'
+                    ? 'bg-status-moderate/15 border-status-moderate/40'
                     : isUpcoming
                       ? 'border-dashed border-muted-foreground/20'
-                      : 'bg-muted/20 border-transparent'
+                      : 'bg-surface-2 border-transparent'
                 }`}
               >
                 <span
@@ -168,7 +168,7 @@ export const WeeklyAlcoholCard = ({ date, userId }: WeeklyAlcoholCardProps) => {
                 <span
                   className={`font-semibold ${
                     hasIntake
-                      ? 'text-indigo-600 dark:text-indigo-400'
+                      ? 'text-status-moderate'
                       : isUpcoming
                         ? 'text-muted-foreground/40'
                         : 'text-muted-foreground'

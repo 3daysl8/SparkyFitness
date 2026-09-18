@@ -13,6 +13,7 @@ import { TrendingUp } from 'lucide-react';
 import { formatWeight } from '@/utils/numberFormatting';
 import { Button } from '@/components/ui/button';
 import type { ExerciseProgressResponse } from '@workspace/shared';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface ExerciseProgressionChartProps {
   progressEntries: ExerciseProgressResponse[] | undefined;
@@ -134,7 +135,7 @@ export const ExerciseProgressionChart = ({
       {/* Time Range Selector & Summary */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <TrendingUp className="h-4 w-4 text-indigo-500" />
+          <TrendingUp className="h-4 w-4 text-metric-workout" />
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t(
               'exercise.exerciseDetailModal.estimated1RMProgression',
@@ -172,7 +173,7 @@ export const ExerciseProgressionChart = ({
             <span className="text-[10px] uppercase font-semibold text-muted-foreground">
               {t('exercise.exerciseDetailModal.peak1RM', 'All-Time Peak')}
             </span>
-            <p className="mt-0.5 text-sm font-bold text-indigo-600 dark:text-indigo-400">
+            <p className="mt-0.5 text-sm font-bold text-metric-workout">
               {formatWeight(stats.peak, weightUnit)}
             </p>
           </div>
@@ -181,7 +182,7 @@ export const ExerciseProgressionChart = ({
               {t('exercise.exerciseDetailModal.progressGain', 'Progress')}
             </span>
             <p
-              className={`mt-0.5 text-sm font-bold ${stats.delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}
+              className={`mt-0.5 text-sm font-bold ${stats.delta >= 0 ? 'text-status-optimal' : 'text-destructive'}`}
             >
               {stats.delta >= 0
                 ? `+${stats.percentChange}%`
@@ -200,15 +201,29 @@ export const ExerciseProgressionChart = ({
           >
             <defs>
               <linearGradient id="1rmGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                <stop
+                  offset="5%"
+                  stopColor={chartTheme.colors.workout}
+                  stopOpacity={0.4}
+                />
+                <stop
+                  offset="95%"
+                  stopColor={chartTheme.colors.workout}
+                  stopOpacity={0.0}
+                />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} />
+            <CartesianGrid {...chartTheme.grid} />
+            <XAxis
+              dataKey="date"
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
+              tickLine={false}
+            />
             <YAxis
               domain={['dataMin - 5', 'dataMax + 5']}
-              tick={{ fontSize: 10 }}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
               tickLine={false}
               tickFormatter={(val) => `${Math.round(val)}`}
             />
@@ -217,11 +232,11 @@ export const ExerciseProgressionChart = ({
                 if (active && payload && payload.length) {
                   const data = payload[0]!.payload as ProgressionDataPoint;
                   return (
-                    <div className="rounded-lg border bg-background/95 p-2 shadow-md backdrop-blur text-xs">
+                    <div className="rounded-lg border border-border bg-card p-2 text-xs">
                       <p className="font-semibold text-foreground">
                         {data.date}
                       </p>
-                      <p className="text-indigo-600 dark:text-indigo-400 font-bold mt-0.5">
+                      <p className="text-metric-workout font-bold mt-0.5">
                         Est. 1RM: {formatWeight(data.estimated1RM, weightUnit)}
                       </p>
                       <p className="text-muted-foreground text-[11px] mt-0.5">
@@ -237,7 +252,7 @@ export const ExerciseProgressionChart = ({
             <Area
               type="monotone"
               dataKey="estimated1RM"
-              stroke="#6366f1"
+              stroke={chartTheme.colors.workout}
               strokeWidth={2}
               fill="url(#1rmGradient)"
               isAnimationActive={false}

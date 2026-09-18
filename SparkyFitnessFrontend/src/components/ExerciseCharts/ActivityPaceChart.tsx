@@ -14,6 +14,7 @@ import ZoomableChart from '@/components/ZoomableChart';
 import { ChartDataPoint } from '@/types/reports';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { formatTimeWithPreference } from '@/utils/timeFormatters';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface ActivityPaceChartProps {
   data: ChartDataPoint[];
@@ -53,13 +54,16 @@ export const ActivityPaceChart = ({
               debounce={100}
             >
               <LineChart data={data} syncId="activityReportSync">
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid {...chartTheme.grid} />
                 <XAxis
                   dataKey={getXAxisDataKey()}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                   label={{
                     value: getXAxisLabel(),
                     position: 'insideBottom',
                     offset: -5,
+                    fill: chartTheme.axis.stroke,
                   }}
                   tickFormatter={(value) => {
                     if (xAxisMode === 'activityDuration')
@@ -75,13 +79,20 @@ export const ActivityPaceChart = ({
                   }}
                   interval="preserveStartEnd"
                 />
-                <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                <YAxis
+                  yAxisId="left"
+                  orientation="left"
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
-                    borderColor: 'hsl(var(--border))',
-                  }}
+                  {...chartTheme.tooltip}
                   labelFormatter={(value) => {
                     if (xAxisMode === 'timeOfDay')
                       return formatTimeWithPreference(
@@ -95,12 +106,12 @@ export const ActivityPaceChart = ({
                     return String(value);
                   }}
                 />
-                <Legend />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Line
                   yAxisId="left"
                   type="monotone"
                   dataKey="pace"
-                  stroke="#8884d8"
+                  stroke={chartTheme.colors.workout}
                   name={t('reports.activityReport.paceMinPerKm')}
                   dot={false}
                   strokeWidth={2}
@@ -110,7 +121,8 @@ export const ActivityPaceChart = ({
                   yAxisId="right"
                   type="monotone"
                   dataKey="speed"
-                  stroke="#82ca9d"
+                  stroke={chartTheme.colors.workout}
+                  strokeOpacity={0.6}
                   name={t('reports.activityReport.speedMPerS')}
                   dot={false}
                   strokeWidth={2}

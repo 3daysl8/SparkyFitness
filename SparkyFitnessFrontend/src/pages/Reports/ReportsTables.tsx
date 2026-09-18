@@ -512,7 +512,7 @@ const ReportsTables = ({
                         key={index}
                         className={
                           entry.isTotal
-                            ? 'bg-gray-50 dark:bg-gray-900 font-semibold border-t-2'
+                            ? 'bg-surface-2 font-semibold border-t-2 border-border-strong'
                             : ''
                         }
                       >
@@ -691,9 +691,7 @@ const ReportsTables = ({
                     return (
                       <React.Fragment key={entry.id}>
                         <TableRow
-                          className={
-                            isPr ? 'bg-yellow-100 dark:bg-yellow-900' : ''
-                          }
+                          className={isPr ? 'bg-status-moderate/15' : ''}
                         >
                           <TableCell>
                             <Button
@@ -750,7 +748,7 @@ const ReportsTables = ({
                           entry.sets.map((set, setIndex) => (
                             <TableRow
                               key={`${entry.id}-set-${set.id || setIndex}`}
-                              className="bg-gray-50 dark:bg-gray-800"
+                              className="bg-surface-2"
                             >
                               <TableCell></TableCell>
                               <TableCell></TableCell>

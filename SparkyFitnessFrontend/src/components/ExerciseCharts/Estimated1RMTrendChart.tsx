@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
 import { formatWeight } from '@/utils/numberFormatting';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface Estimated1RMTrendChartProps {
   data: {
@@ -60,9 +61,15 @@ export const Estimated1RMTrendChart = ({
                 data={data}
                 margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
+                <CartesianGrid {...chartTheme.grid} />
+                <XAxis
+                  dataKey="date"
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <YAxis
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                   tickFormatter={(value) => formatWeight(value, weightUnit)}
                   label={{
                     value: t(
@@ -73,19 +80,22 @@ export const Estimated1RMTrendChart = ({
                     angle: -90,
                     position: 'insideLeft',
                     offset: 10,
-                    style: { textAnchor: 'middle' },
+                    style: {
+                      textAnchor: 'middle',
+                      fill: chartTheme.axis.stroke,
+                    },
                   }}
                 />
                 <Tooltip
                   formatter={(value: TooltipValueType | undefined) =>
                     value ? formatWeight(Number(value), weightUnit) : 0
                   }
-                  contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
+                  {...chartTheme.tooltip}
                 />
-                <Legend />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Bar
                   dataKey="estimated1RM"
-                  fill="#ffc658"
+                  fill={chartTheme.colors.workout}
                   name={t(
                     'exerciseReportsDashboard.estimated1RMCurrent',
                     'Estimated 1RM (Current)'
@@ -95,7 +105,7 @@ export const Estimated1RMTrendChart = ({
                 {comparisonPeriod && (
                   <Bar
                     dataKey="comparisonEstimated1RM"
-                    fill="#ffc658"
+                    fill={chartTheme.colors.workout}
                     opacity={0.6}
                     name={t(
                       'exerciseReportsDashboard.estimated1RMComparison',

@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface RepsVsWeightChartProps {
   data: { reps: number; averageWeight: number }[];
@@ -54,12 +55,16 @@ export const RepsVsWeightChart = ({
                 margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
                 data={data}
               >
-                <CartesianGrid />
+                <CartesianGrid {...chartTheme.grid} />
                 <XAxis
                   dataKey="reps"
                   name={t('exerciseReportsDashboard.reps', 'Reps')}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                 />
                 <YAxis
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                   label={{
                     value: t(
                       'exerciseReportsDashboard.averageWeight',
@@ -69,18 +74,18 @@ export const RepsVsWeightChart = ({
                     angle: -90,
                     position: 'insideLeft',
                     offset: 10,
-                    style: { textAnchor: 'middle' },
+                    style: {
+                      textAnchor: 'middle',
+                      fill: chartTheme.axis.stroke,
+                    },
                   }}
                 />
-                <Tooltip
-                  cursor={{ strokeDasharray: '3 3' }}
-                  contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
-                />
-                <Legend />
+                <Tooltip {...chartTheme.tooltip} />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Bar
                   dataKey="averageWeight"
                   name={exerciseName}
-                  fill="#a4de6c"
+                  fill={chartTheme.colors.workout}
                   isAnimationActive={false}
                 />
               </BarChart>

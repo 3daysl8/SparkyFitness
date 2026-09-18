@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface StressDataPoint {
   time: string;
@@ -73,11 +74,22 @@ const StressChart = ({ data, title }: StressChartProps) => {
               data={formattedData}
               margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="Stress" fill="#FC8A15" isAnimationActive={false} />
+              <CartesianGrid {...chartTheme.grid} />
+              <XAxis
+                dataKey="name"
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
+              />
+              <YAxis
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
+              />
+              <Tooltip {...chartTheme.tooltip} />
+              <Bar
+                dataKey="Stress"
+                fill={chartTheme.colors.fasting}
+                isAnimationActive={false}
+              />
             </BarChart>
           </ResponsiveContainer>
         ) : (

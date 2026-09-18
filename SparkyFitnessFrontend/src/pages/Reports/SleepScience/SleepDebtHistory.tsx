@@ -17,43 +17,42 @@ import {
   YAxis,
 } from 'recharts';
 import { SleepDebtData } from '@workspace/shared';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface SleepDebtHistoryProps {
   data: SleepDebtData;
 }
 
 const DEBT_COLORS = {
-  surplus: '#22c55e',
-  minor: '#3b82f6',
-  moderate: '#f97316',
-  significant: '#ef4444',
+  surplus: 'hsl(var(--status-optimal))',
+  minor: 'hsl(var(--status-optimal))',
+  moderate: 'hsl(var(--status-moderate))',
+  significant: 'hsl(var(--status-low))',
 };
 
 function getBarColor(deviation: number): string {
-  const defaultColor = '#ccc';
-
   if (isNaN(deviation) || deviation <= 0) {
-    return DEBT_COLORS.surplus ?? defaultColor;
+    return DEBT_COLORS.surplus;
   }
 
   if (deviation < 1) {
-    return DEBT_COLORS.minor ?? defaultColor;
+    return DEBT_COLORS.minor;
   }
 
   if (deviation < 2) {
-    return DEBT_COLORS.moderate ?? defaultColor;
+    return DEBT_COLORS.moderate;
   }
 
-  return DEBT_COLORS.significant ?? defaultColor;
+  return DEBT_COLORS.significant;
 }
 
 const TrendIcon: React.FC<{ direction: string }> = ({ direction }) => {
   const size = 14;
   switch (direction) {
     case 'improving':
-      return <TrendingDown size={size} className="text-green-500" />;
+      return <TrendingDown size={size} className="text-status-optimal" />;
     case 'worsening':
-      return <TrendingUp size={size} className="text-red-500" />;
+      return <TrendingUp size={size} className="text-status-low" />;
     default:
       return <Minus size={size} className="text-muted-foreground" />;
   }
@@ -62,8 +61,6 @@ const TrendIcon: React.FC<{ direction: string }> = ({ direction }) => {
 const SleepDebtHistory: React.FC<SleepDebtHistoryProps> = ({ data }) => {
   const { t } = useTranslation();
   const { formatDateInUserTimezone, dateFormat } = usePreferences();
-  // App is dark-only; kept as a flag rather than inlining every ternary below.
-  const isDark = true;
 
   const chartData = useMemo(() => {
     return [...data.last14Days].reverse().map((day) => ({
@@ -92,29 +89,20 @@ const SleepDebtHistory: React.FC<SleepDebtHistoryProps> = ({ data }) => {
             data={chartData}
             margin={{ top: 5, right: 5, left: -15, bottom: 0 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}
-              vertical={false}
-            />
+            <CartesianGrid {...chartTheme.grid} vertical={false} />
             <XAxis
               dataKey="date"
-              stroke={isDark ? '#888' : '#666'}
-              fontSize={10}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
               interval={1}
             />
             <YAxis
-              stroke={isDark ? '#888' : '#666'}
-              fontSize={10}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
               tickFormatter={(v: number) => formatSecondsToHHMM(v * 3600)}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: isDark ? '#1e1e1e' : '#fff',
-                border: `1px solid ${isDark ? '#333' : '#ddd'}`,
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
+              {...chartTheme.tooltip}
               formatter={(
                 value:
                   string | number | ReadonlyArray<string | number> | undefined,
@@ -128,7 +116,7 @@ const SleepDebtHistory: React.FC<SleepDebtHistoryProps> = ({ data }) => {
                 return [formatSecondsToHHMM(Math.abs(val || 0) * 3600), label];
               }}
             />
-            <ReferenceLine y={0} stroke={isDark ? '#555' : '#ccc'} />
+            <ReferenceLine y={0} stroke={chartTheme.axis.stroke} />
             <Bar dataKey="deviation" radius={[2, 2, 0, 0]}>
               {chartData.map((entry, index) => (
                 <Cell

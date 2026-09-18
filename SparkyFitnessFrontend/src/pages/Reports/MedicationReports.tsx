@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
+import { chartTheme } from '@/lib/chartTheme';
 import { useProfileQuery } from '@/hooks/Settings/useProfile';
 import {
   getHydrationConstipationCorrelation,
@@ -681,14 +682,18 @@ const MedicationReports = ({
                   data={alignedDailyData}
                   margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="displayDate" fontSize={10} />
+                  <CartesianGrid {...chartTheme.grid} />
+                  <XAxis
+                    dataKey="displayDate"
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
+                  />
                   <YAxis
                     yAxisId="left"
                     orientation="left"
                     stroke="#ec4899"
                     domain={[0, 10]}
-                    fontSize={10}
+                    tick={chartTheme.axis.tick}
                     label={{
                       value: t(
                         'medications.reports.chartNauseaSeverity',
@@ -703,7 +708,7 @@ const MedicationReports = ({
                     yAxisId="right"
                     orientation="right"
                     stroke="#0ea5e9"
-                    fontSize={10}
+                    tick={chartTheme.axis.tick}
                     label={{
                       value: t('medications.reports.chartDoseMg', 'Dose (mg)'),
                       angle: 90,
@@ -711,8 +716,8 @@ const MedicationReports = ({
                       style: { textAnchor: 'middle', fontSize: 10 },
                     }}
                   />
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip {...chartTheme.tooltip} />
+                  <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                   <Bar
                     yAxisId="left"
                     dataKey="nauseaSeverity"
@@ -765,11 +770,19 @@ const MedicationReports = ({
                   data={alignedDailyData.filter((d) => d.weight !== null)}
                   margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="displayDate" fontSize={10} />
-                  <YAxis domain={['auto', 'auto']} fontSize={10} />
-                  <Tooltip />
-                  <Legend />
+                  <CartesianGrid {...chartTheme.grid} />
+                  <XAxis
+                    dataKey="displayDate"
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
+                  />
+                  <YAxis
+                    domain={['auto', 'auto']}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
+                  />
+                  <Tooltip {...chartTheme.tooltip} />
+                  <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                   <Line
                     type="monotone"
                     dataKey="weight"
@@ -832,18 +845,26 @@ const MedicationReports = ({
                   )}
                   margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="displayDate" fontSize={10} />
-                  <YAxis domain={[0, 100]} fontSize={10} />
-                  <Tooltip />
-                  <Legend />
+                  <CartesianGrid {...chartTheme.grid} />
+                  <XAxis
+                    dataKey="displayDate"
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
+                  />
+                  <Tooltip {...chartTheme.tooltip} />
+                  <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                   <Bar
                     dataKey="adherencePercent"
                     name={t(
                       'medications.reports.chartAdherenceRate',
                       'Adherence Rate'
                     )}
-                    fill="#6366f1"
+                    fill={chartTheme.colors.recovery}
                     radius={[4, 4, 0, 0]}
                     barSize={20}
                   />
@@ -877,12 +898,16 @@ const MedicationReports = ({
                   data={alignedDailyData}
                   margin={{ top: 10, right: 30, left: 10, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="displayDate" fontSize={10} />
+                  <CartesianGrid {...chartTheme.grid} />
+                  <XAxis
+                    dataKey="displayDate"
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
+                  />
                   <YAxis
                     yAxisId="left"
                     domain={[0, 10]}
-                    fontSize={10}
+                    tick={chartTheme.axis.tick}
                     label={{
                       value: t(
                         'medications.reports.chartCheckInScore',
@@ -897,7 +922,7 @@ const MedicationReports = ({
                     yAxisId="right"
                     orientation="right"
                     stroke="#0ea5e9"
-                    fontSize={10}
+                    tick={chartTheme.axis.tick}
                     label={{
                       value: t('medications.reports.chartDoseMg', 'Dose (mg)'),
                       angle: 90,
@@ -905,8 +930,8 @@ const MedicationReports = ({
                       style: { textAnchor: 'middle', fontSize: 10 },
                     }}
                   />
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip {...chartTheme.tooltip} />
+                  <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                   <Line
                     yAxisId="left"
                     type="monotone"

@@ -37,6 +37,7 @@ import type {
   Breakpoint,
 } from '@/utils/dashboardLayout';
 import { GRID_COLS } from '@/utils/dashboardLayout';
+import { chartTheme } from '@/lib/chartTheme';
 
 /** Stable widget keys for the reports-measurements dashboard layout. */
 export const STEPS_WIDGET_KEY = 'steps';
@@ -270,7 +271,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'weight',
         rawKey: 'rawWeight',
         unit: weightUnit,
-        stroke: '#e74c3c',
+        stroke: chartTheme.colors.recovery,
         icon: Scale,
         showHeaderIcon: true,
         formatValue: (val: number) => formatWeight(val, weightUnit),
@@ -284,7 +285,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'neck',
         rawKey: 'rawNeck',
         unit: measurementUnit,
-        stroke: '#3498db',
+        stroke: chartTheme.colors.recovery,
         icon: Ruler,
         showHeaderIcon: false,
         formatValue: (val: number) => formatMeasurement(val, measurementUnit),
@@ -298,7 +299,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'waist',
         rawKey: 'rawWaist',
         unit: measurementUnit,
-        stroke: '#e74c3c',
+        stroke: chartTheme.colors.recovery,
         icon: Ruler,
         showHeaderIcon: false,
         formatValue: (val: number) => formatMeasurement(val, measurementUnit),
@@ -312,7 +313,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'hips',
         rawKey: 'rawHips',
         unit: measurementUnit,
-        stroke: '#f39c12',
+        stroke: chartTheme.colors.recovery,
         icon: Ruler,
         showHeaderIcon: false,
         formatValue: (val: number) => formatMeasurement(val, measurementUnit),
@@ -326,7 +327,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'height',
         rawKey: 'rawHeight',
         unit: measurementUnit,
-        stroke: '#9b59b6',
+        stroke: chartTheme.colors.recovery,
         icon: Ruler,
         showHeaderIcon: false,
         formatValue: (val: number) => formatMeasurement(val, measurementUnit),
@@ -340,7 +341,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'body_fat_percentage',
         rawKey: 'rawBodyFat',
         unit: '%',
-        stroke: '#1abc9c',
+        stroke: chartTheme.colors.recovery,
         icon: Percent,
         showHeaderIcon: false,
         formatValue: (val: number) => `${val.toFixed(1)}%`,
@@ -353,7 +354,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'muscle_mass_kg',
         rawKey: 'rawMuscleMass',
         unit: weightUnit === 'st_lbs' ? 'lbs' : weightUnit,
-        stroke: '#e67e22',
+        stroke: chartTheme.colors.recovery,
         icon: Activity,
         showHeaderIcon: false,
         formatValue: (val: number) =>
@@ -370,7 +371,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'bone_mass_kg',
         rawKey: 'rawBoneMass',
         unit: weightUnit === 'st_lbs' ? 'lbs' : weightUnit,
-        stroke: '#95a5a6',
+        stroke: chartTheme.colors.recovery,
         icon: Activity,
         showHeaderIcon: false,
         formatValue: (val: number) =>
@@ -387,7 +388,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'body_water_percentage',
         rawKey: 'rawBodyWater',
         unit: '%',
-        stroke: '#3498db',
+        stroke: chartTheme.colors.water,
         icon: Droplet,
         showHeaderIcon: false,
         formatValue: (val: number) => `${val.toFixed(1)}%`,
@@ -400,7 +401,7 @@ export function useMeasurementChartWidgets({
         dataKey: 'bmr',
         rawKey: 'rawBmr',
         unit: getEnergyUnitString(energyUnit),
-        stroke: '#8e44ad',
+        stroke: chartTheme.colors.recovery,
         icon: Flame,
         showHeaderIcon: false,
         formatValue: (val: number) =>
@@ -488,13 +489,14 @@ export function useMeasurementChartWidgets({
                         (d) => d[metric.dataKey as keyof typeof d]
                       )}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid {...chartTheme.grid} />
                       <XAxis
                         {...getTimeXAxisProps({
                           chartScaleMode,
                           formatDate: formatDateInUserTimezone,
                         })}
-                        fontSize={10}
+                        stroke={chartTheme.axis.stroke}
+                        tick={chartTheme.axis.tick}
                         tickCount={
                           isMaximized
                             ? Math.max(chartData.length, 10)
@@ -502,7 +504,8 @@ export function useMeasurementChartWidgets({
                         }
                       />
                       <YAxis
-                        fontSize={10}
+                        stroke={chartTheme.axis.stroke}
+                        tick={chartTheme.axis.tick}
                         domain={
                           getYAxisDomain(
                             chartData.filter(
@@ -528,9 +531,7 @@ export function useMeasurementChartWidgets({
                             : '-',
                           t(metric.titleKey, metric.defaultTitle),
                         ]}
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--background))',
-                        }}
+                        {...chartTheme.tooltip}
                       />
                       <Line
                         type="monotone"
@@ -587,12 +588,14 @@ export function useMeasurementChartWidgets({
                       syncMethod={syncMethod}
                       maxBarSize={getTimeAwareMaxBarSize(chartScaleMode)}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid {...chartTheme.grid} />
                       <XAxis
                         {...getTimeXAxisProps({
                           chartScaleMode,
                           formatDate: formatDateInUserTimezone,
                         })}
+                        stroke={chartTheme.axis.stroke}
+                        tick={chartTheme.axis.tick}
                         tickCount={
                           isMaximized
                             ? Math.max(chartData.length, 10)
@@ -600,6 +603,8 @@ export function useMeasurementChartWidgets({
                         }
                       />
                       <YAxis
+                        stroke={chartTheme.axis.stroke}
+                        tick={chartTheme.axis.tick}
                         domain={
                           getYAxisDomain(
                             chartData.filter(
@@ -612,13 +617,11 @@ export function useMeasurementChartWidgets({
                       />
                       <Tooltip
                         labelFormatter={(value) => formatDateForChart(value)}
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--background))',
-                        }}
+                        {...chartTheme.tooltip}
                       />
                       <Bar
                         dataKey="steps"
-                        fill="#2ecc71"
+                        fill={chartTheme.colors.workout}
                         isAnimationActive={false}
                       />
                     </BarChart>

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { DateRangePickerWithPresets } from '@/components/ui/DateRangeWithPresets';
-import { Button } from '@/components/ui/button';
+import { SegmentedControl } from '@/components/biometric/SegmentedControl';
 import {
   Droplet,
   TrendingUp,
@@ -32,42 +32,42 @@ const ReportsControls = ({
 
   const reportTypes = [
     {
-      id: 'charts',
+      value: 'charts',
       label: t('reports.hydrationTab', 'Hydration'),
       icon: Droplet,
     },
     {
-      id: 'measurements',
+      value: 'measurements',
       label: t('reports.measurementsTab', 'Measurements'),
       icon: Activity,
     },
     {
-      id: 'fasting',
+      value: 'fasting',
       label: t('reports.fasting.insightsTab', 'Fasting'),
       icon: TrendingUp,
     },
     {
-      id: 'exercise-charts',
+      value: 'exercise-charts',
       label: t('reports.exerciseProgressTab', 'Exercise'),
       icon: Dumbbell,
     },
     {
-      id: 'sleep-analytics',
+      value: 'sleep-analytics',
       label: t('reports.sleepTab', 'Sleep'),
       icon: BedDouble,
     },
     {
-      id: 'stress-analytics',
+      value: 'stress-analytics',
       label: t('reports.stressTab', 'Stress'),
       icon: Activity,
     },
     {
-      id: 'medications-reports',
+      value: 'medications-reports',
       label: t('reports.medicationsTab', 'Medications'),
       icon: Pill,
     },
     {
-      id: 'table',
+      value: 'table',
       label: t('reports.tableTab', 'Table'),
       icon: TableIcon,
     },
@@ -75,28 +75,13 @@ const ReportsControls = ({
 
   return (
     <div className="w-full flex flex-col lg:flex-row items-center gap-4 lg:gap-6">
-      {/* Navigation Pills */}
-      <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1 flex-1">
-        {reportTypes.map((type) => {
-          const Icon = type.icon;
-          const isActive = activeTab === type.id;
-          return (
-            <Button
-              key={type.id}
-              variant={isActive ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => onTabChange(type.id)}
-              className={`rounded-full px-4 h-9 gap-2 transition-all ${
-                isActive
-                  ? 'bg-slate-200/60 dark:bg-muted shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="text-xs font-semibold">{type.label}</span>
-            </Button>
-          );
-        })}
+      {/* Navigation */}
+      <div className="flex-1 min-w-0 w-full lg:w-auto">
+        <SegmentedControl
+          options={reportTypes}
+          value={activeTab}
+          onChange={onTabChange}
+        />
       </div>
 
       {/* Vertical Divider (Desktop Only) */}

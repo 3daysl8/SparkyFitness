@@ -13,6 +13,7 @@ import {
   TooltipValueType,
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface HeartRateZoneData {
   name: string;
@@ -77,20 +78,25 @@ export const ActivityHeartRateZonesChart = ({
               debounce={100}
             >
               <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" interval={0} />
-                <YAxis />
+                <CartesianGrid {...chartTheme.grid} />
+                <XAxis
+                  dataKey="name"
+                  interval={0}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
+                <YAxis
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
-                    borderColor: 'hsl(var(--border))',
-                  }}
+                  {...chartTheme.tooltip}
                   formatter={(value: TooltipValueType | undefined) =>
                     value != null &&
                     `${Number(value).toFixed(2)} ${t('reports.activityReport.timeInZoneS')}`
                   }
                 />
-                <Legend />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Bar
                   dataKey={t('reports.activityReport.timeInZoneS')}
                   isAnimationActive={false}

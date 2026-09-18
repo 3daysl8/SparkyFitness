@@ -17,6 +17,7 @@ import type { MoodEntry } from '@/types';
 import { useTranslation } from 'react-i18next';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { getTimeXAxisProps, prepareTimeChartData } from '@/utils/chartUtils';
+import { chartTheme } from '@/lib/chartTheme';
 
 function moodTagLabel(tag: string): string {
   const def = BUILT_IN_MOODS.find((m) => m.name === tag);
@@ -113,16 +114,26 @@ const MoodChart = ({ data, title }: MoodChartProps) => {
                 layout="vertical"
                 margin={{ top: 4, right: 16, bottom: 4, left: 8 }}
               >
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                <XAxis type="number" allowDecimals={false} />
+                <CartesianGrid {...chartTheme.grid} horizontal={false} />
+                <XAxis
+                  type="number"
+                  allowDecimals={false}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <YAxis
                   type="category"
                   dataKey="label"
                   width={120}
-                  tick={{ fontSize: 12 }}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                 />
-                <Tooltip />
-                <Bar dataKey="count" fill="#C9524E" radius={[0, 4, 4, 0]} />
+                <Tooltip {...chartTheme.tooltip} />
+                <Bar
+                  dataKey="count"
+                  fill={chartTheme.axis.stroke}
+                  radius={[0, 4, 4, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -144,28 +155,32 @@ const MoodChart = ({ data, title }: MoodChartProps) => {
               <ScatterChart
                 margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
               >
-                <CartesianGrid />
+                <CartesianGrid {...chartTheme.grid} />
                 <XAxis
                   {...getTimeXAxisProps({
                     chartScaleMode,
                     formatDate: formatDateInUserTimezone,
                   })}
                   name={t('mood.date', 'Date')}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                 />
                 <YAxis
                   type="number"
                   dataKey="moodValue"
                   name={t('mood.mood', 'Mood')}
                   domain={[0, 100]}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                 />
                 <Tooltip
-                  cursor={{ strokeDasharray: '3 3' }}
+                  cursor={{ fill: 'hsl(var(--surface-2))' }}
                   content={<CustomTooltip />}
                 />
                 <Scatter
                   name={t('mood.dailyMood', 'Daily Mood')}
                   data={formattedData}
-                  fill="#8884d8"
+                  fill={chartTheme.axis.stroke}
                   shape={(props) => {
                     const { cx, cy, payload } = props;
                     return (
@@ -213,7 +228,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const entry = payload[0]?.payload;
     return (
-      <div className="p-2 bg-background border rounded-md shadow-md">
+      <div className="p-2 bg-card border border-border rounded-md text-xs">
         <p className="label">
           {entry
             ? `${formatDateInUserTimezone(entry.date, 'MMM dd, yyyy')}`

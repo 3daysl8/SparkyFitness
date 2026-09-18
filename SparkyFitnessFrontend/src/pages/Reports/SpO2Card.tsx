@@ -15,6 +15,7 @@ import { Activity } from 'lucide-react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { parseISO } from 'date-fns';
 import { getSpO2Color, getSpO2Status } from '@/utils/reportUtil';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface SpO2DataPoint {
   date: string;
@@ -98,7 +99,7 @@ const SpO2Card = ({ data }: SpO2CardProps) => {
 
           <div className="flex flex-col gap-2">
             <div className="text-center">
-              <p className="text-lg font-bold text-green-500">
+              <p className="text-lg font-bold text-metric-recovery">
                 {stats.avgSpO2}%
               </p>
               <p className="text-xs text-muted-foreground">
@@ -131,34 +132,23 @@ const SpO2Card = ({ data }: SpO2CardProps) => {
             debounce={100}
           >
             <BarChart data={chartData} barCategoryGap="20%">
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="hsl(var(--border))"
-              />
+              <CartesianGrid {...chartTheme.grid} vertical={false} />
               <XAxis
                 dataKey="displayDate"
-                fontSize={10}
                 tickLine={false}
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
               />
               <YAxis
                 domain={[80, 100]}
-                fontSize={10}
                 tickLine={false}
                 axisLine={false}
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
                 tickFormatter={(value) => `${value}%`}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                  color: 'hsl(var(--foreground))',
-                }}
+                {...chartTheme.tooltip}
                 formatter={(
                   value:
                     string | number | ReadonlyArray<string | number> | undefined

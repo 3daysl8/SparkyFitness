@@ -28,6 +28,7 @@ import {
   CustomCategoriesResponse,
   CustomMeasurementsResponse,
 } from '@workspace/shared';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface BodyBatteryCardProps {
   categories: CustomCategoriesResponse[];
@@ -210,34 +211,26 @@ const BodyBatteryCard: React.FC<BodyBatteryCardProps> = ({
                   syncId={REPORTS_CHART_SYNC_ID}
                   syncMethod={syncMethod}
                 >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="hsl(var(--border))"
-                  />
+                  <CartesianGrid {...chartTheme.grid} vertical={false} />
                   <XAxis
                     {...getTimeXAxisProps({
                       chartScaleMode,
                       formatDate: formatDateInUserTimezone,
                     })}
-                    fontSize={11}
                     tickLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                   />
                   <YAxis
                     domain={[0, 100]}
-                    fontSize={11}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                   />
                   <Tooltip
                     labelFormatter={formatChartDate}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                    }}
+                    {...chartTheme.tooltip}
                     formatter={(
                       value:
                         | string
@@ -260,6 +253,7 @@ const BodyBatteryCard: React.FC<BodyBatteryCardProps> = ({
                     }}
                   />
                   <Legend
+                    wrapperStyle={chartTheme.legend.wrapperStyle}
                     formatter={(value) => {
                       const labels: Record<string, string> = {
                         highest: t('reports.highest', 'Highest'),
@@ -271,19 +265,20 @@ const BodyBatteryCard: React.FC<BodyBatteryCardProps> = ({
                   />
                   <Bar
                     dataKey="highest"
-                    fill="#3b82f6"
+                    fill={chartTheme.colors.recovery}
                     radius={[4, 4, 0, 0]}
                     isAnimationActive={false}
                   />
                   <Bar
                     dataKey="at_wake"
-                    fill="#06b6d4"
+                    fill={chartTheme.colors.recovery}
+                    fillOpacity={0.6}
                     radius={[4, 4, 0, 0]}
                     isAnimationActive={false}
                   />
                   <Bar
                     dataKey="lowest"
-                    fill="#6b7280"
+                    fill={chartTheme.axis.stroke}
                     radius={[4, 4, 0, 0]}
                     isAnimationActive={false}
                   />

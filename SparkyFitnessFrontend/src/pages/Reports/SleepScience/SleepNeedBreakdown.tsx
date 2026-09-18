@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { DailyNeedData } from '@workspace/shared';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface SleepNeedBreakdownProps {
   data: DailyNeedData;
@@ -20,29 +21,27 @@ interface SleepNeedBreakdownProps {
 
 const SleepNeedBreakdown: React.FC<SleepNeedBreakdownProps> = ({ data }) => {
   const { t } = useTranslation();
-  // App is dark-only; kept as a flag rather than inlining every ternary below.
-  const isDark = true;
 
   const chartData = [
     {
       name: t('sleepScience.baseline', 'Baseline'),
       value: data.baseline_need,
-      color: '#3b82f6',
+      color: chartTheme.colors.sleep,
     },
     {
       name: t('sleepScience.strain', 'Strain'),
       value: data.strain_addition,
-      color: '#f97316',
+      color: chartTheme.colors.workout,
     },
     {
       name: t('sleepScience.debtRecovery', 'Debt Recovery'),
       value: data.debt_addition,
-      color: '#ef4444',
+      color: 'hsl(var(--status-low))',
     },
     {
       name: t('sleepScience.naps', 'Naps'),
       value: -(data.nap_subtraction ?? 0),
-      color: '#22c55e',
+      color: 'hsl(var(--status-optimal))',
     },
   ];
 
@@ -65,19 +64,15 @@ const SleepNeedBreakdown: React.FC<SleepNeedBreakdownProps> = ({ data }) => {
             layout="horizontal"
             margin={{ top: 5, right: 5, left: -10, bottom: 0 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}
-              horizontal={false}
-            />
+            <CartesianGrid {...chartTheme.grid} horizontal={false} />
             <XAxis
               dataKey="name"
-              stroke={isDark ? '#888' : '#666'}
-              fontSize={11}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
             />
             <YAxis
-              stroke={isDark ? '#888' : '#666'}
-              fontSize={11}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
               domain={
                 chartData.some((d) => (d.value ?? 0) < 0)
                   ? ['auto', 'auto']
@@ -86,12 +81,7 @@ const SleepNeedBreakdown: React.FC<SleepNeedBreakdownProps> = ({ data }) => {
               tickFormatter={(v: number) => formatSecondsToHHMM(v * 3600)}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: isDark ? '#1e1e1e' : '#fff',
-                border: `1px solid ${isDark ? '#333' : '#ddd'}`,
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
+              {...chartTheme.tooltip}
               formatter={(
                 value:
                   string | number | ReadonlyArray<string | number> | undefined

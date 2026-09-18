@@ -17,6 +17,7 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import { useHydrationNutritionRange } from '@/hooks/Reports/useReports';
 import { calculateSmartYAxisDomain } from '@/utils/chartUtils';
 import { convertMlToSelectedUnit } from '@/utils/nutritionCalculations';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface HydrationTrendChartProps {
   startDate: string;
@@ -83,7 +84,7 @@ const HydrationTrendChart = ({
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Droplet className="w-4 h-4 text-blue-500" />
+                <Droplet className="w-4 h-4 text-metric-water" />
                 {t('reports.hydration.title', 'Hydration')} (
                 {water_display_unit})
               </CardTitle>
@@ -107,17 +108,19 @@ const HydrationTrendChart = ({
                 debounce={100}
               >
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid {...chartTheme.grid} />
                   <XAxis
                     dataKey="date"
-                    fontSize={10}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                     tickFormatter={formatDateForChart}
                     tickCount={
                       isMaximized ? Math.max(chartData.length, 10) : undefined
                     }
                   />
                   <YAxis
-                    fontSize={10}
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                     domain={yAxisDomain || undefined}
                     tickFormatter={(value: number) => value.toFixed(decimals)}
                   />
@@ -125,6 +128,7 @@ const HydrationTrendChart = ({
                     labelFormatter={(value) =>
                       formatDateForChart(value as string)
                     }
+                    {...chartTheme.tooltip}
                     formatter={(
                       value:
                         | string
@@ -150,7 +154,7 @@ const HydrationTrendChart = ({
                   <Line
                     type="monotone"
                     dataKey="water"
-                    stroke="#3b82f6"
+                    stroke={chartTheme.colors.water}
                     strokeWidth={2}
                     dot={false}
                   />

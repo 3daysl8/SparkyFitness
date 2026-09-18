@@ -19,6 +19,7 @@ import ExerciseReportsDashboard from '@/pages/Reports/ExerciseReportsDashboard';
 import SleepReport from '@/pages/Reports/SleepReport';
 import BodyBatteryCard from '@/pages/Reports/BodyBatteryCard';
 import RespirationCard from '@/pages/Reports/RespirationCard';
+import { WeeklyAlcoholCard } from '@/pages/Reports/WeeklyAlcoholCard';
 
 import StressChart from '@/pages/Reports/StressChart';
 import { debug, info } from '@/utils/logging';
@@ -212,6 +213,9 @@ const Reports = () => {
                 categories={customCategories}
                 measurementsData={customMeasurementsData}
               />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary>
+              <WeeklyAlcoholCard date={endDate} userId={activeUserId} />
             </ChartErrorBoundary>
             <ChartErrorBoundary>
               <CustomCategoryReport

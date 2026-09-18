@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
 import { usePreferences } from '@/contexts/PreferencesContext';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface SetPerformanceAnalysisChartProps {
   setPerformanceData: {
@@ -106,15 +107,19 @@ const SetPerformanceAnalysisChart = ({
                 debounce={100}
               >
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid {...chartTheme.grid} />
                   <XAxis
                     dataKey="setName"
                     tickCount={
                       isMaximized ? Math.max(chartData.length, 10) : undefined
                     }
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                   />
                   <YAxis
                     yAxisId="left"
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                     tickFormatter={(value) =>
                       weightUnit === 'st_lbs'
                         ? typeof value === 'number'
@@ -130,11 +135,14 @@ const SetPerformanceAnalysisChart = ({
                       ),
                       angle: -90,
                       position: 'insideLeft',
+                      fill: chartTheme.axis.stroke,
                     }}
                   />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
+                    stroke={chartTheme.axis.stroke}
+                    tick={chartTheme.axis.tick}
                     label={{
                       value: t(
                         'reports.setPerformanceAnalysis.avgReps',
@@ -142,10 +150,11 @@ const SetPerformanceAnalysisChart = ({
                       ),
                       angle: -90,
                       position: 'insideRight',
+                      fill: chartTheme.axis.stroke,
                     }}
                   />
                   <Tooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
+                    {...chartTheme.tooltip}
                     formatter={(
                       value:
                         | string
@@ -168,11 +177,11 @@ const SetPerformanceAnalysisChart = ({
                       return [String(val ?? ''), String(name ?? '')];
                     }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                   <Bar
                     yAxisId="left"
                     dataKey="avgWeight"
-                    fill="#8884d8"
+                    fill={chartTheme.colors.workout}
                     name={t(
                       'reports.setPerformanceAnalysis.avgWeight',
                       'Avg. Weight'
@@ -182,7 +191,8 @@ const SetPerformanceAnalysisChart = ({
                   <Bar
                     yAxisId="right"
                     dataKey="avgReps"
-                    fill="#82ca9d"
+                    fill={chartTheme.colors.workout}
+                    fillOpacity={0.6}
                     name={t(
                       'reports.setPerformanceAnalysis.avgReps',
                       'Avg. Reps'

@@ -15,6 +15,7 @@ import { Wind } from 'lucide-react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { parseISO } from 'date-fns';
 import { getRespirationStatus } from '@/utils/reportUtil';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface RespirationDataPoint {
   date: string;
@@ -119,14 +120,16 @@ const SleepRespirationCard = ({ data }: SleepRespirationCardProps) => {
 
           <div className="flex flex-col gap-2">
             <div className="text-center">
-              <p className="text-lg font-bold text-blue-500">{stats.avg}</p>
+              <p className="text-lg font-bold text-metric-recovery">
+                {stats.avg}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {t('sleepHealth.avgResp', 'Avg')}
               </p>
             </div>
             {stats.lowest !== null && (
               <div className="text-center">
-                <p className="text-lg font-bold text-orange-500">
+                <p className="text-lg font-bold text-muted-foreground">
                   {stats.lowest}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -147,33 +150,22 @@ const SleepRespirationCard = ({ data }: SleepRespirationCardProps) => {
             debounce={100}
           >
             <ComposedChart data={chartData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="hsl(var(--border))"
-              />
+              <CartesianGrid {...chartTheme.grid} vertical={false} />
               <XAxis
                 dataKey="displayDate"
-                fontSize={10}
                 tickLine={false}
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
               />
               <YAxis
                 domain={[8, 24]}
-                fontSize={10}
                 tickLine={false}
                 axisLine={false}
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                  color: 'hsl(var(--foreground))',
-                }}
+                {...chartTheme.tooltip}
                 formatter={(
                   value:
                     string | number | ReadonlyArray<string | number> | undefined
@@ -185,15 +177,15 @@ const SleepRespirationCard = ({ data }: SleepRespirationCardProps) => {
               <ReferenceArea
                 y1={12}
                 y2={20}
-                fill="hsl(var(--muted))"
-                fillOpacity={0.3}
+                fill="hsl(var(--surface-2))"
+                fillOpacity={0.5}
               />
               <Line
                 type="monotone"
                 dataKey="avg"
-                stroke="#06b6d4"
+                stroke={chartTheme.colors.recovery}
                 strokeWidth={2}
-                dot={{ fill: '#06b6d4', strokeWidth: 2, r: 3 }}
+                dot={{ fill: chartTheme.colors.recovery, strokeWidth: 2, r: 3 }}
                 connectNulls
                 isAnimationActive={false}
               />

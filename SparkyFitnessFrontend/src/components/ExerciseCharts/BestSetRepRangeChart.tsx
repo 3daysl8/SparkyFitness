@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface BestSetRepRangeChartProps {
   data: { range: string; weight: number }[];
@@ -55,9 +56,15 @@ export const BestSetRepRangeChart = ({
                 data={data}
                 margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="range" />
+                <CartesianGrid {...chartTheme.grid} />
+                <XAxis
+                  dataKey="range"
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <YAxis
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                   label={{
                     value: t(
                       'exerciseReportsDashboard.maxWeight',
@@ -67,16 +74,17 @@ export const BestSetRepRangeChart = ({
                     angle: -90,
                     position: 'insideLeft',
                     offset: 10,
-                    style: { textAnchor: 'middle' },
+                    style: {
+                      textAnchor: 'middle',
+                      fill: chartTheme.axis.stroke,
+                    },
                   }}
                 />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
-                />
-                <Legend />
+                <Tooltip {...chartTheme.tooltip} />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Bar
                   dataKey="weight"
-                  fill="#8884d8"
+                  fill={chartTheme.colors.workout}
                   isAnimationActive={false}
                 />
               </BarChart>

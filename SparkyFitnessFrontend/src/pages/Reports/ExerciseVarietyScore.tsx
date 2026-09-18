@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface ExerciseVarietyScoreProps {
   varietyData: {
@@ -45,23 +46,28 @@ const ExerciseVarietyScore = ({ varietyData }: ExerciseVarietyScoreProps) => {
           debounce={100}
         >
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="muscle" />
+            <CartesianGrid {...chartTheme.grid} />
+            <XAxis
+              dataKey="muscle"
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
+            />
             <YAxis
               allowDecimals={false}
+              stroke={chartTheme.axis.stroke}
+              tick={chartTheme.axis.tick}
               label={{
                 value: t('reports.uniqueExercises', 'Unique Exercises'),
                 angle: -90,
                 position: 'insideLeft',
+                fill: chartTheme.axis.stroke,
               }}
             />
-            <Tooltip
-              contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
-            />
-            <Legend />
+            <Tooltip {...chartTheme.tooltip} />
+            <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
             <Bar
               dataKey="count"
-              fill="#ff7300"
+              fill={chartTheme.colors.workout}
               name={t('reports.uniqueExercises', 'Unique Exercises')}
               isAnimationActive={false}
             />

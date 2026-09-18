@@ -46,6 +46,7 @@ import SleepStageChart from './SleepStageChart';
 import SleepSummaryCard from './SleepSummaryCard';
 import SpO2Card from './SpO2Card';
 import { useSleepDebtQuery } from '@/hooks/SleepScience/useSleepScience';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface SpO2DataPoint {
   date: string;
@@ -95,10 +96,11 @@ const SleepAnalyticsCharts = ({
   const { data: sleepDebtData } = useSleepDebtQuery();
   const personalizedSleepNeed = sleepDebtData?.sleepNeed || 8;
 
-  const tickColor = '#E0E0E0';
-  const gridColor = '#444';
-  const tooltipBackgroundColor = '#333';
-  const tooltipBorderColor = '#555';
+  const tickColor = chartTheme.axis.stroke;
+  const gridColor = chartTheme.grid.stroke;
+  const tooltipBackgroundColor =
+    chartTheme.tooltip.contentStyle.backgroundColor;
+  const tooltipBorderColor = 'hsl(var(--border-strong))';
 
   const [showAllHypnograms, setShowAllHypnograms] = useState(false);
 
@@ -467,16 +469,19 @@ const SleepAnalyticsCharts = ({
                           yAxisId="left"
                           orientation="left"
                           tickFormatter={formatBedWakeTime}
-                          stroke="#8884d8"
-                          tick={{ fill: '#8884d8' }}
+                          stroke={chartTheme.colors.sleep}
+                          tick={{ fill: chartTheme.colors.sleep }}
                           domain={['auto', 'auto']}
                         />
                         <YAxis
                           yAxisId="right"
                           orientation="right"
                           tickFormatter={formatBedWakeTime}
-                          stroke="#82ca9d"
-                          tick={{ fill: '#82ca9d' }}
+                          stroke={chartTheme.colors.sleep}
+                          tick={{
+                            fill: chartTheme.colors.sleep,
+                            fillOpacity: 0.6,
+                          }}
                           domain={['auto', 'auto']}
                         />
                         <Tooltip
@@ -510,7 +515,7 @@ const SleepAnalyticsCharts = ({
                           yAxisId="left"
                           type="monotone"
                           dataKey="bedtime"
-                          stroke="#8884d8"
+                          stroke={chartTheme.colors.sleep}
                           name={t('sleepAnalyticsCharts.bedtime', 'Bedtime')}
                           strokeWidth={2}
                           dot={false}
@@ -520,7 +525,8 @@ const SleepAnalyticsCharts = ({
                           yAxisId="right"
                           type="monotone"
                           dataKey="wakeTime"
-                          stroke="#82ca9d"
+                          stroke={chartTheme.colors.sleep}
+                          strokeOpacity={0.6}
                           name={t('sleepAnalyticsCharts.wakeTime', 'Wake Time')}
                           strokeWidth={2}
                           dot={false}
@@ -591,7 +597,7 @@ const SleepAnalyticsCharts = ({
                         />
                         <ReferenceLine
                           y={0}
-                          stroke="#666"
+                          stroke={chartTheme.axis.stroke}
                           strokeDasharray="3 3"
                         />
                         <Tooltip
@@ -624,7 +630,7 @@ const SleepAnalyticsCharts = ({
                         <Line
                           type="monotone"
                           dataKey="sleepDebt"
-                          stroke="#8884d8"
+                          stroke={chartTheme.colors.sleep}
                           name={t(
                             'sleepAnalyticsCharts.sleepDebtHours',
                             'Sleep Debt (hours)'
@@ -722,7 +728,7 @@ const SleepAnalyticsCharts = ({
                         <Line
                           type="monotone"
                           dataKey="sleepEfficiency"
-                          stroke="#82ca9d"
+                          stroke={chartTheme.colors.sleep}
                           name={t(
                             'sleepAnalyticsCharts.sleepEfficiency',
                             'Sleep Efficiency'

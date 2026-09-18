@@ -15,6 +15,7 @@ import ZoomableChart from '@/components/ZoomableChart';
 import { ChartDataPoint } from '@/types/reports';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { formatTimeWithPreference } from '@/utils/timeFormatters';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface ActivityElevationChartProps {
   data: ChartDataPoint[];
@@ -54,13 +55,16 @@ export const ActivityElevationChart = ({
               debounce={100}
             >
               <LineChart data={data} syncId="activityReportSync">
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid {...chartTheme.grid} />
                 <XAxis
                   dataKey={getXAxisDataKey()}
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                   label={{
                     value: getXAxisLabel(),
                     position: 'insideBottom',
                     offset: -5,
+                    fill: chartTheme.axis.stroke,
                   }}
                   tickFormatter={(value) => {
                     if (xAxisMode === 'activityDuration')
@@ -76,12 +80,12 @@ export const ActivityElevationChart = ({
                   }}
                   interval="preserveStartEnd"
                 />
-                <YAxis />
+                <YAxis
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
-                    borderColor: 'hsl(var(--border))',
-                  }}
+                  {...chartTheme.tooltip}
                   labelFormatter={(value) => {
                     if (xAxisMode === 'timeOfDay')
                       return formatTimeWithPreference(
@@ -98,11 +102,11 @@ export const ActivityElevationChart = ({
                     Number(value).toFixed(2)
                   }
                 />
-                <Legend />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Line
                   type="monotone"
                   dataKey="elevation"
-                  stroke="#007bff"
+                  stroke={chartTheme.colors.workout}
                   name={t('reports.activityReport.elevationM')}
                   dot={false}
                   strokeWidth={2}

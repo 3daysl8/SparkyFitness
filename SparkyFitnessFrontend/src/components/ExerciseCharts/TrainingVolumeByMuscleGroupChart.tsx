@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface TrainingVolumeByMuscleGroupChartProps {
   data: { muscle: string; volume: number }[];
@@ -45,9 +46,15 @@ export const TrainingVolumeByMuscleGroupChart = ({
               data={data}
               margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="muscle" />
+              <CartesianGrid {...chartTheme.grid} />
+              <XAxis
+                dataKey="muscle"
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
+              />
               <YAxis
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
                 label={{
                   value: t(
                     'exerciseReportsDashboard.volumeCurrent',
@@ -57,14 +64,16 @@ export const TrainingVolumeByMuscleGroupChart = ({
                   angle: -90,
                   position: 'insideLeft',
                   offset: 10,
-                  style: { textAnchor: 'middle' },
+                  style: { textAnchor: 'middle', fill: chartTheme.axis.stroke },
                 }}
               />
-              <Tooltip
-                contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
+              <Tooltip {...chartTheme.tooltip} />
+              <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
+              <Bar
+                dataKey="volume"
+                fill={chartTheme.colors.workout}
+                isAnimationActive={false}
               />
-              <Legend />
-              <Bar dataKey="volume" fill="#ff7300" isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>

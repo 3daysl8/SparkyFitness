@@ -15,6 +15,7 @@ import { Activity } from 'lucide-react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { parseISO } from 'date-fns';
 import { calculateBaseline, getHRVStatus } from '@/utils/reportUtil';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface HRVDataPoint {
   date: string;
@@ -140,13 +141,15 @@ const HRVCard = ({ data }: HRVCardProps) => {
 
           <div className="flex flex-col gap-2">
             <div className="text-center">
-              <p className="text-lg font-bold text-blue-500">{stats?.avg}</p>
+              <p className="text-lg font-bold text-metric-recovery">
+                {stats?.avg}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {t('sleepHealth.avgHRV', 'Avg')}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-gray-500">
+              <p className="text-lg font-bold text-muted-foreground">
                 {Math.round(baseline.low)}-{Math.round(baseline.high)}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -166,33 +169,22 @@ const HRVCard = ({ data }: HRVCardProps) => {
             debounce={100}
           >
             <ComposedChart data={transformedData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="hsl(var(--border))"
-              />
+              <CartesianGrid {...chartTheme.grid} vertical={false} />
               <XAxis
                 dataKey="displayDate"
-                fontSize={10}
                 tickLine={false}
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
               />
               <YAxis
                 domain={[yMin, yMax]}
-                fontSize={10}
                 tickLine={false}
                 axisLine={false}
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                stroke={chartTheme.axis.stroke}
+                tick={chartTheme.axis.tick}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--background))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                  color: 'hsl(var(--foreground))',
-                }}
+                {...chartTheme.tooltip}
                 formatter={(
                   value:
                     string | number | ReadonlyArray<string | number> | undefined
@@ -203,15 +195,15 @@ const HRVCard = ({ data }: HRVCardProps) => {
               <ReferenceArea
                 y1={baseline.low}
                 y2={baseline.high}
-                fill="hsl(var(--muted))"
+                fill="hsl(var(--surface-2))"
                 fillOpacity={0.5}
               />
               <Line
                 type="monotone"
                 dataKey="hrv"
-                stroke="#22c55e"
+                stroke={chartTheme.colors.recovery}
                 strokeWidth={2}
-                dot={{ fill: '#22c55e', strokeWidth: 2, r: 3 }}
+                dot={{ fill: chartTheme.colors.recovery, strokeWidth: 2, r: 3 }}
                 connectNulls
                 isAnimationActive={false}
               />

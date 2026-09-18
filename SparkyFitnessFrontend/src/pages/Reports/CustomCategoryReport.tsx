@@ -34,6 +34,7 @@ import {
   CustomMeasurementsResponse,
   getPrecision,
 } from '@workspace/shared';
+import { chartTheme } from '@/lib/chartTheme';
 
 const HIDDEN_CUSTOM_METRICS = [
   ...BODY_BATTERY_METRICS,
@@ -155,15 +156,19 @@ export const CustomCategoryReport = ({
                           syncId={REPORTS_CHART_SYNC_ID}
                           syncMethod={syncMethod}
                         >
-                          <CartesianGrid strokeDasharray="3 3" />
+                          <CartesianGrid {...chartTheme.grid} />
                           <XAxis
                             {...getTimeXAxisProps({
                               chartScaleMode,
                               formatDate: formatDateInUserTimezone,
                             })}
+                            stroke={chartTheme.axis.stroke}
+                            tick={chartTheme.axis.tick}
                           />
                           <YAxis
                             type="number"
+                            stroke={chartTheme.axis.stroke}
+                            tick={chartTheme.axis.tick}
                             domain={
                               getCustomYAxisDomain(chartData) || undefined
                             }
@@ -190,7 +195,7 @@ export const CustomCategoryReport = ({
                                 const numericValue = Number(data.value);
 
                                 return (
-                                  <div className="p-2 bg-background border rounded-md shadow-md">
+                                  <div className="p-2 bg-card border border-border rounded-md text-xs">
                                     <p className="label">{`${formatChartDate(label)} `}</p>
                                     {!isNaN(numericValue) ? (
                                       <p className="intro">{`${numericValue.toFixed(getPrecision('measurement', unit))} ${unit} `}</p>
@@ -217,7 +222,7 @@ export const CustomCategoryReport = ({
                           <Line
                             type="monotone"
                             dataKey="value"
-                            stroke="#8884d8"
+                            stroke={chartTheme.colors.recovery}
                             strokeWidth={2}
                             dot={false}
                             isAnimationActive={false}

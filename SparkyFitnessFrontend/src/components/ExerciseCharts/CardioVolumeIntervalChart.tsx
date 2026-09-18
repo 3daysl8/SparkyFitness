@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import type { ExerciseStatsSummaryResponse } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface CardioVolumeIntervalChartProps {
   summaryData?: ExerciseStatsSummaryResponse;
@@ -76,12 +77,7 @@ export const CardioVolumeIntervalChart = ({
       : metric === 'duration'
         ? `${t('exerciseAnalytics.volume.duration', 'Duration')} (${t('common.min', 'min')})`
         : `${t('exerciseAnalytics.volume.calories', 'Calories')} (kcal)`;
-  const barColor =
-    metric === 'distance'
-      ? '#3b82f6'
-      : metric === 'duration'
-        ? '#10b981'
-        : '#f59e0b';
+  const barColor = chartTheme.colors.workout;
 
   return (
     <Card className="shadow-sm border">
@@ -175,24 +171,24 @@ export const CardioVolumeIntervalChart = ({
             data={chartData}
             margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
           >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              opacity={0.3}
-            />
+            <CartesianGrid {...chartTheme.grid} vertical={false} />
             <XAxis
               dataKey="label"
               tickLine={false}
               axisLine={false}
-              tick={{ fontSize: 11 }}
+              tick={chartTheme.axis.tick}
             />
-            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tick={chartTheme.axis.tick}
+            />
             <Tooltip
               formatter={(val: unknown) => [
                 `${String(val ?? 0)} ${metric === 'distance' ? unitLabel : metric === 'duration' ? t('common.min', 'min') : 'kcal'}`,
                 metricLabel,
               ]}
-              contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+              {...chartTheme.tooltip}
             />
             <Bar dataKey={dataKey} fill={barColor} radius={[4, 4, 0, 0]} />
           </BarChart>

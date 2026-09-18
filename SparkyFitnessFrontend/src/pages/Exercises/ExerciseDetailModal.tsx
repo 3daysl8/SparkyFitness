@@ -37,6 +37,7 @@ import {
 import { formatDateToYYYYMMDD } from '@/lib/utils';
 import ExerciseProgressionChart from '@/components/ExerciseCharts/ExerciseProgressionChart';
 import ExerciseRmLadder from '@/components/ExerciseCharts/ExerciseRmLadder';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface ExerciseDetailModalProps {
   exercise: ExerciseInterface | null;
@@ -247,20 +248,26 @@ const ExerciseDetailModal = ({
                   </p>
                   <ResponsiveContainer width="100%" height={140}>
                     <BarChart data={volumeHistory.slice(-30)}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                      <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                      <CartesianGrid {...chartTheme.grid} />
+                      <XAxis
+                        dataKey="date"
+                        stroke={chartTheme.axis.stroke}
+                        tick={chartTheme.axis.tick}
+                      />
                       <YAxis
-                        tick={{ fontSize: 9 }}
+                        stroke={chartTheme.axis.stroke}
+                        tick={chartTheme.axis.tick}
                         tickFormatter={(value) => `${Math.round(value)}`}
                       />
                       <Tooltip
                         formatter={(value: TooltipValueType | undefined) =>
                           value ? formatWeight(Number(value), weightUnit) : 0
                         }
+                        {...chartTheme.tooltip}
                       />
                       <Bar
                         dataKey="volume"
-                        fill="#6366f1"
+                        fill={chartTheme.colors.workout}
                         isAnimationActive={false}
                         radius={[2, 2, 0, 0]}
                       />

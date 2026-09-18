@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import ZoomableChart from '@/components/ZoomableChart';
 import { formatWeight } from '@/utils/numberFormatting';
+import { chartTheme } from '@/lib/chartTheme';
 
 interface VolumeTrendChartProps {
   data: { date: string; volume: number; comparisonVolume: number }[];
@@ -50,9 +51,15 @@ export const VolumeTrendChart = ({
                 data={data}
                 margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
+                <CartesianGrid {...chartTheme.grid} />
+                <XAxis
+                  dataKey="date"
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
+                />
                 <YAxis
+                  stroke={chartTheme.axis.stroke}
+                  tick={chartTheme.axis.tick}
                   tickFormatter={(value) => formatWeight(value, weightUnit)}
                   label={{
                     value: t(
@@ -63,19 +70,22 @@ export const VolumeTrendChart = ({
                     angle: -90,
                     position: 'insideLeft',
                     offset: 10,
-                    style: { textAnchor: 'middle' },
+                    style: {
+                      textAnchor: 'middle',
+                      fill: chartTheme.axis.stroke,
+                    },
                   }}
                 />
                 <Tooltip
                   formatter={(value: TooltipValueType | undefined) =>
                     value ? formatWeight(Number(value), weightUnit) : 0
                   }
-                  contentStyle={{ backgroundColor: 'hsl(var(--background))' }}
+                  {...chartTheme.tooltip}
                 />
-                <Legend />
+                <Legend wrapperStyle={chartTheme.legend.wrapperStyle} />
                 <Bar
                   dataKey="volume"
-                  fill="#8884d8"
+                  fill={chartTheme.colors.workout}
                   name={t(
                     'exerciseReportsDashboard.volumeCurrent',
                     'Volume (Current)'
@@ -85,7 +95,7 @@ export const VolumeTrendChart = ({
                 {comparisonPeriod && (
                   <Bar
                     dataKey="comparisonVolume"
-                    fill="#8884d8"
+                    fill={chartTheme.colors.workout}
                     opacity={0.6}
                     name={t(
                       'exerciseReportsDashboard.volumeComparison',
