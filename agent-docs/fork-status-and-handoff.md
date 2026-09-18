@@ -4,13 +4,57 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-19 — dark biometric redesign, all 6 phases now built. Phase 6
-(`2a2dfc6e6`) is committed locally on `main` but NOT yet deployed to Pi5** (per this fork's
-per-phase convention: local commit + local verification, deploy is a separate follow-up step
-after Isaac reviews). Full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`;
-design spec at `agent-docs/design-system.md`. Phases 1-5 (`2399c91a3`, `729cc1393`, `fe9624c16`,
-`28ecb2bb3`, `3bc8fecc6`) plus their follow-up fixes (`62a85bff1`, and Phase 5's deploy) are all
-committed and deployed to Pi5 already — only Phase 6 is still pending deploy.
+**Status as of 2026-09-19 — dark biometric redesign, ALL 6 PHASES shipped, live-verified, and
+deployed to Pi5. The whole plan (`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`)
+is complete.** Design spec at `agent-docs/design-system.md`. Phase 6 (`f278a833f` locally, pushed
+to `origin/main` at the same hash) is the last phase and is now live in production — commit
+`f278a833f` is the exact code running on Pi5, confirmed by `docker inspect` image-ID match (see
+below). Phases 1-5 (`2399c91a3`, `729cc1393`, `fe9624c16`, `28ecb2bb3`, `3bc8fecc6`) plus their
+follow-up fixes (`62a85bff1`, Phase 5's own deploy) were already live; Phase 6 closes out the
+redesign entirely.
+
+**Phase 6 deploy, 2026-09-19**: pushed the 3 local Phase 6 commits (`2a2dfc6e6` feat, `d3ed33c13`
+docs, `f278a833f` docs) straight to `origin/main` (fast-forward, no conflicts — Pi5's build clone
+was exactly at the pre-Phase-6 base). SSH'd to Pi5, `git pull --ff-only` on
+`/home/pi1/sparkyfitness-build` landed cleanly at `f278a83`. `pg_dump -Fc` backup taken before
+touching anything running (998 TOC entries, restorability confirmed via `pg_restore --list` inside
+the `sparkyfitness-db` container), copied into the bind-mounted `backup/` dir
+(`pre-2a2dfc6_20260919_072550.dump`) via the usual `sudo cp` + `chown` dance (direct write into
+`backup/` from `pi1` still 403s, per the standing gotcha). Current running image tagged
+`sparkyfitness:pre-f278a833f` for rollback before rebuilding. Built **directly as
+`sparkyfitness:custom`** (`docker build --no-cache -t sparkyfitness:custom -f
+docker/Dockerfile.frontend .` from `/home/pi1/sparkyfitness-build`, repo-root context) — no decoy
+tag this time, the build's own internal `pnpm run validate && vite build` passed clean on the arm64
+host too. Confirmed the built image actually contains Phase 6 content before deploying: extracted
+`/usr/share/nginx/html` from a throwaway `docker create`d container and grepped
+`FocusPage-D2xDQZCi.js` for "North Star"/"Weekly Milestone" — both present, and that chunk hash is
+byte-identical to the one this session's own local `pnpm run build` produced earlier, strong
+evidence the exact same build output shipped. `docker compose up -d --force-recreate
+sparkyfitness-frontend` from `/home/pi1/sparkyfitness`, container reported `healthy` in ~6s,
+`docker inspect sparkyfitness-sparkyfitness-frontend-1 --format '{{.Image}}'` returned
+`sha256:bad3e85d...`, exactly matching `docker images sparkyfitness:custom`'s ID — the real
+confirmation a deploy took, not just a clean container start. Backend `/api/health` still
+`{"status":"UP"}` from inside the server container throughout (never touched, frontend-only
+deploy). `docker builder prune -af` after (5.6GB reclaimed).
+
+**Live-verified on production** (`https://sparkyfitness.tail854f4e.ts.net`), both widths, in the
+same Playwright profile Phase 5's false alarm happened in — cleared the stale state *before*
+trusting anything rendered, per that lesson: `navigator.serviceWorker.getRegistrations()` found
+and unregistered 1 stale registration, `caches.keys()` found 0 (nothing to clear), then a fresh
+navigation. Confirmed clean: Settings' `SegmentedControl` and flattened accordions render
+identically to the dev-stack verification (hairline dividers, no card-in-card, horizontal-scrolling
+pill row that never wraps at 390px) on both `/settings` tabs checked (`Profile & Account`,
+`Developer & Integrations`), zero console errors on this pass (the logged-in production account
+isn't demo-restricted, so none of the demo-account 403 noise from the dev-stack check applies
+here). Focus page's onboarding empty-state card (dashed border, no gradient) renders correctly at
+both widths with no horizontal overflow and the bottom nav staying correctly fixed. **One honest
+gap**: the production account used for this check (`xad`) has zero Focus data configured, so the
+actual populated 3-tier `GoalCascade` rail (filled/ringed/dotted nodes with real tiers) could not
+be re-confirmed live in production — that exact rendering was already verified with real fixture
+data against the dev stack's demo account earlier this session (see below), and production is
+running the identical build, so this is a reasonable inference rather than a re-proven fact.
+Whoever next has real Focus data on their own production account should give the populated cascade
+a quick look.
 
 **Phase 6 (`2a2dfc6e6`) — Focus + Settings, the final phase**: built `src/components/biometric/
 GoalCascade.tsx` per plan §2.4 — a single vertical rail (hairline `bg-border` spine, absolutely
@@ -145,10 +189,9 @@ demo account at 1440px and 390px:
 - Console showed the expected demo-account 403s (`ai-service-settings`, `external-providers`) —
   pre-existing guard behaviour, not a regression from this phase's diff.
 
-**Deploy still pending for Phase 6**: not yet built/tagged/pushed to Pi5. Follow the same
-`sparkyfitness:custom` tag + `docker inspect --format '{{.Image}}'` confirmation recipe as every
-prior phase (see the Phase 4 deploy-gotcha entry below) — frontend-only, no
-`SparkyFitnessServer/` changes this phase.
+**Phase 6 deployed** — see the deploy entry at the top of this section for the full recipe/
+verification. Frontend-only, no `SparkyFitnessServer/` changes this phase. This was the last
+phase of the plan; the dark biometric redesign is now complete end-to-end in production.
 
 **Phase 5 deploy, done correctly this time**: built/tagged straight to `sparkyfitness:custom` (per
 the gotcha below — no decoy tag this round), confirmed `docker inspect` on the recreated container
