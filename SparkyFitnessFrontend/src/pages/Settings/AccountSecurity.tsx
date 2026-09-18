@@ -92,7 +92,7 @@ export const AccountSecurity = () => {
     });
   };
   return (
-    <AccordionItem value="account-security" className="border rounded-lg mb-4">
+    <AccordionItem value="account-security">
       <AccordionTrigger
         className="flex items-center gap-2 p-4 hover:no-underline"
         description={t(
@@ -100,7 +100,7 @@ export const AccountSecurity = () => {
           'Change your email or password and manage MFA'
         )}
       >
-        <Lock className="h-5 w-5" />
+        <Lock className="h-5 w-5 text-muted-foreground" />
         {t('settings.accountSecurity.title', 'Account Security')}
       </AccordionTrigger>
       <AccordionContent className="p-4 pt-0 space-y-6">

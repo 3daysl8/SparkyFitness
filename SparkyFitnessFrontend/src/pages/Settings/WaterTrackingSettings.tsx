@@ -88,7 +88,7 @@ export const WaterTrackingSettings = () => {
           'Configure your water intake tracking settings'
         )}
       >
-        <Droplet className="h-5 w-5" />
+        <Droplet className="h-5 w-5 text-muted-foreground" />
         {t('settings.waterTracking.title', 'Water Tracking')}
       </AccordionTrigger>
       <AccordionContent className="p-4 pt-0 space-y-4">

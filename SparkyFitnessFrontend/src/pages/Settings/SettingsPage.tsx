@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
 import {
   Settings as SettingsIcon,
   Users,
@@ -13,6 +12,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { SegmentedControl } from '@/components/biometric/SegmentedControl';
 import FamilyAccessManager from './FamilyAccessManager';
 import AIServiceSettings from './AIServiceSettings';
 import CustomCategoryManager from './CustomCategoryManager';
@@ -93,48 +93,31 @@ const Settings = () => {
   return (
     <div className="space-y-6 w-full">
       <Tabs value={activeTab} className="w-full">
-        {/* Navigation Pills */}
-        <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-6">
-          {[
+        <SegmentedControl
+          className="mb-6"
+          options={[
             {
-              id: 'profile-account',
+              value: 'profile-account',
               label: t('settings.tabs.profileAccount', 'Profile & Account'),
               icon: User,
             },
             {
-              id: 'wellness',
+              value: 'wellness',
               label: t('settings.tabs.wellness', 'Wellness & Tracking'),
               icon: Heart,
             },
             {
-              id: 'developer-integrations',
+              value: 'developer-integrations',
               label: t(
                 'settings.tabs.developerIntegrations',
                 'Developer & Integrations'
               ),
               icon: SettingsIcon,
             },
-          ].map((type) => {
-            const Icon = type.icon;
-            const isActive = activeTab === type.id;
-            return (
-              <Button
-                key={type.id}
-                variant={isActive ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => handleTabChange(type.id)}
-                className={`rounded-full px-4 h-9 gap-2 transition-all ${
-                  isActive
-                    ? 'bg-slate-200/60 dark:bg-muted shadow-sm text-foreground font-semibold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 font-normal'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="text-xs">{type.label}</span>
-              </Button>
-            );
-          })}
-        </div>
+          ]}
+          value={activeTab}
+          onChange={handleTabChange}
+        />
 
         <TabsContent value="profile-account" className="mt-0">
           <Accordion
@@ -142,22 +125,13 @@ const Settings = () => {
             className="w-full"
             defaultValue={defaultExpanded}
           >
-            <AccordionItem
-              value="profile-information"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="profile-information">
               <ProfileInformation />
             </AccordionItem>
-            <AccordionItem
-              value="user-preferences"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="user-preferences">
               <PreferenceSettings />
             </AccordionItem>
-            <AccordionItem
-              value="family-access"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="family-access">
               <AccordionTrigger
                 className="flex items-center gap-2 p-4 hover:no-underline"
                 description={t(
@@ -165,17 +139,14 @@ const Settings = () => {
                   'Manage access to your data for family members'
                 )}
               >
-                <Users className="h-5 w-5" />
+                <Users className="h-5 w-5 text-muted-foreground" />
                 {t('settings.familyAccess.title', 'Family Access')}
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0">
                 <FamilyAccessManager />
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem
-              value="data-management"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="data-management">
               <AccordionTrigger
                 className="flex items-center gap-2 p-4 hover:no-underline"
                 description={t(
@@ -183,7 +154,7 @@ const Settings = () => {
                   'Import, export, or manage your data'
                 )}
               >
-                <Database className="h-5 w-5" />
+                <Database className="h-5 w-5 text-muted-foreground" />
                 {t('settings.dataManagement.sectionTitle', 'Data Management')}
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0 space-y-6">
@@ -201,10 +172,7 @@ const Settings = () => {
             className="w-full"
             defaultValue={defaultExpanded}
           >
-            <AccordionItem
-              value="notifications-reminders"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="notifications-reminders">
               <AccordionTrigger
                 className="flex items-center gap-2 p-4 hover:no-underline"
                 description={t(
@@ -212,17 +180,14 @@ const Settings = () => {
                   'Configure protocol reminders, check-in alerts, and timer feedback'
                 )}
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-5 w-5 text-muted-foreground" />
                 {t('settings.notifications.title', 'Reminders & Notifications')}
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0">
                 <NotificationSettings />
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem
-              value="cycle-tracking"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="cycle-tracking">
               <AccordionTrigger
                 className="flex items-center gap-2 p-4 hover:no-underline"
                 description={t(
@@ -230,23 +195,17 @@ const Settings = () => {
                   'Configure cycle lengths, period start date, and phase-adapted training recommendations'
                 )}
               >
-                <Heart className="h-5 w-5 text-rose-500" />
+                <Heart className="h-5 w-5 text-muted-foreground" />
                 {t('settings.cycle.title', 'Menstrual Cycle & Phase Tracking')}
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0">
                 <CycleTrackingSettings />
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem
-              value="water-tracking"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="water-tracking">
               <WaterTrackingSettings />
             </AccordionItem>
-            <AccordionItem
-              value="custom-categories"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="custom-categories">
               <AccordionTrigger
                 className="flex items-center gap-2 p-4 hover:no-underline"
                 description={t(
@@ -254,7 +213,7 @@ const Settings = () => {
                   'Create and manage custom measurement categories'
                 )}
               >
-                <Tag className="h-5 w-5" />
+                <Tag className="h-5 w-5 text-muted-foreground" />
                 {t('settings.customCategories.title', 'Custom Categories')}
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0">
@@ -270,10 +229,7 @@ const Settings = () => {
             className="w-full"
             defaultValue={defaultExpanded}
           >
-            <AccordionItem
-              value="food-and-exercise-data-providers"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="food-and-exercise-data-providers">
               <AccordionTrigger
                 className="flex items-center gap-2 p-4 hover:no-underline"
                 description={t(
@@ -281,7 +237,7 @@ const Settings = () => {
                   'Configure external food and exercise data sources and synchronize data with Garmin Connect'
                 )}
               >
-                <Cloud className="h-5 w-5" />
+                <Cloud className="h-5 w-5 text-muted-foreground" />
                 {t(
                   'settings.foodExerciseDataProviders.title',
                   'Wearable & Exercise Data Providers'
@@ -297,16 +253,10 @@ const Settings = () => {
                 <ExternalProviderSettings />
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem
-              value="calendar-feeds"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="calendar-feeds">
               <CalendarFeedSettings />
             </AccordionItem>
-            <AccordionItem
-              value="ai-service"
-              className="border rounded-lg mb-4"
-            >
+            <AccordionItem value="ai-service">
               <AccordionTrigger
                 className="flex items-center gap-2 p-4 hover:no-underline"
                 description={t(
@@ -314,7 +264,7 @@ const Settings = () => {
                   'Manage settings for AI-powered features'
                 )}
               >
-                <Sparkles className="h-5 w-5" />
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
                 {t('settings.aiService.title', 'AI Service')}
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0">

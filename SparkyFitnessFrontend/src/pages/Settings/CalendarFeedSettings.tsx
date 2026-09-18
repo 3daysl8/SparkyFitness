@@ -88,7 +88,7 @@ export default function CalendarFeedSettings() {
           'Subscribe to a Google, Apple, or Outlook calendar (.ics link) to show your schedule on the Home dashboard'
         )}
       >
-        <CalendarDays className="h-5 w-5" />
+        <CalendarDays className="h-5 w-5 text-muted-foreground" />
         {t('settings.calendar.title', 'Calendar Feeds')}
       </AccordionTrigger>
       <AccordionContent className="space-y-4 p-4 pt-0">
@@ -97,24 +97,23 @@ export default function CalendarFeedSettings() {
             <div className="h-10 rounded bg-muted/40" />
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-border">
             {feeds.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 {t('settings.calendar.empty', 'No calendars connected yet.')}
               </p>
             )}
             {feeds.map((feed) => (
-              <div
-                key={feed.id}
-                className="flex items-center gap-3 rounded-lg border p-3"
-              >
+              <div key={feed.id} className="flex items-center gap-3 py-3">
                 <span
                   aria-hidden="true"
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: feed.color ?? '#94a3b8' }}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{feed.name}</p>
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {feed.name}
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {feed.ics_url}
                   </p>
@@ -135,18 +134,18 @@ export default function CalendarFeedSettings() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-destructive hover:bg-destructive/5 hover:text-destructive"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => handleDelete(feed.id)}
                   aria-label={t('common.delete', 'Delete')}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" strokeWidth={1.5} />
                 </Button>
               </div>
             ))}
           </div>
         )}
 
-        <div className="space-y-2 border-t pt-4">
+        <div className="space-y-2 border-t border-border pt-4">
           <Label className="text-sm font-semibold">
             {t('settings.calendar.addTitle', 'Add a calendar')}
           </Label>

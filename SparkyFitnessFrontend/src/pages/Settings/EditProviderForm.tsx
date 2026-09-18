@@ -297,11 +297,11 @@ export const EditProviderForm = ({
       {editData.provider_type === 'yazio' && (
         <>
           <div className="col-span-2">
-            <div className="rounded-md border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 space-y-1.5">
-              <p className="text-sm font-semibold text-red-800 dark:text-red-200">
+            <div className="rounded-md border border-status-low/30 bg-status-low/10 p-3 space-y-1.5">
+              <p className="text-sm font-semibold text-status-low">
                 ⚠️ Unofficial API — Use at your own risk
               </p>
-              <p className="text-sm text-red-700 dark:text-red-300">
+              <p className="text-sm text-status-low">
                 YAZIO integration uses an{' '}
                 <strong>unofficial, undocumented API</strong> that is not
                 provided or endorsed by YAZIO. Using it may{' '}
@@ -309,13 +309,13 @@ export const EditProviderForm = ({
                 could also <strong>stop working at any time</strong> without
                 notice if YAZIO changes their backend.
               </p>
-              <p className="text-sm text-red-700 dark:text-red-300">
+              <p className="text-sm text-status-low">
                 For more information & client credentials, see{' '}
                 <a
                   href="https://github.com/saganos/yazio_public_api"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-red-800 dark:text-red-200 underline font-medium"
+                  className="text-status-low underline font-medium"
                 >
                   saganos/yazio_public_api
                 </a>
@@ -396,7 +396,7 @@ export const EditProviderForm = ({
             href="https://developer.nutritionix.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 underline"
+            className="text-primary underline"
           >
             Nutritionix Developer Portal
           </a>
@@ -410,7 +410,7 @@ export const EditProviderForm = ({
             href="https://platform.fatsecret.com/my-account/dashboard"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 underline"
+            className="text-primary underline"
           >
             Fatsecret Platform Dashboard
           </a>
@@ -441,7 +441,7 @@ export const EditProviderForm = ({
               href="https://fdc.nal.usda.gov/api-guide.html"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               USDA FoodData Central API Guide
             </a>
@@ -490,7 +490,7 @@ export const EditProviderForm = ({
               href="https://developer.withings.com/dashboard/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               Withings Developer Dashboard
             </a>
@@ -523,9 +523,9 @@ export const EditProviderForm = ({
           {/* Show connection status for connected Garmin accounts instead of credential fields */}
           {provider.garmin_connect_status === 'linked' ||
           provider.garmin_connect_status === 'connected' ? (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+            <div className="bg-metric-recovery/10 border border-metric-recovery/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-metric-recovery">
+                <div className="h-2 w-2 bg-metric-recovery rounded-full"></div>
                 <span className="font-medium">Connected to Garmin</span>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
@@ -618,7 +618,7 @@ export const EditProviderForm = ({
               href="https://dev.fitbit.com/apps"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               Fitbit Developer Dashboard
             </a>
@@ -687,7 +687,7 @@ export const EditProviderForm = ({
               href="https://developer.ouraring.com/applications"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               Oura Developer Portal
             </a>
@@ -756,7 +756,7 @@ export const EditProviderForm = ({
               href="https://www.strava.com/settings/api"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               Strava API Dashboard
             </a>
@@ -826,7 +826,7 @@ export const EditProviderForm = ({
               href="https://console.cloud.google.com/apis/credentials"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               Google Cloud Console
             </a>

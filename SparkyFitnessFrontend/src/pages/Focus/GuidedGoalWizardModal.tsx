@@ -333,7 +333,7 @@ export default function GuidedGoalWizardModal({
                 <div
                   key={arch.id}
                   onClick={() => handleSelectArchetype(arch)}
-                  className="cursor-pointer rounded-lg border p-3.5 transition-all hover:border-primary/50 hover:bg-muted/40 hover:shadow-sm"
+                  className="cursor-pointer rounded-lg border border-border p-3.5 transition-all hover:border-primary/50 hover:bg-surface-2"
                 >
                   <div className="flex items-center gap-2.5">
                     <span
@@ -546,7 +546,7 @@ export default function GuidedGoalWizardModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              <Label className="text-xs font-medium text-status-moderate">
                 {t(
                   'focus.wizard.dailyObstacle',
                   'Anticipated Obstacle ("What might get in the way?")'
@@ -561,7 +561,7 @@ export default function GuidedGoalWizardModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <Label className="text-xs font-medium text-metric-recovery">
                 {t(
                   'focus.wizard.dailyPlan',
                   'If-Then Backup Plan ("If obstacle occurs, I will...")'

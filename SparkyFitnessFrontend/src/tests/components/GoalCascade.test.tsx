@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import GoalCascadeCard from '@/pages/Focus/GoalCascadeCard';
+import GoalCascade from '@/components/biometric/GoalCascade';
 import type { Focus, FocusDomain } from '@/types/focus';
 
 jest.mock('react-i18next', () =>
@@ -78,10 +78,10 @@ const mockDailyList: Focus[] = [
   },
 ];
 
-describe('GoalCascadeCard', () => {
+describe('GoalCascade', () => {
   it('renders domain, North Star, Weekly Focus, and Daily WOOP habit cleanly', () => {
     render(
-      <GoalCascadeCard
+      <GoalCascade
         domain={mockDomain}
         longTerm={mockLongTerm}
         weekly={mockWeekly}
@@ -110,7 +110,7 @@ describe('GoalCascadeCard', () => {
   it('triggers onCheckIn when check-in button is clicked on a focus item', () => {
     const handleCheckIn = jest.fn();
     render(
-      <GoalCascadeCard
+      <GoalCascade
         domain={mockDomain}
         longTerm={mockLongTerm}
         weekly={mockWeekly}

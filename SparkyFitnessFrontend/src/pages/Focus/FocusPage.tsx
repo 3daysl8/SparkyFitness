@@ -59,7 +59,7 @@ import {
 import type { Focus, FocusTimeframe, FocusTargetType } from '@/types/focus';
 import WeekdayToggle from './WeekdayToggle';
 import GuidedGoalWizardModal from './GuidedGoalWizardModal';
-import GoalCascadeCard from './GoalCascadeCard';
+import { GoalCascade } from '@/components/biometric/GoalCascade';
 
 function FocusHistoryDialog({
   focus,
@@ -465,7 +465,7 @@ export default function FocusPage() {
           <Button
             size="sm"
             onClick={() => setIsWizardOpen(true)}
-            className="gap-1.5 text-xs font-semibold bg-gradient-to-r from-primary to-indigo-600 hover:opacity-90 shadow-sm"
+            className="gap-1.5 text-xs font-semibold"
           >
             <Sparkles className="h-3.5 w-3.5" />
             {t('focus.guideGoalsBtn', 'Guide My Goals')}
@@ -624,7 +624,7 @@ export default function FocusPage() {
         (today.scheduled.length > 0 ||
           today.weekly.length > 0 ||
           today.long_term.length > 0) && (
-          <Card className="border-primary/20 bg-muted/30">
+          <Card className="border-primary/20 bg-surface-2">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-xs font-semibold flex items-center gap-2 text-muted-foreground uppercase tracking-wider">
                 <Compass className="h-3.5 w-3.5 text-primary" />
@@ -634,7 +634,7 @@ export default function FocusPage() {
             <CardContent className="space-y-1.5 text-xs px-4 pb-3">
               {today.scheduled.map((f) => (
                 <p key={f.id} className="text-foreground">
-                  <strong className="text-emerald-600 dark:text-emerald-400">
+                  <strong className="text-metric-recovery">
                     {t('focus.today', 'Today')}:
                   </strong>{' '}
                   {f.statement}
@@ -642,7 +642,7 @@ export default function FocusPage() {
               ))}
               {today.weekly.map((f) => (
                 <p key={f.id} className="text-foreground">
-                  <strong className="text-amber-600 dark:text-amber-400">
+                  <strong className="text-status-moderate">
                     {t('focus.thisWeek', 'This week')}:
                   </strong>{' '}
                   {f.statement}
@@ -664,7 +664,7 @@ export default function FocusPage() {
 
       {/* Empty State Onboarding Hero Card (when 0 focuses exist) */}
       {!isLoading && focuses.length === 0 && (
-        <Card className="border-dashed border-primary/40 bg-gradient-to-br from-primary/5 via-card to-card p-6 text-center shadow-sm">
+        <Card className="border-dashed border-primary/40 bg-card p-6 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Sparkles className="h-6 w-6" />
           </div>
@@ -683,7 +683,7 @@ export default function FocusPage() {
           <div className="mt-4 flex justify-center">
             <Button
               onClick={() => setIsWizardOpen(true)}
-              className="gap-2 text-xs font-semibold bg-gradient-to-r from-primary to-indigo-600 shadow"
+              className="gap-2 text-xs font-semibold"
             >
               <Sparkles className="h-4 w-4" />
               {t(
@@ -724,9 +724,9 @@ export default function FocusPage() {
 
       {/* View Mode 1: Cascade Goal Hierarchy View */}
       {viewMode === 'cascade' && focuses.length > 0 && (
-        <div className="space-y-4">
+        <div className="divide-y divide-border rounded-xl border border-border bg-card px-4">
           {domainGroups.map((group, idx) => (
-            <GoalCascadeCard
+            <GoalCascade
               key={group.domain?.id || `unassigned-${idx}`}
               domain={group.domain}
               longTerm={group.longTerm}
@@ -736,6 +736,7 @@ export default function FocusPage() {
               onComplete={handleComplete}
               onDelete={handleDelete}
               onOpenHistory={(f) => setHistoryFocus(f)}
+              className="py-4 first:pt-4 last:pb-4"
             />
           ))}
         </div>
@@ -976,12 +977,12 @@ export default function FocusPage() {
       <Collapsible
         open={isMotivationOpen}
         onOpenChange={setIsMotivationOpen}
-        className="rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm transition-all"
+        className="rounded-xl border border-border bg-card transition-all"
       >
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-              <Flame className="h-5 w-5 fill-amber-500/20" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-status-moderate/10 text-status-moderate">
+              <Flame className="h-5 w-5" strokeWidth={1.5} />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -995,8 +996,11 @@ export default function FocusPage() {
                   variant="secondary"
                   className="gap-1 text-[11px] font-medium"
                 >
-                  <Flame className="h-3 w-3 text-amber-500 fill-amber-500/20" />
-                  {motivationScore}/10
+                  <Flame
+                    className="h-3 w-3 text-status-moderate"
+                    strokeWidth={1.5}
+                  />
+                  <span className="metric-num">{motivationScore}/10</span>
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -1030,7 +1034,7 @@ export default function FocusPage() {
         </div>
 
         <CollapsibleContent>
-          <div className="border-t border-primary/10 p-4 pt-3 space-y-4 text-sm">
+          <div className="border-t border-border p-4 pt-3 space-y-4 text-sm">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-medium text-muted-foreground">
@@ -1039,8 +1043,8 @@ export default function FocusPage() {
                     'Motivation & Drive Level (1-10)'
                   )}
                 </Label>
-                <span className="flex items-center gap-1 font-bold text-primary">
-                  <Flame className="h-4 w-4 text-amber-500 fill-amber-500/20" />
+                <span className="metric-num flex items-center gap-1 text-status-moderate">
+                  <Flame className="h-4 w-4" strokeWidth={1.5} />
                   {motivationScore}/10
                 </span>
               </div>
@@ -1052,8 +1056,8 @@ export default function FocusPage() {
                     onClick={() => setMotivationScore(score)}
                     className={`flex-1 h-8 rounded text-xs font-semibold transition-all ${
                       motivationScore === score
-                        ? 'bg-primary text-primary-foreground shadow-sm scale-105'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                        ? 'bg-primary text-primary-foreground scale-105'
+                        : 'bg-surface-2 text-muted-foreground hover:bg-surface-3'
                     }`}
                   >
                     {score}

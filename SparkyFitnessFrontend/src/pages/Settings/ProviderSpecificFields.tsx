@@ -258,14 +258,14 @@ export const ProviderSpecificFields = ({
       {provider.provider_type === 'yazio' && (
         <>
           <div className="col-span-2">
-            <div className="rounded-md border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 p-3 space-y-1.5">
-              <p className="text-sm font-semibold text-red-800 dark:text-red-200">
+            <div className="rounded-md border border-status-low/30 bg-status-low/10 p-3 space-y-1.5">
+              <p className="text-sm font-semibold text-status-low">
                 {t(
                   'settings.foodExerciseDataProviders.yazio.unofficialApiTitle',
                   '⚠️ Unofficial API — Use at your own risk'
                 )}
               </p>
-              <p className="text-sm text-red-700 dark:text-red-300">
+              <p className="text-sm text-status-low">
                 <Trans
                   i18nKey="settings.foodExerciseDataProviders.yazio.unofficialApiWarning"
                   defaults="YAZIO integration uses an <1>unofficial, undocumented API</1> that is not provided or endorsed by YAZIO. Using it may <3>risk getting your YAZIO account banned</3>. The API could also <5>stop working at any time</5> without notice if YAZIO changes their backend."
@@ -276,7 +276,7 @@ export const ProviderSpecificFields = ({
                   }}
                 />
               </p>
-              <p className="text-sm text-red-700 dark:text-red-300">
+              <p className="text-sm text-status-low">
                 <Trans
                   i18nKey="settings.foodExerciseDataProviders.yazio.moreInfoLink"
                   defaults="For more information & client credentials, see <1>saganos/yazio_public_api</1>."
@@ -286,7 +286,7 @@ export const ProviderSpecificFields = ({
                         href="https://github.com/saganos/yazio_public_api"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-red-800 dark:text-red-200 underline font-medium"
+                        className="text-status-low underline font-medium"
                       />
                     ),
                   }}
@@ -442,7 +442,7 @@ export const ProviderSpecificFields = ({
               href={providerDashboard.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               {t(providerDashboard.labelKey)}
             </a>
@@ -477,7 +477,7 @@ export const ProviderSpecificFields = ({
             href="https://www.strava.com/settings/api"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 underline"
+            className="text-primary underline"
           >
             Strava API Dashboard
           </a>
@@ -525,7 +525,7 @@ export const ProviderSpecificFields = ({
             href="https://developer.nutritionix.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 underline"
+            className="text-primary underline"
           >
             Nutritionix Developer Portal
           </a>
@@ -544,7 +544,7 @@ export const ProviderSpecificFields = ({
             href="https://platform.fatsecret.com/my-account/dashboard"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 underline"
+            className="text-primary underline"
           >
             Fatsecret Platform Dashboard
           </a>
@@ -560,7 +560,7 @@ export const ProviderSpecificFields = ({
             href="https://fdc.nal.usda.gov/api-guide.html"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 underline"
+            className="text-primary underline"
           >
             USDA FoodData Central API Guide
           </a>

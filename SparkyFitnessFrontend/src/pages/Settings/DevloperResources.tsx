@@ -10,10 +10,7 @@ import { useTranslation } from 'react-i18next';
 export const DeveloperResources = () => {
   const { t } = useTranslation();
   return (
-    <AccordionItem
-      value="developer-resources"
-      className="border rounded-lg mb-4"
-    >
+    <AccordionItem value="developer-resources">
       <AccordionTrigger
         className="flex items-center gap-2 p-4 hover:no-underline"
         description={t(
@@ -21,7 +18,7 @@ export const DeveloperResources = () => {
           'Access API documentation and resources'
         )}
       >
-        <BookOpen className="h-5 w-5" />
+        <BookOpen className="h-5 w-5 text-muted-foreground" />
         {t('settings.developerResources.title', 'Developer Resources')}
       </AccordionTrigger>
       <AccordionContent className="p-4 pt-0 space-y-4">

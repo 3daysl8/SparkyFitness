@@ -614,16 +614,29 @@ export const ProviderCard = ({
         })()}
 
         {config?.hasToken && (config.lastSync || config.tokenExpires) && (
-          <div className="text-sm text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {config.lastSync && (
-              <span>
-                Last Sync: {new Date(config.lastSync).toLocaleString()}
+              <span className="flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="size-1.5 rounded-full bg-metric-recovery"
+                />
+                Last Sync:{' '}
+                <span className="metric-num text-foreground">
+                  {new Date(config.lastSync).toLocaleString()}
+                </span>
               </span>
             )}
-            {config.lastSync && config.tokenExpires && <span> | </span>}
             {config.tokenExpires && (
-              <span>
-                Token Expires: {new Date(config.tokenExpires).toLocaleString()}
+              <span className="flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="size-1.5 rounded-full bg-status-moderate"
+                />
+                Token Expires:{' '}
+                <span className="metric-num text-foreground">
+                  {new Date(config.tokenExpires).toLocaleString()}
+                </span>
               </span>
             )}
           </div>
@@ -646,7 +659,7 @@ export const ProviderCard = ({
         'hevy',
         'strava',
       ].includes(provider.provider_type) && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2 text-xs text-yellow-800 dark:text-yellow-200 mt-2 flex flex-wrap items-center gap-1">
+        <div className="bg-status-moderate/10 border border-status-moderate/30 rounded-md p-2 text-xs text-status-moderate mt-2 flex flex-wrap items-center gap-1">
           <strong>Note from CodewithCJ:</strong> I don't own{' '}
           {provider.provider_name} device/subscription.
           <TooltipProvider>
@@ -660,7 +673,7 @@ export const ProviderCard = ({
                 <p>
                   Help improve this integration by sharing anonymized mock data!
                 </p>
-                <p className="mt-2 font-mono text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-2 rounded border border-gray-200 dark:border-gray-700">
+                <p className="mt-2 font-mono text-xs bg-surface-2 text-foreground p-2 rounded border border-border">
                   SPARKY_FITNESS_SAVE_MOCK_DATA=true
                 </p>
                 <p className="mt-2 text-xs">

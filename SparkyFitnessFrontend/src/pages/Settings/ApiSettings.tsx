@@ -107,10 +107,7 @@ export const ApiSettings = () => {
   };
 
   return (
-    <AccordionItem
-      value="api-key-management"
-      className="border rounded-lg mb-4"
-    >
+    <AccordionItem value="api-key-management">
       <AccordionTrigger
         className="flex items-center gap-2 p-4 hover:no-underline"
         description={t(
@@ -118,7 +115,7 @@ export const ApiSettings = () => {
           'Generate and manage API keys for external integrations'
         )}
       >
-        <KeyRound className="h-5 w-5" />
+        <KeyRound className="h-5 w-5 text-muted-foreground" />
         {t('settings.apiKeyManagement.title', 'API Key Management')}
       </AccordionTrigger>
       <AccordionContent className="p-4 pt-0 space-y-4">
@@ -137,14 +134,14 @@ export const ApiSettings = () => {
           color="blue"
         />
         {newlyCreatedKey && (
-          <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md mb-4">
-            <p className="text-sm font-bold text-yellow-800 dark:text-yellow-200 mb-1">
+          <div className="p-3 bg-status-moderate/10 border border-status-moderate/30 rounded-md mb-4">
+            <p className="text-sm font-bold text-status-moderate mb-1">
               {t(
                 'settings.apiKeyManagement.newKeyGenerated',
                 'New API Key Generated!'
               )}
             </p>
-            <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-2">
+            <p className="text-xs text-status-moderate mb-2">
               {t(
                 'settings.apiKeyManagement.copyWarning',
                 'Copy this key now. For security, it will NOT be shown again.'
