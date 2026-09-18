@@ -382,7 +382,15 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectGarmin(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.garmin_last_status_check,
-          tokenExpires: provider.garmin_token_expires,
+          // The backend already re-persists a refreshed token pair on every
+          // sync (garminConnectService's `new_tokens` handling), so this
+          // stays valid indefinitely with normal use. The only thing
+          // `garmin_token_expires` reflects is the short-lived `di_token`
+          // JWT decoded at login (~24h out per observation), not the
+          // long-lived OAuth1 credential that actually gates access —
+          // showing it here reads as an impending disconnection that isn't
+          // real. Same call already made for googlehealth above.
+          tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
       case 'hevy':
@@ -638,13 +646,13 @@ export const ProviderCard = ({
         'hevy',
         'strava',
       ].includes(provider.provider_type) && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2 text-xs text-yellow-800 dark:text-yellow-200 mt-2 flex items-center gap-1">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2 text-xs text-yellow-800 dark:text-yellow-200 mt-2 flex flex-wrap items-center gap-1">
           <strong>Note from CodewithCJ:</strong> I don't own{' '}
           {provider.provider_name} device/subscription.
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="underline cursor-help decoration-dotted ml-1">
+                <span className="underline cursor-help decoration-dotted">
                   How to improve this?
                 </span>
               </TooltipTrigger>
