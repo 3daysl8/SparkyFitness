@@ -104,28 +104,51 @@ already had. A production `pnpm run build` (which runs the full `validate` pipel
 succeeds clean, confirming typecheck/lint/format/knip pass repo-wide, not just on the scoped
 file list.
 
-**Live verification — partially blocked, honestly incomplete this session**: the dev frontend
-container was restarted first per the standing stale-Vite-cache gotcha, and confirmed serving
-fresh source (`curl`ing `/src/pages/Focus/FocusPage.tsx` and `/src/components/biometric/
-GoalCascade.tsx` straight from the dev server showed the new code, not a cached transform). But
-the actual Playwright browser check — desktop + 390px screenshots of the Focus cascade, the goal
-wizard modal, and the Settings segmented control/flattened accordions/provider forms — **could
-not run**: the shared `mcp-chrome-3a1305c` profile was locked exactly the same way Phase 4's
-handoff already documented (`lockfile` removal fails with "Device or resource busy" even with no
-obviously-matching `chrome.exe` process by command line). Phase 4's fix was Isaac approving a
-blanket `taskkill //F //IM chrome.exe` — that's a destructive, session-wide action (kills every
-Chrome window, including unrelated ones with unsaved state) that this session had no live human
-to get that approval from, so it was correctly **not** done unilaterally. **Whoever picks this up
-next should either free the profile lock (close the stray Chrome instance holding it, or approve
-the taskkill) and re-run the visual check before trusting this phase's UI at both widths, or run
-it themselves interactively** — the code is typecheck/lint/test/build-clean and the token/markup
-review was thorough, but per this doc's own standing lesson, a clean build has never once been
-sufficient proof on this project by itself.
+**Live-verified, both widths — the earlier same-session block was resolved and the check
+completed.** The stuck `mcp-chrome-3a1305c` profile lock (same failure mode as Phase 4's) was
+force-closed on Isaac's side later in the session; once freed, the dev frontend container was
+restarted again (stale-Vite-cache gotcha) and the full Playwright pass ran against the seeded
+demo account at 1440px and 390px:
+- **Focus page cascade**: real demo data (a "Strength & Conditioning" pillar with all 3 tiers
+  populated) rendered exactly per spec — Tier 1 filled mint node + `text-base font-semibold`,
+  Tier 2 hollow ring node indented one step with its numeric target line, Tier 3 small dot +
+  `DataRow` body with the WOOP cue/if-then lines, at both widths. The hairline rail itself is
+  intentionally near-invisible against the canvas (`--border` is 6% alpha) — confirmed that's the
+  spec, not a rendering miss, by re-reading §1.1's token table. No horizontal overflow at 390px.
+- **A full-page-screenshot artifact, not a real bug, worth remembering for the next session**:
+  a `fullPage: true` capture at 390px appeared to show the bottom nav bar rendered *inline*,
+  sandwiched between Tier 2 and Tier 3 list items. A viewport-only screenshot (no `fullPage`) at
+  the same scroll position showed the nav correctly fixed at the bottom, not duplicated anywhere
+  else. This is Playwright's full-page stitching re-capturing `position: fixed`/`sticky` elements
+  at each scroll segment — an artifact of the capture method, not the page. **Always confirm a
+  suspicious full-page screenshot against a plain viewport screenshot before treating it as a
+  layout bug.**
+- **Guide My Goals wizard modal**: opened cleanly over the Focus page at desktop width, archetype
+  cards and step indicator all token-clean, no gradients or stray shadows visible.
+- **Settings page**: `SegmentedControl` renders correctly at both widths (scrolls horizontally
+  without wrapping at 390px, `Developer & Integrations`'s trailing edge correctly clipped by the
+  scroll container rather than wrapping to a second line). Accordion items across all three tabs
+  render as flat hairline-divided rows with no nested card boundary, at both widths — confirmed
+  for `Profile & Account` (Profile Information/Preferences/Family Access/Data Management/Account
+  Security) and `Developer & Integrations` (Food & Exercise Data Providers/Calendar Feeds/AI
+  Service/API Key Management/Developer Resources), the latter's "Note" callouts now rendering on
+  the intended `status-moderate`/soft-amber tokens instead of a saturated hardcoded yellow.
+  **`ProviderCard.tsx`/`EditProviderForm.tsx`'s actual populated-provider rendering could not be
+  visually confirmed** — the demo account has zero configured external providers and the
+  `/api/external-providers` endpoint 403s for it ("This action is disabled on the demo account"),
+  a pre-existing demo-account restriction unrelated to this phase, not something this session's
+  code caused. The empty-state and accordion shell around where `ProviderCard` would render are
+  confirmed correct; the card's own populated markup (the sync-status dot/timestamp change, the
+  form's token sweep) is verified only by code review + the passing test suite, not a live
+  screenshot with real data. Whoever next has a real (non-demo) provider connected should give it
+  a quick visual pass.
+- Console showed the expected demo-account 403s (`ai-service-settings`, `external-providers`) —
+  pre-existing guard behaviour, not a regression from this phase's diff.
 
 **Deploy still pending for Phase 6**: not yet built/tagged/pushed to Pi5. Follow the same
 `sparkyfitness:custom` tag + `docker inspect --format '{{.Image}}'` confirmation recipe as every
 prior phase (see the Phase 4 deploy-gotcha entry below) — frontend-only, no
-`SparkyFitnessServer/` changes this phase. Take the live visual verification above first.
+`SparkyFitnessServer/` changes this phase.
 
 **Phase 5 deploy, done correctly this time**: built/tagged straight to `sparkyfitness:custom` (per
 the gotcha below — no decoy tag this round), confirmed `docker inspect` on the recreated container
