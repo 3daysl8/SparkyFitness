@@ -4,12 +4,22 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-19 — dark biometric redesign, Phase 5 of 6 shipped and live-verified on the
-local dev stack, NOT yet deployed to Pi5.** Full plan at
-`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
-`agent-docs/design-system.md`. Phases 1-5 (`2399c91a3`, `729cc1393`, `fe9624c16`, `28ecb2bb3`,
-`3bc8fecc6`) all committed on `main`; Phases 1-4 plus a follow-up fix (`62a85bff1`) are deployed to
-Pi5, Phase 5 is not. Phase 6 (Focus + Settings) is next, not started.
+**Status as of 2026-09-19 — dark biometric redesign, Phases 1-5 of 6 all shipped, live-verified, and
+deployed to Pi5.** Full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`;
+design spec at `agent-docs/design-system.md`. Phases 1-5 (`2399c91a3`, `729cc1393`, `fe9624c16`,
+`28ecb2bb3`, `3bc8fecc6`) plus the follow-up fix (`62a85bff1`) all committed and deployed. Phase 6
+(Focus + Settings) is next, not started.
+
+**Phase 5 deploy, done correctly this time**: built/tagged straight to `sparkyfitness:custom` (per
+the gotcha below — no decoy tag this round), confirmed `docker inspect` on the recreated container
+matched the fresh image ID, `pg_dump` backup taken and verified restorable first. Live-verification
+on production briefly showed the *old* gradient `KeyStatsWidget`/`FastingReport` tiles even after
+the image swap — **not a failed deploy, a stale PWA service-worker cache in the same Playwright
+browser profile from earlier testing this session**. `navigator.serviceWorker.getRegistrations()` +
+`unregister()` and `caches.delete()` cleared it; a fresh navigation then showed the correct deployed
+UI. Worth remembering: don't diagnose "the deploy didn't take" from a browser that already had the
+site open/cached this session — clear SW+caches (or use a clean profile) before trusting what's
+rendered as proof of what's actually served.
 
 **Phase 5 (`3bc8fecc6`) — chartTheme rollout across Progress/Reports**: new
 `src/lib/chartTheme.ts` exports shared recharts defaults (grid/axis stroke off `--border`/
