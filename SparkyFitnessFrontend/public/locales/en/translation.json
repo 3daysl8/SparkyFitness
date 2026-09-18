@@ -5128,6 +5128,7 @@
   },
   "fasting": {
     "checklistTitle": "Fasting Timer",
+    "metabolicState": "Metabolic State",
     "deletedSuccessfully": "Fast deleted successfully.",
     "editFastDesc": "Modify the fasting log details below.",
     "editFastTitle": "Edit Fast",
@@ -5844,6 +5845,7 @@
     "perDrink": "+{{volume}} {{unit}} ({{container}})",
     "defaultPerDrink": "+{{volume}} {{unit}}",
     "title": "Water Intake",
+    "ofGoal": "of {{goal}} {{unit}}",
     "fromFood": "{{volume}} {{unit}} from food",
     "noManualToRemove": "Only manually logged water can be removed here",
     "defaultContainer": "Container",

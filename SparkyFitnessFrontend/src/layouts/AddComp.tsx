@@ -42,22 +42,22 @@ const AddComp: React.FC<AddCompProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-40 bg-black bg-opacity-30 flex items-end justify-center animate-fade-in"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-background/60 backdrop-blur-sm animate-sheet-scrim-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-background rounded-t-3xl max-h-[70vh] sm:max-h-[500px] overflow-y-auto shadow-2xl border-t-4 border-primary/50 dark:border-primary/70 backdrop-filter backdrop-blur-lg bg-opacity-70 dark:bg-opacity-70 pointer-events-auto p-6 pb-20 sm:pb-6"
+        className="relative w-full max-w-lg rounded-t-3xl border-t border-border-strong bg-card/80 backdrop-blur-xl max-h-[70vh] sm:max-h-[500px] overflow-y-auto pointer-events-auto p-6 pb-20 sm:pb-6 animate-sheet-in"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-foreground/70 hover:text-foreground text-xl font-bold p-2 rounded-full hover:bg-muted-foreground/10 transition-colors"
+          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-xl font-bold p-2 rounded-full hover:bg-surface-2 transition-colors"
           aria-label="Close"
         >
           &times;
         </button>
 
-        <h2 className="text-xl font-bold text-foreground mb-4 text-center mt-2">
+        <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground mb-4 text-center mt-2">
           {title || t('addComp.quickActions', 'Quick Actions')}
         </h2>
 
@@ -68,10 +68,10 @@ const AddComp: React.FC<AddCompProps> = ({
               <Button
                 key={item.value}
                 variant="outline"
-                className="flex flex-col items-center justify-center h-24 text-center bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                className="flex flex-col items-center justify-center h-24 text-center bg-surface-2 border-border text-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-200"
                 onClick={() => handleItemClick(item.value)}
               >
-                <item.icon className="h-6 w-6 mb-1" />
+                <item.icon className="h-6 w-6 mb-1" strokeWidth={1.5} />
                 <span className="text-sm font-semibold">{item.label}</span>
               </Button>
             ))}
@@ -85,10 +85,10 @@ const AddComp: React.FC<AddCompProps> = ({
               <Button
                 key={item.value}
                 variant="outline"
-                className="flex items-center justify-center h-16 w-full text-center bg-card text-card-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                className="flex items-center justify-center h-16 w-full text-center bg-surface-2 border-border text-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-200"
                 onClick={() => handleItemClick(item.value)}
               >
-                <item.icon className="h-6 w-6 mr-2" />
+                <item.icon className="h-6 w-6 mr-2" strokeWidth={1.5} />
                 <span className="text-base font-semibold">{item.label}</span>
               </Button>
             ))}

@@ -4,12 +4,137 @@ This is a personal fork of `CodeWithCJ/SparkyFitness`, being turned into a lifes
 
 ## ⚠️ PICK UP HERE
 
-**Status as of 2026-09-18 (later still) — dark biometric redesign, Phase 2 of 6, uncommitted**:
-full plan at `C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
-`agent-docs/design-system.md`. Phase 1 (tokens, dark-only cutover, `Card` primitive) landed as
-commit `2399c91a3` on `main` — see the demoted entry below for its own detail. **Phase 2 (Today/Home
-dashboard rebuild) is implemented and fully validated locally — `pnpm run validate`, full test suite
-137/137 suites (1180/1180 tests), and a `vite build` all green — but NOT yet committed.**
+**Status as of 2026-09-18 (evening) — dark biometric redesign, Phase 3 of 6, implemented and
+validated, NOT yet committed**: full plan at
+`C:\Users\ICPET\.claude\plans\i-am-redesigning-my-fancy-clarke.md`; design spec at
+`agent-docs/design-system.md`. Phase 1 (`2399c91a3`) and Phase 2 (`729cc1393`) are both committed on
+`main` — the Phase 2 entry below previously said "uncommitted"; that was stale, it landed the same
+session. **Phase 3 (Check-in, plus the global shell work §3.1 never got its own phase number) is
+implemented, fully validated (`pnpm run validate`; full suite 137/137 suites, 1180/1180 tests,
+unchanged from baseline), and live-verified at 390px against the local dev Docker stack — but not yet
+committed.**
+
+**What Phase 3 built**:
+- **New `SegmentedControl`** (`src/components/biometric/SegmentedControl.tsx`) — the horizontally-
+  scrolling pill-row primitive from plan §2.5. First caller is `CheckIn.tsx`'s own tab selector.
+- **`CircularProgress` gained a `sweep` prop** (default 360, unchanged behaviour for existing
+  callers — `MetricCard`, `DailyStatusHero` — verified by keeping their exact strokeDasharray math
+  for the full-ring case). A `sweep < 360` draws an open arc via real SVG arc-point math (gap
+  centered at the bottom), used by the rebuilt `FastingTimerRing` at `sweep={270}`.
+- **`FastingTimerRing.tsx` and `FastingZoneBar.tsx` fully rewritten** onto tokens: the ring is now
+  `CircularProgress` on `--metric-fasting` with milestone ticks as `border-strong` hairlines (was a
+  bespoke SVG with a hardcoded 3-stop rainbow gradient, drop-shadow filter, and a pulsing knob — the
+  knob wasn't kept, nothing in the design spec calls for one and no other ring in the app has one).
+  The zone badge lost its gradient pill and is now a neutral chip with a single `--metric-fasting`
+  status dot. `FastingZoneBar` is now a hairline track where only the *current* zone carries accent
+  colour, replacing five hardcoded `bg-{color}-500` segments. **A real stroke-width scale bug caught
+  before it shipped**: `CircularProgress`'s viewBox is a fixed 36 units regardless of `size`, so
+  copying the old component's raw-pixel `strokeWidth={14}` in would have rendered a stroke ~39% of
+  the ring's diameter (a solid disc, not a ring) — fixed to `strokeWidth={4}`, matching the
+  convention `MetricCard`/`DailyStatusHero` already use in that same 36-unit space.
+- **`HomeDashboardFasting.tsx` restyled**: plain `Card` (was `bg-card/50 backdrop-blur-sm
+  border-primary/20`), the no-active-fast state now uses the shared `EmptyState` component instead
+  of a hand-rolled emoji circle, mini-stats row uses the card-label/metric-num typography pair.
+- **`CheckIn.tsx`'s pill row → `SegmentedControl`, now 6 segments**: Measurements / Log / Cabinet /
+  Fasting & Mood / Sleep / Photos. `Medications.tsx`'s own nested Log/Cabinet pill row — previously
+  rendered *inside* CheckIn's tab content, producing the exact "pill row within a pill row" plan
+  §2.5 flags — is folded up into CheckIn's own segments. `Medications` now takes a required
+  `view: 'today' | 'cabinet'` prop instead of owning `useState` tab logic. Its own `DayNavigator` row
+  was deleted too, not just the pills — it read/wrote the same `date` search param as CheckIn's own
+  navigator one level up, and `Medications` has no caller other than `CheckIn.tsx`, so it was fully
+  redundant, not just visually noisy. Also fixed while in the file: the Cabinet KPI tiles' four
+  rainbow icon colours (emerald/teal/amber/slate) → monochrome `text-muted-foreground` on a
+  `surface-2` chip, and a stray `hover:shadow-sm` on the medication list cards → `hover:bg-surface-2`.
+- **Sleep and Fasting get page-level section headers** (the card-label typography, `text-[11px]
+  uppercase tracking-[0.12em]`) atop their tab content, per the plan's "promoted from buried sub-tabs
+  to first-class sections" — Fasting and Sleep were already reachable as tabs, so this is a
+  minimal-but-real interpretation of "promoted": they read as sections now, not just anonymous tab
+  content.
+- **New `SleepVitalsHud.tsx`** (`pages/CheckIn/`) composes the sleep-vitals cards the plan named —
+  `HRVCard`, `SpO2Card`, `SleepHeartRateCard`, `SleepSummaryCard`, `SleepStageChart`, and
+  `SleepRespirationCard` (**the plan's own text said "RespirationCard", but that name belongs to an
+  unrelated custom-category component already used directly in `Reports.tsx`; the sleep-specific one
+  with the matching `data: RespirationDataPoint[]` shape is `SleepRespirationCard`, confirmed by
+  checking both files' actual prop interfaces before picking**) — around `selectedDate` via a 14-day
+  trailing window (`addDays(selectedDate, -13)`), the same window length `sleepDebtData?.last14Days`
+  already uses elsewhere in this app, not an invented number. **Extracted the pure day-grouping/
+  averaging functions that used to be local closures inside `SleepReport.tsx`** (`processSpO2Data`,
+  `processHRVData`, `processRespirationData`, `processHeartRateData`, `processSleepChartData`) into a
+  new shared `src/utils/sleepAnalytics.ts`, parameterized on `sleepEntries` — both `SleepReport.tsx`
+  and `SleepVitalsHud.tsx` now call the same functions instead of each having their own copy.
+  Behaviour-preserving refactor for `SleepReport.tsx` (same logic, just moved), confirmed by the
+  existing Reports test coverage still passing unchanged. Each composed card is still the literal
+  Reports component and self-suppresses on empty data exactly as it already did there — live-verified
+  against the demo account's real data: it has SpO2 + resting-HR history but no HRV/respiration
+  logged and no sleep entry for the exact selected day, and `HRVCard`/`SleepRespirationCard`/
+  `SleepSummaryCard`/`SleepStageChart` all correctly rendered nothing rather than an empty chart.
+- **`WaterIntake.tsx`'s hand-built "bottle" illustration replaced** with `CircularProgress` on
+  `--metric-water` and its drink-log rows converted to `DataRow`, per the plan. **Important finding,
+  not yet resolved — a product decision, not a restyle one**: `WaterIntake.tsx` has **no live caller
+  anywhere in the app** — grepped for `<WaterIntake` and found only its own test file. Home has a
+  completely separate, already-working water ring built inline in Phase 2. This is the same "compiles
+  fine, knip doesn't flag it, only a JSX-usage grep catches it" class of dead code `DailyHealthMetricsCard`
+  turned out to be in Phase 2 — except this one is still dead after being restyled, because mounting
+  it somewhere wasn't in the plan's instruction for this file (unlike `WeeklyAlcoholCard`, which the
+  plan explicitly says to wire into Measurements in Phase 5). **Isaac should decide**: delete
+  `WaterIntake.tsx` for good (if Home's ring fully supersedes it), or give it a real home on Check-in's
+  Measurements tab. Left as-is (restyled, still unmounted) rather than guessing.
+- **Global shell** (§3.1, folded into this phase since it isn't its own phase number and
+  `MainLayout.tsx` needed touching for the nav change anyway): header is now `sticky top-0` and
+  frosted (`bg-background/80 backdrop-blur-xl`, edge-to-edge instead of living inside the padded
+  container); `GitHubStarCounter`/`GitHubSponsorButton` deleted outright (not just unmounted — they
+  had no other caller, so left in place they'd become the exact dead-file problem described above).
+  Deleting them cascaded cleanly: their `useGitHubStarsQuery` hook, the `getGitHubRepo` API call, and
+  the `generalKeys.githubStars` query key all became genuinely dead too and were removed in the same
+  pass (`useAnnouncementQuery`, sharing the same file, is unaffected and still live). Bottom nav is
+  now frosted to match the header; the FAB dropped its `-translate-y-3` raised pill and
+  `shadow-lg shadow-primary/40` glow, now a flush `size-12` mint (`bg-primary`) circle — **the one
+  sanctioned exception to "accent is for data only"**, per the design spec. **Nav tab set changed to
+  Home / Workouts / (+) / Check-in / Progress** on both desktop and mobile — Focus dropped from both
+  tab bars (its content already lives on Home since Phase 2) but was deliberately *not* removed from
+  the "+" quick-actions sheet, since that's a separate `addCompItems` array the plan's own tab-set
+  instruction didn't mention, and it's still the only path to the fuller goal editor (domains/targets,
+  per Phase 2's own note that Home's quick-add can't do that). `AddComp.tsx`'s sheet was rebuilt too:
+  two dead Tailwind v3 opacity classes (`bg-opacity-70`/`bg-opacity-30`, silent no-ops in v4) and a
+  reference to a keyframe that didn't exist (`animate-fade-in`) meant the sheet was rendering fully
+  opaque, not frosted, exactly as the plan's own audit predicted — confirmed live before the fix, then
+  fixed with `bg-card/80 backdrop-blur-xl` and two real keyframes added to `index.css`
+  (`sheet-in`/`sheet-scrim-in`).
+
+**A real, pre-existing environment bug found and fixed during live verification, unrelated to this
+phase's code**: the local dev Docker stack (`docker-sparkyfitness-frontend-1`, correctly bind-mounted
+to `C:\dev\SparkyFitness\SparkyFitnessFrontend` per `docker/docker-compose.dev.yml`) rendered the
+*pre-Phase-1* light-mode UI even though the mounted source was fully current, for two independent
+reasons: (1) Vite's server-side transform cache was still serving `ThemeProvider` from the
+already-deleted `ThemeContext.tsx` — confirmed by fetching `/src/App.tsx` with `cache: 'no-store'`
+straight from the dev server and finding the string still in the response; a plain container restart
+cleared it. (2) The container's `node_modules` is a separate Docker-managed volume, not bind-mounted,
+and never got `@fontsource-variable/inter` installed — Phase 1 added it to
+`SparkyFitnessFrontend/package.json` (bind-mounted, so visible inside the container) but the
+*workspace-root* `pnpm-lock.yaml` is baked into the image at build time, not bind-mounted, so it's
+still the pre-Phase-1 lockfile inside this container even though the real, committed root lockfile on
+the host is already correct and consistent (verified: `git status` clean on both `package.json` and
+`pnpm-lock.yaml`, `@fontsource-variable/inter` present in both). `pnpm install --frozen-lockfile`
+inside the container failed on exactly that mismatch; fixed *for this session only* with
+`pnpm install --no-frozen-lockfile` run inside the running container (ephemeral — lost on the next
+`--force-recreate`/rebuild, touches nothing tracked in git) plus a restart. **The dev image should get
+a proper `--no-cache` rebuild before this stack is trusted again without re-checking this** — that's a
+container-image concern for whoever next stands up local dev, not something this session's source
+changes caused or fixed permanently.
+
+**Not yet done**: uncommitted, unpushed, undeployed — same standing caveat as every phase before it.
+Phase 4 (Workouts — tabs/library/history/playback, plus the one real feature gap, an RPE set-row
+control), Phase 5 (Progress — `chartTheme` across 39 chart files, tables, `WeeklyAlcoholCard` wired
+in), and Phase 6 (`GoalCascade`, Settings flattening) haven't started. `TodayMedications.tsx` and
+`ScheduleManager.tsx` (both rendered from the Log/Cabinet tabs this phase touched) were **deliberately
+not** converted to `DataRow` — this phase's Medications work was scoped to the pill-row fold specified
+by the plan, not a full pass over those files; `DataRow`'s own doc comment still lists them as
+outstanding candidates for whichever phase actually rebuilds that page.
+
+---
+
+**Previous entry, 2026-09-18 (earlier that day) — Phase 2 of the redesign** (commit `729cc1393` on
+`main`, corrected from "uncommitted" above — it landed later the same session):
 
 **What Phase 2 built**: the first three shared primitives, each landing with its first real caller
 per knip's zero-unused-exports rule, all in `SparkyFitnessFrontend/src/components/biometric/`:
@@ -78,10 +203,8 @@ they're real new user-facing text; only the other 34 non-English locale files ar
 8 (harmless — `t()`'s second argument is the fallback for exactly this case, so English strings
 render correctly regardless).
 
-**Not yet done**: uncommitted, unpushed, undeployed — same standing caveat as Phase 1, and the real
-acceptance test (live at 390px on Pi5) still hasn't run for either phase. Phase 3 (Check-in nav tab,
-global shell restyle, Sleep/Fasting promotion, `FastingTimerRing`/`FastingZoneBar`/water-bottle
-rewrites) hasn't started.
+**Status when written (superseded by the Phase 3 entry above)**: was uncommitted at the time; landed
+as `729cc1393` later the same session. Phase 3 has since been built — see above.
 
 ---
 

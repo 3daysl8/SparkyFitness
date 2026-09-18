@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import SleepEntrySection from './SleepEntrySection';
+import SleepVitalsHud from './SleepVitalsHud';
 import DayNavigator from '@/components/DayNavigator';
 import { CheckInForm } from './CheckInForm';
 import { RecentActivity } from './RecentActivity';
@@ -11,13 +12,13 @@ import { useSearchParams } from 'react-router-dom';
 import { CheckInPhotos } from './CheckInPhotos';
 import { useCheckInPhotoDates } from '@/hooks/CheckIn/useCheckInPhotos';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { EditFastDialog } from '../Fasting/EditFastDialog';
 import { useUpdateFastMutation } from '@/hooks/Fasting/useFasting';
 import { FastingLog } from '@/types/fasting';
 import { CombinedMeasurement } from '@/types/checkin';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Timer, Activity, Moon, Camera, Pill } from 'lucide-react';
+import { SegmentedControl } from '@/components/biometric/SegmentedControl';
+import { Timer, Activity, Moon, Camera, Clock, Package } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import Medications from '../Medications/Medications';
 
@@ -109,59 +110,45 @@ const CheckIn = () => {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-2 border-b">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 pb-4 border-b border-border">
           {/* Tab Selector on the Left */}
-          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1">
-            {[
+          <SegmentedControl
+            className="lg:w-auto"
+            value={activeTab}
+            onChange={handleTabChange}
+            options={[
               {
-                id: 'measurements',
+                value: 'measurements',
                 label: t('checkIn.tabs.measurements', 'Measurements'),
                 icon: Activity,
               },
               {
-                id: 'protocols',
-                label: t(
-                  'checkIn.tabs.protocols',
-                  'Daily Protocols & Supplements'
-                ),
-                icon: Pill,
+                value: 'log',
+                label: t('medications.tabs.log', 'Log'),
+                icon: Clock,
               },
               {
-                id: 'fasting',
+                value: 'cabinet',
+                label: t('medications.tabs.cabinet', 'Cabinet'),
+                icon: Package,
+              },
+              {
+                value: 'fasting',
                 label: t('checkIn.tabs.fasting', 'Fasting & Mood'),
                 icon: Timer,
               },
               {
-                id: 'sleep',
+                value: 'sleep',
                 label: t('checkIn.tabs.sleep', 'Sleep'),
                 icon: Moon,
               },
               {
-                id: 'photos',
+                value: 'photos',
                 label: t('checkIn.tabs.photos', 'Photos'),
                 icon: Camera,
               },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <Button
-                  key={tab.id}
-                  variant={isActive ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`rounded-full px-4 h-9 gap-2 transition-all ${
-                    isActive
-                      ? 'bg-slate-200/60 dark:bg-muted shadow-sm text-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  <Icon className="w-4.5 h-4.5" />
-                  <span className="text-xs font-semibold">{tab.label}</span>
-                </Button>
-              );
-            })}
-          </div>
+            ]}
+          />
 
           {/* Date Filter on the Right */}
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto lg:justify-end">
@@ -184,14 +171,21 @@ const CheckIn = () => {
           </div>
         </div>
 
-        <TabsContent value="protocols" className="focus-visible:outline-none">
-          <Medications />
+        <TabsContent value="log" className="focus-visible:outline-none">
+          <Medications view="today" />
+        </TabsContent>
+
+        <TabsContent value="cabinet" className="focus-visible:outline-none">
+          <Medications view="cabinet" />
         </TabsContent>
 
         <TabsContent
           value="fasting"
           className="focus-visible:outline-none space-y-6"
         >
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            {t('checkIn.tabs.fasting', 'Fasting & Mood')}
+          </h2>
           <CheckInTopRow
             mood={mood}
             moodNotes={moodNotes}
@@ -276,7 +270,17 @@ const CheckIn = () => {
           />
         </TabsContent>
 
-        <TabsContent value="sleep" className="focus-visible:outline-none">
+        <TabsContent
+          value="sleep"
+          className="focus-visible:outline-none space-y-6"
+        >
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            {t('checkIn.tabs.sleep', 'Sleep')}
+          </h2>
+          <SleepVitalsHud
+            key={`vitals-${selectedDate}`}
+            selectedDate={selectedDate}
+          />
           <SleepEntrySection key={selectedDate} selectedDate={selectedDate} />
         </TabsContent>
 

@@ -18,14 +18,11 @@ import SparkyChat from '../pages/Chat/SparkyChat';
 import AddComp from '@/layouts/AddComp';
 import GlobalSyncButton from '@/components/GlobalSyncButton';
 import UserAccountMenu from '@/components/UserAccountMenu';
-import GitHubStarCounter from '@/components/GitHubStarCounter';
-import GitHubSponsorButton from '@/components/GitHubSponsorButton';
 import GlobalNotificationIcon from '@/components/GlobalNotificationIcon';
 import { BrandMark } from '@/components/BrandMark';
 import { Button } from '@/components/ui/button';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { usePreferences } from '@/contexts/PreferencesContext';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { getGridClassNormal } from '@/utils/layout';
 
@@ -39,7 +36,6 @@ interface AddCompItem {
 const MainLayout: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const { isActingOnBehalf, hasPermission, hasWritePermission } =
     useActiveUser();
   const { getDateRelationToToday, loggingLevel } = usePreferences();
@@ -106,7 +102,11 @@ const MainLayout: React.FC = () => {
           label: t('nav.workouts', 'Workouts'),
           icon: Dumbbell,
         },
-        { value: '/focus', label: t('nav.focus', 'Focus'), icon: Compass },
+        {
+          value: '/checkin',
+          label: t('nav.checkin', 'Check-In'),
+          icon: Activity,
+        },
         {
           value: '/reports',
           label: t('nav.progress', 'Progress'),
@@ -153,7 +153,11 @@ const MainLayout: React.FC = () => {
           label: t('common.add', 'Add'),
           icon: isAddCompOpen ? X : Plus,
         },
-        { value: '/focus', label: t('nav.focus', 'Focus'), icon: Compass },
+        {
+          value: '/checkin',
+          label: t('nav.checkin', 'Check-In'),
+          icon: Activity,
+        },
         {
           value: '/reports',
           label: t('nav.progress', 'Progress'),
@@ -255,19 +259,13 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-        <div className="flex justify-between items-center mb-6">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
+        <div className="container mx-auto flex items-center justify-between gap-2 px-2 py-3 sm:px-4">
           <div className="flex items-center gap-2">
             <BrandMark size={36} />
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground dark:text-slate-300">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
               Ouros Life
             </h1>
-            {!isMobile && (
-              <>
-                <GitHubStarCounter owner="CodeWithCJ" repo="SparkyFitness" />
-                <GitHubSponsorButton owner="CodeWithCJ" />
-              </>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <GlobalSyncButton />
@@ -275,11 +273,13 @@ const MainLayout: React.FC = () => {
             <UserAccountMenu />
           </div>
         </div>
+      </header>
 
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         {/* Desktop Tabs */}
         <div className="hidden sm:block mb-8">
           <div
-            className={`grid ${gridClass} gap-2 p-1 bg-muted rounded-lg`}
+            className={`grid ${gridClass} gap-2 rounded-lg bg-surface-2 p-1`}
             role="tablist"
           >
             {availableTabs.map(({ value, label, icon: Icon }) => (
@@ -289,12 +289,11 @@ const MainLayout: React.FC = () => {
                 size="sm"
                 className={cn(
                   'flex items-center justify-center gap-2 transition-all',
-                  location.pathname === value &&
-                    'bg-background text-foreground shadow-sm'
+                  location.pathname === value && 'bg-surface-3 text-foreground'
                 )}
                 onClick={() => navigate(value)}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4" strokeWidth={1.5} />
                 <span>{label}</span>
               </Button>
             ))}
@@ -305,7 +304,7 @@ const MainLayout: React.FC = () => {
         <nav
           aria-label={t('nav.ariaLabel', 'Main navigation')}
           className={cn(
-            'apple-safe-area sm:hidden fixed bottom-0 left-0 right-0 z-50 w-full bg-background border-t transition-colors',
+            'apple-safe-area sm:hidden fixed bottom-0 left-0 right-0 z-50 w-full border-t border-border bg-background/80 backdrop-blur-xl transition-colors',
             selectedDateRelation === 'past' && 'border-date-past/80',
             selectedDateRelation === 'future' && 'border-date-future/50'
           )}
@@ -330,11 +329,11 @@ const MainLayout: React.FC = () => {
                     aria-label={label}
                     onClick={() => setIsAddCompOpen((prev) => !prev)}
                     className={cn(
-                      '-translate-y-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 transition-transform active:scale-95',
+                      'flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95',
                       isAddCompOpen && 'rotate-45'
                     )}
                   >
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-5 w-5" />
                   </button>
                 );
               }

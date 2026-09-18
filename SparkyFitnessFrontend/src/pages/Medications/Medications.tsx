@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import DayNavigator from '@/components/DayNavigator';
 import {
-  Package,
   Trash2,
   Activity,
   Clock,
@@ -40,9 +38,14 @@ import ScheduleManager from './ScheduleManager';
 import TodayMedications from './TodayMedications';
 import { formatScheduleDescription } from './medicationUtils';
 
-export default function Medications() {
+interface MedicationsProps {
+  /** Which half of the old Log/Cabinet split to render — folded up into the
+   * parent CheckIn page's own SegmentedControl rather than a nested one. */
+  view: 'today' | 'cabinet';
+}
+
+export default function Medications({ view }: MedicationsProps) {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'today' | 'cabinet'>('today');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -93,56 +96,7 @@ export default function Medications() {
 
   return (
     <div className="space-y-6">
-      {/* Navigation & Date Filter Row */}
-      <div className="w-full flex flex-col lg:flex-row items-center gap-4 lg:gap-6 border-b pb-3 mb-6">
-        {/* Navigation Pills */}
-        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1 flex-1">
-          <Button
-            variant={activeTab === 'today' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('today')}
-            className={`rounded-full px-4 h-9 gap-2 transition-all ${
-              activeTab === 'today'
-                ? 'bg-slate-200/60 dark:bg-muted shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span className="text-xs font-semibold">
-              {t('medications.tabs.log', 'Log')}
-            </span>
-          </Button>
-          <Button
-            variant={activeTab === 'cabinet' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('cabinet')}
-            className={`rounded-full px-4 h-9 gap-2 transition-all ${
-              activeTab === 'cabinet'
-                ? 'bg-slate-200/60 dark:bg-muted shadow-sm text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span className="text-xs font-semibold">
-              {t('medications.tabs.cabinet', 'Cabinet')}
-            </span>
-          </Button>
-        </div>
-
-        {/* Vertical Divider (Desktop Only) */}
-        <div className="hidden lg:block w-px h-6 bg-border" />
-
-        {/* Date Filter */}
-        <div className="shrink-0">
-          <DayNavigator
-            selectedDate={selectedDate}
-            onDateChange={(d) => setSearchParams({ date: d })}
-            className="flex items-center justify-end gap-2 mb-0"
-          />
-        </div>
-      </div>
-
-      {activeTab === 'today' && (
+      {view === 'today' && (
         <TodayMedications
           selectedDate={selectedDate}
           today={today}
@@ -154,7 +108,7 @@ export default function Medications() {
         />
       )}
 
-      {activeTab === 'cabinet' && (
+      {view === 'cabinet' && (
         <div className="space-y-6">
           {/* KPI tiles */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -166,14 +120,12 @@ export default function Medications() {
                 ),
                 value: visibleMeds.filter((m) => m.is_active).length,
                 Icon: Pill,
-                color: 'text-emerald-500',
               },
               {
                 label: t('medications.cabinet.supplements', 'Supplements'),
                 value: visibleMeds.filter((m) => m.is_active && m.is_supplement)
                   .length,
                 Icon: Tablets,
-                color: 'text-teal-500',
               },
               {
                 label: t(
@@ -182,25 +134,23 @@ export default function Medications() {
                 ),
                 value: dueTodayCount,
                 Icon: Clock,
-                color: 'text-amber-500',
               },
               {
                 label: t('medications.cabinet.totalMeds', 'Total items'),
                 value: visibleMeds.length,
                 Icon: Activity,
-                color: 'text-slate-500',
               },
             ].map((kpi) => (
               <Card key={kpi.label}>
                 <CardContent className="flex items-center gap-3 p-4">
-                  <div className={`rounded-lg bg-muted p-2 ${kpi.color}`}>
-                    <kpi.Icon className="h-5 w-5" />
+                  <div className="rounded-lg bg-surface-2 p-2 text-muted-foreground">
+                    <kpi.Icon className="h-5 w-5" strokeWidth={1.5} />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold leading-none">
+                    <p className="metric-num text-2xl text-foreground">
                       {kpi.value}
                     </p>
-                    <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+                    <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                       {kpi.label}
                     </p>
                   </div>
@@ -226,7 +176,7 @@ export default function Medications() {
                 <Card
                   key={med.id}
                   onClick={() => setSelectedId(med.id)}
-                  className={`cursor-pointer transition hover:shadow-sm ${
+                  className={`cursor-pointer transition hover:bg-surface-2 ${
                     selectedId === med.id
                       ? 'border-primary ring-1 ring-primary'
                       : ''

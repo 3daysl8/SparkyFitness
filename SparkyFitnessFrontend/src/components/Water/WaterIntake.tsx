@@ -3,6 +3,8 @@ import { instantHourMinute, dayToUtcRange } from '@workspace/shared';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { CircularProgress } from '@/components/ui/circular-progress';
+import { DataRow } from '@/components/biometric/DataRow';
 import {
   Droplet,
   ChevronLeft,
@@ -241,29 +243,53 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center text-base dark:text-slate-300">
-          <Droplet className="w-4 h-4 mr-2" />
+        <CardTitle className="flex items-center gap-2">
+          <Droplet className="size-4 text-muted-foreground" strokeWidth={1.5} />
           {t('waterIntake.title', 'Water Intake')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col justify-between p-3 dark:text-slate-300">
-        {/* Water count display */}
-        <div className="text-center mb-3">
-          <div className="text-xl font-bold">
-            {(() => {
-              const activeUnit = currentContainer?.unit || water_display_unit;
-              const val = convertMlToSelectedUnit(waterMl, activeUnit);
-              const goalVal = convertMlToSelectedUnit(waterGoalMl, activeUnit);
-              const decimals =
-                activeUnit === 'oz' ? 1 : activeUnit === 'liter' ? 2 : 0;
-              return `${parseFloat(val.toFixed(decimals))} / ${parseFloat(goalVal.toFixed(decimals))}`;
-            })()}
-          </div>
-          <div className="text-gray-500 text-xs">
-            {currentContainer?.unit || water_display_unit}
-          </div>
+      <CardContent className="flex-1 flex flex-col justify-between p-3">
+        {/* Water Ring */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 py-2">
+          <CircularProgress
+            value={fillPercentage}
+            size={120}
+            strokeWidth={4}
+            className="text-metric-water"
+            trackClassName="text-surface-2"
+          >
+            <div className="flex flex-col items-center">
+              <span className="metric-num text-2xl text-foreground">
+                {(() => {
+                  const activeUnit =
+                    currentContainer?.unit || water_display_unit;
+                  const val = convertMlToSelectedUnit(waterMl, activeUnit);
+                  const decimals =
+                    activeUnit === 'oz' ? 1 : activeUnit === 'liter' ? 2 : 0;
+                  return parseFloat(val.toFixed(decimals));
+                })()}
+              </span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {t('waterIntake.ofGoal', {
+                  goal: (() => {
+                    const activeUnit =
+                      currentContainer?.unit || water_display_unit;
+                    const goalVal = convertMlToSelectedUnit(
+                      waterGoalMl,
+                      activeUnit
+                    );
+                    const decimals =
+                      activeUnit === 'oz' ? 1 : activeUnit === 'liter' ? 2 : 0;
+                    return parseFloat(goalVal.toFixed(decimals));
+                  })(),
+                  unit: currentContainer?.unit || water_display_unit,
+                  defaultValue: 'of {{goal}} {{unit}}',
+                })}
+              </span>
+            </div>
+          </CircularProgress>
           {foodWaterMl > 0 && (
-            <div className="text-muted-foreground text-xs mt-0.5">
+            <div className="text-xs text-muted-foreground">
               {(() => {
                 const activeUnit = currentContainer?.unit || water_display_unit;
                 const decimals =
@@ -276,49 +302,6 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
               })()}
             </div>
           )}
-        </div>
-
-        {/* Water Bottle Visualization - takes up most space */}
-        <div className="flex-1 flex flex-col items-center justify-center mb-3">
-          <div className="relative flex flex-col items-center">
-            {/* Bottle Cap */}
-            <div className="w-5 h-1.5 bg-blue-400 rounded-t-sm mb-0.5"></div>
-
-            {/* Bottle Neck */}
-            <div className="w-7 h-5 bg-gray-100 dark:bg-slate-200 border-2 border-blue-400 rounded-sm mb-0.5"></div>
-
-            {/* Main Bottle Body */}
-            <div className="relative w-16 h-32 border-3 dark:bg-slate-300 border-blue-400 rounded-xl bg-gray-50 overflow-hidden">
-              {/* Water Fill */}
-              <div
-                className="absolute bottom-0 w-full bg-gradient-to-t from-blue-500 via-blue-400 to-blue-300 transition-all duration-700 ease-out rounded-b-xl"
-                style={{ height: `${fillPercentage}%` }}
-              >
-                {/* Water Surface Ripple Effect */}
-                {fillPercentage > 0 && (
-                  <div className="absolute top-0 w-full h-0.5 bg-blue-200 opacity-60 animate-pulse"></div>
-                )}
-              </div>
-
-              {/* Bottle Highlight */}
-              <div className="absolute top-3 left-2 w-2.5 h-10 bg-white opacity-30 rounded-full"></div>
-
-              {/* Water Level Lines */}
-              <div className="absolute inset-0 flex flex-col justify-between p-0.5">
-                {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-full h-px bg-blue-200 opacity-40"
-                  ></div>
-                ))}
-              </div>
-            </div>
-
-            {/* Progress Percentage */}
-            <div className="text-xs text-gray-600 mt-1.5 font-medium">
-              {Math.round(fillPercentage)}%
-            </div>
-          </div>
         </div>
 
         {/* Intuitive Water Controls: [ - ] VOLUME [ + ] */}
@@ -342,7 +325,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
           </Button>
 
           <div className="text-center min-w-[70px]">
-            <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
+            <div className="metric-num text-sm text-foreground">
               {getVolumeDisplay()}
             </div>
           </div>
@@ -351,26 +334,26 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
             onClick={() => adjustWater(1)}
             disabled={loading}
             size="icon"
-            className="h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white"
+            className="h-8 w-8 rounded-full"
           >
             <Plus className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Container Toggle (Source) */}
-        <div className="flex items-center justify-center mt-3 pt-2 border-t border-gray-100 dark:border-slate-800 space-x-1">
+        <div className="flex items-center justify-center mt-3 pt-2 border-t border-border space-x-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => cycleContainer('prev')}
             disabled={standardContainers.length <= 1}
-            className="h-6 w-6 text-gray-400 hover:text-gray-600"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
           <div className="flex items-center justify-center space-x-1 px-1">
-            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest truncate max-w-[110px]">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-[110px]">
               {currentContainer?.name ||
                 t('waterIntake.defaultContainer', 'Container')}
             </div>
@@ -379,11 +362,11 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                 title={t('waterIntake.linkedDrink', 'Linked to a food entry')}
                 className="inline-flex items-center"
               >
-                <Utensils className="w-2.5 h-2.5 text-blue-500 shrink-0" />
+                <Utensils className="w-2.5 h-2.5 text-metric-water shrink-0" />
               </span>
             )}
             {currentContainer?.is_primary && (
-              <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+              <Star className="w-2.5 h-2.5 text-metric-fasting fill-metric-fasting" />
             )}
           </div>
 
@@ -392,7 +375,7 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
             size="icon"
             onClick={() => cycleContainer('next')}
             disabled={standardContainers.length <= 1}
-            className="h-6 w-6 text-gray-400 hover:text-gray-600"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -400,8 +383,8 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
 
         {/* Quick-Add Drink Presets */}
         {quickAddPresets.length > 0 && (
-          <div className="mt-3 pt-2 border-t border-gray-100 dark:border-slate-800">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">
+          <div className="mt-3 pt-2 border-t border-border">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
               {t('drink_presets.quickAdd', 'Quick-Add Drinks')}
             </div>
             <div className="grid grid-cols-2 gap-1.5">
@@ -410,10 +393,10 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                   key={preset.id}
                   onClick={() => saveWaterIntake(1, preset.id)}
                   disabled={loading}
-                  className="flex items-center justify-between p-1.5 rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-800/60 hover:bg-blue-50/50 dark:hover:bg-slate-700/50 text-left transition-colors cursor-pointer group"
+                  className="flex items-center justify-between p-1.5 rounded-lg border border-border bg-card hover:bg-surface-2 text-left transition-colors cursor-pointer group"
                 >
                   <div className="min-w-0 pr-1">
-                    <div className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">
+                    <div className="text-xs font-medium text-foreground truncate">
                       {preset.name}
                     </div>
                     <div className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -423,13 +406,13 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
                         {describeContainerPress(preset, { nonMlDecimals: 1 })}
                       </span>
                       {preset.hydration_factor === 0 && (
-                        <span className="text-[9px] text-amber-600 dark:text-amber-400 font-mono">
+                        <span className="text-[9px] text-metric-fasting font-mono">
                           0% water
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="shrink-0 h-5 w-5 rounded-full bg-blue-50 dark:bg-blue-950/60 group-hover:bg-blue-600 group-hover:text-white text-blue-600 dark:text-blue-400 flex items-center justify-center transition-colors">
+                  <div className="shrink-0 h-5 w-5 rounded-full bg-surface-2 group-hover:bg-metric-water group-hover:text-background text-metric-water flex items-center justify-center transition-colors">
                     <Plus className="h-3 w-3" />
                   </div>
                 </button>
@@ -440,10 +423,10 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
 
         {/* Drink History Log */}
         {logEntries.length > 0 && (
-          <div className="mt-3 pt-2 border-t border-gray-100 dark:border-slate-800">
+          <div className="mt-3 pt-2 border-t border-border">
             <button
               onClick={() => setShowLog(!showLog)}
-              className="flex items-center justify-between w-full text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              className="flex items-center justify-between w-full text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <span>
                 {t('waterIntake.logTitle', "Today's drinks")} (
@@ -457,129 +440,129 @@ const WaterIntake = ({ selectedDate }: WaterIntakeProps) => {
             </button>
 
             {showLog && (
-              <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+              <div className="mt-2 max-h-40 overflow-y-auto divide-y divide-border">
                 {logEntries.map((entry) => (
-                  <div
+                  <DataRow
                     key={entry.id}
-                    className="flex items-center justify-between py-1 px-1.5 rounded text-xs bg-gray-50 dark:bg-slate-800/50 group"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {editingTimeId === entry.id ? (
-                        <input
-                          type="time"
-                          className="text-xs tabular-nums bg-white dark:bg-slate-700 border border-blue-300 dark:border-blue-600 rounded px-1 py-0.5 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-400 w-[72px]"
-                          defaultValue={getTimeInputValue(
-                            entry.logged_at || entry.created_at
-                          )}
-                          onBlur={(e) =>
-                            handleTimeChange(
-                              entry.id,
-                              entry.entry_date,
-                              e.target.value
-                            )
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
+                    className="group py-1.5"
+                    label={
+                      <span className="flex items-center gap-2">
+                        {editingTimeId === entry.id ? (
+                          <input
+                            type="time"
+                            className="w-[72px] rounded border border-border-strong bg-surface-2 px-1 py-0.5 text-xs tabular-nums text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                            defaultValue={getTimeInputValue(
+                              entry.logged_at || entry.created_at
+                            )}
+                            onBlur={(e) =>
                               handleTimeChange(
                                 entry.id,
                                 entry.entry_date,
-                                (e.target as HTMLInputElement).value
-                              );
-                            } else if (e.key === 'Escape') {
-                              setEditingTimeId(null);
+                                e.target.value
+                              )
                             }
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <button
-                          onClick={() => setEditingTimeId(entry.id)}
-                          className="text-gray-400 dark:text-gray-500 tabular-nums shrink-0 hover:text-blue-500 dark:hover:text-blue-400 hover:underline cursor-pointer transition-colors"
-                          title={t(
-                            'waterIntake.editTime',
-                            'Click to change time'
-                          )}
-                        >
-                          {formatLogTime(entry.logged_at || entry.created_at)}
-                        </button>
-                      )}
-                      <span className="text-gray-600 dark:text-gray-300 truncate">
-                        {entry.container_name ||
-                          t('waterIntake.defaultContainer', 'Container')}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleTimeChange(
+                                  entry.id,
+                                  entry.entry_date,
+                                  (e.target as HTMLInputElement).value
+                                );
+                              } else if (e.key === 'Escape') {
+                                setEditingTimeId(null);
+                              }
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setEditingTimeId(entry.id)}
+                            className="shrink-0 tabular-nums text-muted-foreground hover:text-foreground hover:underline cursor-pointer transition-colors"
+                            title={t(
+                              'waterIntake.editTime',
+                              'Click to change time'
+                            )}
+                          >
+                            {formatLogTime(entry.logged_at || entry.created_at)}
+                          </button>
+                        )}
+                        <span className="truncate">
+                          {entry.container_name ||
+                            t('waterIntake.defaultContainer', 'Container')}
+                        </span>
                       </span>
-                      {entry.food_entry_id && (
-                        <span
-                          title={t(
-                            'waterIntake.linkedDrink',
-                            'Linked to a food entry'
-                          )}
-                          className="inline-flex items-center"
-                        >
-                          <Utensils className="w-3 h-3 text-blue-500 shrink-0" />
-                        </span>
-                      )}
-                      {/* Synced entries are labelled so it's clear why the "-"
-                          control can't remove them; manual rows stay unlabelled
-                          to keep the common case uncluttered. */}
-                      {!isManualSource(entry.source) && (
-                        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-300">
-                          {prettifySource(entry.source)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {/* A drink with a hydration factor of 0 -- an espresso,
-                          a spirit -- credits no water on purpose. Printing a
-                          bare "0 ml" beside it read as a failed calculation
-                          rather than the intended answer. */}
-                      {Number(entry.water_ml) === 0 ? (
-                        <span
-                          className="font-medium text-muted-foreground"
-                          title={t(
-                            'waterIntake.noWaterCreditHint',
-                            'This drink is set to count as no water'
-                          )}
-                        >
-                          {t('waterIntake.noWaterCredit', 'no water')}
-                        </span>
-                      ) : (
-                        <span className="font-medium text-blue-600 dark:text-blue-400">
-                          {(() => {
-                            const val = convertMlToSelectedUnit(
-                              Number(entry.water_ml),
-                              displayUnit
-                            );
-                            const decimals =
-                              displayUnit === 'oz'
-                                ? 1
-                                : displayUnit === 'liter'
-                                  ? 2
-                                  : 0;
-                            return parseFloat(val.toFixed(decimals));
-                          })()}{' '}
-                          {displayUnit}
-                        </span>
-                      )}
-                      {/* Provider-synced rows get no delete: the provider still
-                          holds the record, so a deleted row just re-inserts on
-                          the next sync. */}
-                      {isManualSource(entry.source) && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          onClick={() => deleteLogEntry(entry.id)}
-                          disabled={deleting}
-                          title={t(
-                            'waterIntake.deleteEntry',
-                            'Delete this drink'
-                          )}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                    }
+                    sublabel={
+                      !isManualSource(entry.source)
+                        ? prettifySource(entry.source)
+                        : undefined
+                    }
+                    trailing={
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {entry.food_entry_id && (
+                          <span
+                            title={t(
+                              'waterIntake.linkedDrink',
+                              'Linked to a food entry'
+                            )}
+                            className="inline-flex items-center"
+                          >
+                            <Utensils className="w-3 h-3 text-metric-water shrink-0" />
+                          </span>
+                        )}
+                        {/* A drink with a hydration factor of 0 -- an espresso,
+                            a spirit -- credits no water on purpose. Printing a
+                            bare "0 ml" beside it read as a failed calculation
+                            rather than the intended answer. */}
+                        {Number(entry.water_ml) === 0 ? (
+                          <span
+                            className="metric-num text-xs text-muted-foreground"
+                            title={t(
+                              'waterIntake.noWaterCreditHint',
+                              'This drink is set to count as no water'
+                            )}
+                          >
+                            {t('waterIntake.noWaterCredit', 'no water')}
+                          </span>
+                        ) : (
+                          <span className="metric-num text-xs text-metric-water">
+                            {(() => {
+                              const val = convertMlToSelectedUnit(
+                                Number(entry.water_ml),
+                                displayUnit
+                              );
+                              const decimals =
+                                displayUnit === 'oz'
+                                  ? 1
+                                  : displayUnit === 'liter'
+                                    ? 2
+                                    : 0;
+                              return parseFloat(val.toFixed(decimals));
+                            })()}{' '}
+                            {displayUnit}
+                          </span>
+                        )}
+                        {/* Provider-synced rows get no delete: the provider
+                            still holds the record, so a deleted row just
+                            re-inserts on the next sync. */}
+                        {isManualSource(entry.source) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity text-status-low hover:text-status-low hover:bg-status-low/10"
+                            onClick={() => deleteLogEntry(entry.id)}
+                            disabled={deleting}
+                            title={t(
+                              'waterIntake.deleteEntry',
+                              'Delete this drink'
+                            )}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    }
+                  />
                 ))}
               </div>
             )}

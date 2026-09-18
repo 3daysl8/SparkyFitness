@@ -9,7 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import FastingTimerRing from '../Fasting/FastingTimerRing';
-import { Play, Timer, Square } from 'lucide-react';
+import EmptyState from '../Home/EmptyState';
+import { Timer, Square } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -110,10 +111,10 @@ const HomeDashboardFasting = () => {
     : 0;
 
   return (
-    <Card className="flex flex-col h-full bg-card/50 backdrop-blur-sm border-primary/20">
+    <Card className="flex h-full flex-col">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <Timer className="w-5 h-5 text-primary" />
+        <CardTitle className="flex items-center gap-2">
+          <Timer className="size-4 text-muted-foreground" strokeWidth={1.5} />
           {t('fasting.checklistTitle', 'Fasting Timer')}
         </CardTitle>
         <CardDescription>
@@ -133,21 +134,20 @@ const HomeDashboardFasting = () => {
               />
             </div>
           ) : (
-            <div className="text-center space-y-4 py-4">
-              <div className="w-32 h-32 rounded-full bg-secondary/50 flex items-center justify-center mx-auto border-2 border-dashed border-muted-foreground/30">
-                <span className="text-4xl">🍽️</span>
-              </div>
-              <Button
-                onClick={() => {
-                  setStartLocal(formatForLocalInput(new Date()));
-                  setShowStartDialog(true);
-                }}
-                className="w-full gap-2 font-semibold"
-              >
-                <Play className="w-4 h-4" />
-                {t('fasting.startFast', 'Start Fast')}
-              </Button>
-            </div>
+            <EmptyState
+              icon={
+                <Timer
+                  className="size-6 text-muted-foreground"
+                  strokeWidth={1.5}
+                />
+              }
+              title={t('fasting.readyToStart', 'Ready to start a new fast?')}
+              actionLabel={t('fasting.startFast', 'Start Fast')}
+              onAction={() => {
+                setStartLocal(formatForLocalInput(new Date()));
+                setShowStartDialog(true);
+              }}
+            />
           )}
         </div>
 
@@ -161,7 +161,7 @@ const HomeDashboardFasting = () => {
               variant="destructive"
               size="lg"
               onClick={() => setShowEndDialog(true)}
-              className="w-full shadow-md hover:shadow-lg transition-all"
+              className="w-full"
             >
               <Square className="w-4 h-4 mr-2 fill-current" />
               {t('fasting.endFast', 'End Fast')}
@@ -171,20 +171,20 @@ const HomeDashboardFasting = () => {
 
         {/* Mini Stats Row */}
         {stats && (
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-            <div className="flex flex-col items-center p-2 bg-secondary/20 rounded-lg">
-              <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
+          <div className="grid grid-cols-2 divide-x divide-border border-t border-border pt-4">
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                 {t('fasting.totalFasts', 'Total Fasts')}
               </span>
-              <span className="text-xl font-bold">
+              <span className="metric-num text-2xl text-foreground">
                 {stats.total_completed_fasts}
               </span>
             </div>
-            <div className="flex flex-col items-center p-2 bg-secondary/20 rounded-lg">
-              <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                 {t('fasting.avgDuration', 'Avg Duration')}
               </span>
-              <span className="text-xl font-bold">
+              <span className="metric-num text-2xl text-foreground">
                 {t('fasting.hoursShort', {
                   count: averageDurationHours,
                   defaultValue: `${averageDurationHours}h`,
